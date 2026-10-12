@@ -1,0 +1,34 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# PHP / Laravel
+/backend/vendor/
+/backend/node_modules/
+/backend/public/build/
+/backend/public/hot
+/backend/public/storage
+/backend/storage/*.key
+/backend/.phpunit.result.cache
+/backend/.phpunit.cache
+
+# Node / Next.js
+node_modules/
+/frontend/.next/
+/frontend/out/
+
+# Python tooling
+__pycache__/
+*.pyc
+
+# Generated
+/docs/database/erd.json
+/docs/database/schema.html
