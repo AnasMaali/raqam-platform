@@ -5,13 +5,25 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * Staff (admin) and dormant customer accounts: database/schema/01-identity.sql.
+ * user_type is never mass assignable, so a request can never turn a customer into staff.
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
+
+    /**
+     * The column that holds the Argon2id password hash.
+     *
+     * @var string
+     */
+    protected $authPasswordName = 'password_hash';
 
     /**
      * The attributes that are mass assignable.
@@ -21,7 +33,8 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'password',
+        'phone',
+        'password_hash',
     ];
 
     /**
@@ -30,7 +43,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $hidden = [
-        'password',
+        'password_hash',
         'remember_token',
     ];
 
@@ -43,7 +56,13 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password_hash' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->user_type === 'staff';
     }
 }
