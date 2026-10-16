@@ -7,8 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent   # repository root
 erd = json.loads((ROOT / "docs/database/erd.json").read_text(encoding="utf-8"))
-STATS = [("جدول", "129"), ("مفتاح أجنبي", "197"), ("قيد CHECK", "217"),
-         ("فهرس", "377"), ("Trigger", "45"), ("اختبار ناجح", "74 + 18")]
+STATS = [("جدول", "131"), ("مفتاح أجنبي", "197"), ("قيد CHECK", "220"),
+         ("فهرس", "381"), ("Trigger", "45"), ("اختبار ناجح", "76 + 18")]
 
 NF1 = [
     ("posts.extra (JSON لحقول كل نوع)", "7 جداول فرعية: podcast_episodes، success_stories، products، history_entries، initiatives، roundtable_sessions، awareness_cards (+ infographics)"),
@@ -44,6 +44,7 @@ NF3 = [
 ]
 EXCEPTIONS = [
     ("payment_events.payload (jsonb)", "نسخة أرشيفية لرسالة البنك كما وصلت، لا تُقرأ حقلاً حقلاً"),
+    ("failed_jobs و job_batches (payload، exception، failed_job_ids، options)", "بيانات داخلية لطوابير Laravel (مهمة مسلسلة ورسالة الخطأ) بالشكل اللي بيقرأه الإطار، لا تُقرأ حقلاً حقلاً، والمهام الفاشلة تنحذف بعد 30 يوماً"),
     ("invoices.billed_* و bookings.price_amount", "لقطة تاريخية قانونية لحظة الإصدار/الحجز، ولا تتغير إذا تغيّر العميل أو السعر"),
     ("bookings.status_code مع سجل المراحل", "الحالة الحالية لا تتغير إلا بإضافة صف للسجل، وTrigger يمنع أي تعديل مباشر"),
     ("audit_log.subject_table / subject_id", "بدون مفتاح أجنبي عمداً: السجل لازم يبقى حتى لو انحذف الشيء"),

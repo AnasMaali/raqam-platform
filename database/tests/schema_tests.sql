@@ -332,6 +332,16 @@ INSERT INTO authors (name, slug, job_title, team_sort_order) VALUES ('محرر �
 SELECT pg_temp.expect_fail('team: negative order refused',
   $$INSERT INTO authors (name, slug, team_sort_order) VALUES ('x', 'x', -1)$$);
 
+-- ---------------------------------------------------------------- queue bookkeeping (Laravel)
+INSERT INTO failed_jobs (uuid, connection, queue, payload, exception)
+VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1e', 'redis', 'default', '{}', 'RuntimeException');
+SELECT pg_temp.expect_fail('failed_jobs: same uuid twice',
+  $$INSERT INTO failed_jobs (uuid, connection, queue, payload, exception)
+    VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1e', 'redis', 'default', '{}', 'x')$$);
+SELECT pg_temp.expect_fail('job_batches: negative pending count',
+  $$INSERT INTO job_batches (id, name, total_jobs, pending_jobs, failed_jobs, failed_job_ids, created_at)
+    VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1f', 'newsletter', 1, -1, 0, '[]', 1760000000)$$);
+
 -- ---------------------------------------------------------------- report
 \o
 \set QUIET off

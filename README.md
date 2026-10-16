@@ -31,7 +31,7 @@ frontend/   Next.js website            (later)
 
 ## Database
 
-129 tables in 17 modules. The database enforces the business rules itself
+131 tables in 17 modules. The database enforces the business rules itself
 (CHECK constraints, domains, exclusion constraints, deferred and immutable
 triggers), so invalid data is rejected even if application code has a bug.
 

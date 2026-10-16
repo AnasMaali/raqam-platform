@@ -4,7 +4,7 @@
 
 المصدر: `database/raqam_schema.sql` (PostgreSQL 16). المخططات أدناه مولّدة تلقائياً من قاعدة البيانات نفسها.
 
-**129** جدول | **197** مفتاح أجنبي | **217** قيد CHECK | **377** فهرس | **45** Trigger | **74 + 18** اختبار ناجح
+**131** جدول | **197** مفتاح أجنبي | **220** قيد CHECK | **381** فهرس | **45** Trigger | **76 + 18** اختبار ناجح
 
 ## 1NF — قيم ذرية بدون قوائم داخل الحقول
 
@@ -52,6 +52,7 @@
 | العنصر | السبب |
 |---|---|
 | payment_events.payload (jsonb) | نسخة أرشيفية لرسالة البنك كما وصلت، لا تُقرأ حقلاً حقلاً |
+| failed_jobs و job_batches (payload، exception، failed_job_ids، options) | بيانات داخلية لطوابير Laravel (مهمة مسلسلة ورسالة الخطأ) بالشكل اللي بيقرأه الإطار، لا تُقرأ حقلاً حقلاً، والمهام الفاشلة تنحذف بعد 30 يوماً |
 | invoices.billed_* و bookings.price_amount | لقطة تاريخية قانونية لحظة الإصدار/الحجز، ولا تتغير إذا تغيّر العميل أو السعر |
 | bookings.status_code مع سجل المراحل | الحالة الحالية لا تتغير إلا بإضافة صف للسجل، وTrigger يمنع أي تعديل مباشر |
 | audit_log.subject_table / subject_id | بدون مفتاح أجنبي عمداً: السجل لازم يبقى حتى لو انحذف الشيء |
@@ -229,6 +230,27 @@ erDiagram
     varchar doc_type PK
     smallint year PK
     integer last_value
+  }
+  failed_jobs {
+    bigint id PK
+    uuid uuid UK
+    text connection
+    text queue
+    text payload
+    text exception
+    timestamptz failed_at
+  }
+  job_batches {
+    uuid id PK
+    text name
+    integer total_jobs
+    integer pending_jobs
+    integer failed_jobs
+    text failed_job_ids
+    text options
+    bigint cancelled_at
+    bigint created_at
+    bigint finished_at
   }
   data_providers ||--o| provider_health : "provider_code"
   feature_flags |o--o{ feature_flags : "depends_on"
