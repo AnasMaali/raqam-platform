@@ -2,7 +2,7 @@ name: Database
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**"]
     paths:
       - "database/**"
       - ".github/workflows/database.yml"
