@@ -5,7 +5,8 @@
 # The script builds one database from those SQL files and one with `php artisan migrate`,
 # then compares their pg_dump output (Laravel's own `migrations` table and sequence excluded).
 # Once every schema file has its migration, the comparison covers all of raqam_schema.sql.
-# It also checks that rolling every migration back leaves an empty database.
+# It then rolls back one migration at a time and checks every intermediate state,
+# down to an empty database.
 #
 # Usage: PGHOST=127.0.0.1 PGUSER=raqam ./scripts/check-schema-parity.sh
 # (password from ~/.pgpass or PGPASSWORD; the role needs CREATEDB)
@@ -78,13 +79,21 @@ else
   echo "    ${#covered[@]}/${#all_files[@]} schema files covered so far"
 fi
 
-echo "==> Rolling every migration back"
-migrate migrate:reset
-dropdb "$REF_DB"; createdb "$REF_DB"
-dump "$REF_DB" > "$WORK/empty.sql"
-dump "$MIG_DB" > "$WORK/after_reset.sql"
-if ! diff -u "$WORK/empty.sql" "$WORK/after_reset.sql"; then
-  echo "::error::down() left objects behind"
-  exit 1
-fi
-echo "    empty database after reset"
+echo "==> Rolling back one migration at a time"
+# After each step the database must equal the SQL files that are still covered,
+# so every down() is checked on its own, down to an empty database.
+for (( k = ${#covered[@]} - 1; k >= 0; k-- )); do
+  migrate migrate:rollback --step=1
+  dropdb --if-exists "$REF_DB"; createdb "$REF_DB"
+  for (( i = 0; i < k; i++ )); do
+    psql -v ON_ERROR_STOP=1 -q -d "$REF_DB" -f "$SCHEMA/${covered[$i]}" >/dev/null
+  done
+  dump "$REF_DB" > "$WORK/ref.sql"
+  dump "$MIG_DB" > "$WORK/migrated.sql"
+  if ! diff -u "$WORK/ref.sql" "$WORK/migrated.sql"; then
+    echo "::error::down() of ${covered[$k]} does not restore the previous state"
+    exit 1
+  fi
+  echo "    ${covered[$k]} rolled back"
+done
+echo "    empty database after a full rollback"
