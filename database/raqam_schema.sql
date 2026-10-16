@@ -2060,7 +2060,14 @@ CREATE FUNCTION trg_audit_append_only() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' AND current_setting('raqam.audit_prune', true) = 'on' THEN
-    IF TG_TABLE_NAME = 'audit_log' AND OLD.occurred_at >= now() - interval '2 years' THEN
+    IF TG_TABLE_NAME = 'audit_log' THEN
+      IF OLD.occurred_at >= now() - interval '2 years' THEN
+        RAISE EXCEPTION 'Audit rows younger than 2 years cannot be pruned' USING ERRCODE = 'check_violation';
+      END IF;
+    -- audit_log_changes: only together with its (old) parent row; the cascade
+    -- runs after the parent is gone, so a still-visible young parent means a direct delete.
+    ELSIF EXISTS (SELECT 1 FROM audit_log
+                  WHERE id = OLD.audit_id AND occurred_at >= now() - interval '2 years') THEN
       RAISE EXCEPTION 'Audit rows younger than 2 years cannot be pruned' USING ERRCODE = 'check_violation';
     END IF;
     RETURN OLD;

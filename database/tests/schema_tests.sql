@@ -302,6 +302,19 @@ SELECT pg_temp.expect_fail('audit: DELETE refused', $$DELETE FROM audit_log$$);
 SELECT pg_temp.expect_fail('audit: change rows immutable', $$UPDATE audit_log_changes SET new_value = 'x'$$);
 SELECT pg_temp.expect_fail('audit: pruning young rows refused',
   $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log$$);
+SELECT pg_temp.expect_fail('audit: pruning changes of a young row refused',
+  $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log_changes$$);
+INSERT INTO audit_log (action, subject_table, subject_id, occurred_at)
+VALUES ('update', 'posts', 2, now() - interval '3 years');
+INSERT INTO audit_log_changes (audit_id, field, old_value, new_value)
+SELECT max(id), 'title', 'قديم', 'جديد' FROM audit_log;
+BEGIN;
+  SET LOCAL raqam.audit_prune = 'on';
+  DELETE FROM audit_log WHERE occurred_at < now() - interval '2 years';
+COMMIT;
+SELECT pg_temp.expect_eq('audit: pruning removes an old row with its changes',
+  (SELECT count(*)::text FROM audit_log_changes c JOIN audit_log a ON a.id = c.audit_id
+   WHERE a.occurred_at < now() - interval '2 years'), '0');
 
 -- ---------------------------------------------------------------- analytics
 INSERT INTO post_views_daily SELECT id, d, v FROM posts, (VALUES (current_date - 1, 40), (current_date, 60)) x(d, v) WHERE slug = 'ارتفاع-الدولار';
