@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\DB;
 afterEach(function () {
     // The prohibition is static: never let it leak into the next test.
     DB::prohibitDestructiveCommands(false);
+
+    // Leave a clean, fully migrated database for tests that use RefreshDatabase.
+    $this->artisan('migrate:fresh', ['--force' => true])->assertSuccessful();
 });
 
 test('migrate:fresh rebuilds the schema migrations more than once', function () {
