@@ -28,7 +28,8 @@ test('a deleted account frees its e-mail', function () {
 });
 
 test('only staff can hold a role', function () {
-    $role = DB::table('roles')->insertGetId(['code' => 'admin', 'name_ar' => 'مدير المنصة']);
+    ensure('roles', ['code' => 'admin', 'name_ar' => 'مدير المنصة', 'is_system' => true]);
+    $role = DB::table('roles')->where('code', 'admin')->value('id');
     $staff = insertUser('staff', 'admin@raqam.ps');
     $customer = insertUser('customer', 'ali@example.com');
 

@@ -3,7 +3,7 @@
 #
 # Each migration named *_schema_NN_<module>.php mirrors database/schema/NN-<module>.sql.
 # The script builds one database from those SQL files and one with `php artisan migrate`,
-# then compares their pg_dump output (Laravel's own `migrations` table and sequence excluded).
+# then compares their pg_dump output (schema and rows) (Laravel's own `migrations` table and sequence excluded).
 # Once every schema file has its migration, the comparison covers all of raqam_schema.sql.
 # It then rolls back one migration at a time and checks every intermediate state,
 # down to an empty database.
@@ -28,10 +28,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Schema-only dump without owners, grants, comments-as-headers or the random \restrict key.
+# Schema and data (the seed rows count too), without owners, grants, comment headers or the random \restrict key.
+# Timestamps written by now() defaults differ between the two builds, so they are masked.
 dump() {
-  pg_dump --schema-only --no-owner --no-privileges --exclude-table=migrations --exclude-table=migrations_id_seq "$1" \
-    | sed -E '/^\\(un)?restrict /d; /^--/d; /^$/d'
+  pg_dump --no-owner --no-privileges --exclude-table=migrations --exclude-table=migrations_id_seq "$1" \
+    | sed -E '/^\\(un)?restrict /d; /^--/d; /^$/d' \
+    | sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?[+-][0-9]{2}(:[0-9]{2})?/<now()>/g'
 }
 
 migrate() {
