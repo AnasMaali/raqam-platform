@@ -77,3 +77,81 @@ function insertMedia(array $overrides = []): int
         'width' => 800, 'height' => 600, ...$overrides,
     ]);
 }
+
+function insertCategory(string $slug, ?int $parent = null): int
+{
+    return DB::table('categories')->insertGetId(['parent_id' => $parent, 'name_ar' => $slug, 'slug' => $slug]);
+}
+
+function insertYoutubeVideo(string $youtubeId): int
+{
+    $video = DB::table('videos')->insertGetId(['source' => 'youtube']);
+    DB::table('youtube_videos')->insert(['video_id' => $video, 'youtube_id' => $youtubeId, 'source_title' => 'حلقة']);
+
+    return $video;
+}
+
+function insertUploadedVideo(): int
+{
+    return DB::table('videos')->insertGetId([
+        'source' => 'upload', 'display_title' => 'مقطع',
+        'upload_media_id' => insertMedia(['mime_type' => 'video/mp4', 'alt_text' => null, 'duration_seconds' => 30, 'width' => 1080, 'height' => 1920]),
+    ]);
+}
+
+// The 7 sections and 11 post kinds, as database/schema/12-seed-reference.sql inserts them.
+function ensurePostKinds(): void
+{
+    DB::statement(<<<'SQL'
+        INSERT INTO sections (key, name_ar, slug, sort_order) VALUES
+          ('podcast',         'البودكاست',              'podcast',          1),
+          ('success_stories', 'قصص نجاح',               'success-stories',  2),
+          ('made_in_nablus',  'صُنع في نابلس',           'made-in-nablus',   3),
+          ('nablus_history',  'تاريخ نابلس الاقتصادي',  'history',          4),
+          ('initiatives',     'مبادرات اقتصادية',       'initiatives',      5),
+          ('round_table',     'طاولة مستديرة',          'round-table',      6),
+          ('awareness',       'التوعية',                 'awareness',        7)
+        ON CONFLICT DO NOTHING
+        SQL);
+    DB::statement(<<<'SQL'
+        INSERT INTO post_kinds (code, name_ar, section_id, requires_category, schema_org_type, sort_order)
+        SELECT k.code, k.name_ar, s.id, k.requires_category, k.schema_org_type, k.sort_order
+        FROM (VALUES
+          ('news',        'خبر',             NULL,              true,  'NewsArticle',          1),
+          ('report',      'تقرير',           NULL,              true,  'ReportageNewsArticle', 2),
+          ('opinion',     'مقال رأي',        NULL,              true,  'OpinionNewsArticle',   3),
+          ('infographic', 'إنفوغراف',        NULL,              true,  'NewsArticle',          4),
+          ('episode',     'حلقة بودكاست',    'podcast',         false, 'Article',              5),
+          ('story',       'قصة نجاح',        'success_stories', false, 'Article',              6),
+          ('product',     'منتج',            'made_in_nablus',  false, 'Article',              7),
+          ('history',     'تاريخ',           'nablus_history',  false, 'Article',              8),
+          ('initiative',  'مبادرة',          'initiatives',     false, 'Article',              9),
+          ('roundtable',  'جلسة طاولة مستديرة', 'round_table',  false, 'Article',             10),
+          ('awareness',   'بطاقة توعية',     'awareness',       false, 'Article',             11)
+        ) AS k(code, name_ar, section_key, requires_category, schema_org_type, sort_order)
+        LEFT JOIN sections s ON s.key = k.section_key
+        ON CONFLICT DO NOTHING
+        SQL);
+}
+
+// A draft post; tests override only what they exercise.
+function insertPost(array $overrides = []): int
+{
+    static $n = 0;
+    $n++;
+    ensurePostKinds();
+
+    return DB::table('posts')->insertGetId(['kind_code' => 'news', 'title' => "خبر {$n}", 'slug' => "خبر-{$n}", ...$overrides]);
+}
+
+// A post that satisfies every publishing rule of a news kind.
+function publishedPostValues(array $overrides = []): array
+{
+    static $n = 0;
+    $n++;
+
+    return [
+        'category_id' => insertCategory("تصنيف-{$n}"), 'body' => '<p>نص</p>', 'status' => 'published',
+        'published_at' => now(), 'cover_media_id' => insertMedia(), ...$overrides,
+    ];
+}

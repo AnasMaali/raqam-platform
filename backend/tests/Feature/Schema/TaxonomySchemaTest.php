@@ -8,11 +8,6 @@ uses(RefreshDatabase::class);
 
 // Rules enforced by database/schema/04-taxonomy-people.sql, ported from database/tests/schema_tests.sql.
 
-function insertCategory(string $slug, ?int $parent = null): int
-{
-    return DB::table('categories')->insertGetId(['parent_id' => $parent, 'name_ar' => $slug, 'slug' => $slug]);
-}
-
 test('categories have only one sub-level', function () {
     $sub = insertCategory('اختبار-فرعي', insertCategory('اختبار-رئيسي'));
 

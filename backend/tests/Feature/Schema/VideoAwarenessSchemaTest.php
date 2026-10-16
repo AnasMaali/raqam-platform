@@ -8,22 +8,6 @@ uses(RefreshDatabase::class);
 
 // Rules enforced by database/schema/05-video-awareness.sql, ported from database/tests/schema_tests.sql.
 
-function insertYoutubeVideo(string $youtubeId): int
-{
-    $video = DB::table('videos')->insertGetId(['source' => 'youtube']);
-    DB::table('youtube_videos')->insert(['video_id' => $video, 'youtube_id' => $youtubeId, 'source_title' => 'حلقة']);
-
-    return $video;
-}
-
-function insertUploadedVideo(): int
-{
-    return DB::table('videos')->insertGetId([
-        'source' => 'upload', 'display_title' => 'مقطع',
-        'upload_media_id' => insertMedia(['mime_type' => 'video/mp4', 'alt_text' => null, 'duration_seconds' => 30, 'width' => 1080, 'height' => 1920]),
-    ]);
-}
-
 test('an uploaded video needs its file', function () {
     expect(rejected(fn () => DB::table('videos')->insert(['source' => 'upload', 'display_title' => 'مقطع'])))
         ->toThrow(QueryException::class, '"videos_check"');
