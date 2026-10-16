@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -44,7 +45,35 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+// A failing statement aborts a PostgreSQL transaction; the savepoint keeps the test's own transaction usable.
+function rejected(Closure $statement): Closure
 {
-    // ..
+    return fn () => DB::transaction($statement);
+}
+
+// Reference data that database/schema/12-seed-reference.sql may already hold: matching on the natural key
+// gives every test the same state before and after the seed migration.
+function ensure(string $table, array $key, array $values = []): void
+{
+    DB::table($table)->updateOrInsert($key, $values);
+}
+
+function insertUser(string $type, string $email, array $extra = []): int
+{
+    return DB::table('users')->insertGetId([
+        'user_type' => $type, 'name' => 'User', 'email' => $email, 'password_hash' => 'x', ...$extra,
+    ]);
+}
+
+// A valid public JPEG; tests override only the column they exercise.
+function insertMedia(array $overrides = []): int
+{
+    static $n = 0;
+    $n++;
+
+    return DB::table('media_assets')->insertGetId([
+        'path' => "test/{$n}.jpg", 'original_name' => "{$n}.jpg", 'mime_type' => 'image/jpeg',
+        'size_bytes' => 1000, 'checksum_sha256' => hash('sha256', (string) $n), 'alt_text' => 'صورة',
+        'width' => 800, 'height' => 600, ...$overrides,
+    ]);
 }

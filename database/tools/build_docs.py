@@ -7,8 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent   # repository root
 erd = json.loads((ROOT / "docs/database/erd.json").read_text(encoding="utf-8"))
-STATS = [("جدول", "131"), ("مفتاح أجنبي", "197"), ("قيد CHECK", "220"),
-         ("فهرس", "381"), ("Trigger", "45"), ("اختبار ناجح", "76 + 18")]
+STATS = [("جدول", "131"), ("مفتاح أجنبي", "197"), ("قيد CHECK", "222"),
+         ("فهرس", "381"), ("Trigger", "45"), ("اختبار ناجح", "80 + 18")]
 
 NF1 = [
     ("posts.extra (JSON لحقول كل نوع)", "7 جداول فرعية: podcast_episodes، success_stories، products، history_entries، initiatives، roundtable_sessions، awareness_cards (+ infographics)"),

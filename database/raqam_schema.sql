@@ -288,6 +288,12 @@ CREATE TABLE media_assets (
   deleted_at        timestamptz,
   UNIQUE (disk, path),
   CHECK ((focal_x IS NULL) = (focal_y IS NULL)),
+  -- Dimensions: both or neither, for every type
+  CHECK ((width IS NULL) = (height IS NULL)),
+  -- Raster images and video need dimensions (no layout shift; ffprobe reads them with
+  -- the duration). SVG and Rive are exempt.
+  CHECK (mime_type NOT IN ('image/jpeg', 'image/png', 'image/webp', 'image/avif', 'video/mp4')
+         OR width IS NOT NULL),
   -- 9.2: alt text is mandatory for every public raster/vector image
   CHECK (mime_type NOT LIKE 'image/%' OR visibility = 'private' OR alt_text IS NOT NULL),
   -- 9.9: size limits (stored file, after compression)

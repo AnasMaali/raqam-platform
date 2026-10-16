@@ -57,18 +57,32 @@ INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد');
 
 -- ---------------------------------------------------------------- media
 SELECT pg_temp.expect_fail('media: public image without alt text',
-  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256)
-    VALUES ('a/1.jpg', '1.jpg', 'image/jpeg', 1000, repeat('a', 64))$$);
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, width, height)
+    VALUES ('a/1.jpg', '1.jpg', 'image/jpeg', 1000, repeat('a', 64), 800, 600)$$);
 SELECT pg_temp.expect_fail('media: uploaded clip longer than 90 s',
-  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds)
-    VALUES ('v/1.mp4', '1.mp4', 'video/mp4', 1000, repeat('b', 64), 120)$$);
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds, width, height)
+    VALUES ('v/1.mp4', '1.mp4', 'video/mp4', 1000, repeat('b', 64), 120, 1920, 1080)$$);
 SELECT pg_temp.expect_fail('media: image over 10 MB',
-  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
-    VALUES ('a/big.jpg', 'big.jpg', 'image/jpeg', 11 * 1024 * 1024, repeat('c', 64), 'alt')$$);
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width, height)
+    VALUES ('a/big.jpg', 'big.jpg', 'image/jpeg', 11 * 1024 * 1024, repeat('c', 64), 'alt', 4000, 3000)$$);
 INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width, height)
 VALUES ('a/cover.jpg', 'cover.jpg', 'image/jpeg', 200000, repeat('d', 64), 'صورة الغلاف', 1600, 900),
        ('a/pose.png',  'pose.png',  'image/png',  50000,  repeat('e', 64), 'شخصية رقم', 800, 800),
        ('a/pdf.pdf',   'inv.pdf',   'application/pdf', 50000, repeat('f', 64), NULL, NULL, NULL);
+SELECT pg_temp.expect_fail('media: raster image without dimensions',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
+    VALUES ('a/nodim.jpg', 'nodim.jpg', 'image/jpeg', 1000, repeat('7', 64), 'alt')$$);
+SELECT pg_temp.expect_fail('media: video without dimensions',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds)
+    VALUES ('v/nodim.mp4', 'nodim.mp4', 'video/mp4', 1000, repeat('8', 64), 30)$$);
+SELECT pg_temp.expect_fail('media: width without height',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width)
+    VALUES ('a/half.svg', 'half.svg', 'image/svg+xml', 1000, repeat('9', 64), 'alt', 100)$$);
+INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
+VALUES ('a/logo.svg', 'logo.svg', 'image/svg+xml', 3000, repeat('0', 64), 'شعار رقم'),
+       ('a/raqam.riv', 'raqam.riv', 'application/x-rive', 90000, repeat('3', 64), NULL);
+SELECT pg_temp.expect_eq('media: SVG and Rive need no dimensions',
+  (SELECT count(*)::text FROM media_assets WHERE path IN ('a/logo.svg', 'a/raqam.riv')), '2');
 
 -- ---------------------------------------------------------------- taxonomy
 INSERT INTO categories (parent_id, name_ar, slug)
