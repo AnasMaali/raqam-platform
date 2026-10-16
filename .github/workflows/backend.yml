@@ -1,0 +1,104 @@
+name: Backend
+
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "backend/**"
+      - "database/schema/**"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "database/schema/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Pest & schema parity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    # Throwaway credentials of the CI service containers only.
+    # The app role mirrors local development: CREATEDB, not a superuser.
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: raqam
+      PGPASSWORD: raqam
+      DB_HOST: 127.0.0.1
+      DB_USERNAME: raqam
+      DB_PASSWORD: raqam
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pgsql, pdo_pgsql, redis, mbstring, intl, bcmath
+          tools: composer:v2
+          coverage: none
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Create the app role and test database
+        env:
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE ROLE raqam LOGIN CREATEDB PASSWORD 'raqam'"
+          createdb -O raqam raqam_testing
+
+      - name: Composer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare environment
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Pest
+        run: php artisan test
+
+      - name: Schema parity (migrations == database/schema)
+        run: ./scripts/check-schema-parity.sh
