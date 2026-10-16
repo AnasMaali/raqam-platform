@@ -155,3 +155,19 @@ function publishedPostValues(array $overrides = []): array
         'published_at' => now(), 'cover_media_id' => insertMedia(), ...$overrides,
     ];
 }
+
+// The currencies and the two data providers that rates and weather rows reference, as seeded.
+function ensureCurrencies(): void
+{
+    ensure('currencies',
+        ['code' => 'ILS', 'name_ar' => 'شيكل إسرائيلي', 'symbol' => '₪', 'minor_units' => 2],
+        ['code' => 'USD', 'name_ar' => 'دولار أمريكي', 'symbol' => '$', 'minor_units' => 2],
+        ['code' => 'JOD', 'name_ar' => 'دينار أردني', 'symbol' => 'د.أ', 'minor_units' => 3],
+        ['code' => 'AED', 'name_ar' => 'درهم إماراتي', 'symbol' => 'د.إ', 'minor_units' => 2],
+        ['code' => 'SAR', 'name_ar' => 'ريال سعودي', 'symbol' => 'ر.س', 'minor_units' => 2],
+    );
+    ensure('data_providers',
+        ['code' => 'bank_of_israel', 'service' => 'currency', 'name' => 'Bank of Israel representative rates (official, free)', 'is_active' => true, 'is_backup' => false],
+        ['code' => 'openweathermap', 'service' => 'weather', 'name' => 'OpenWeatherMap (free)', 'is_active' => true, 'is_backup' => false],
+    );
+}
