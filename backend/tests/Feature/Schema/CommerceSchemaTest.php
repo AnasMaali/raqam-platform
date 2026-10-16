@@ -30,18 +30,6 @@ function insertCampaign(array $overrides = []): int
     ]);
 }
 
-function insertService(array $overrides = []): int
-{
-    ensureCurrencies();
-    ensure('service_groups', ['name_ar' => 'تغطيات إعلامية', 'sort_order' => 1]);
-
-    return DB::table('services')->insertGetId([
-        'group_id' => DB::table('service_groups')->where('name_ar', 'تغطيات إعلامية')->value('id'),
-        'name_ar' => 'حلقة بودكاست', 'slug' => 'service-'.uniqid(), 'summary' => 'استضافة في حلقة',
-        'price_mode' => 'fixed', 'price_amount' => 30000, 'currency_code' => 'USD', ...$overrides,
-    ]);
-}
-
 function ensureBookingWorkflow(): void
 {
     DB::statement(<<<'SQL'
