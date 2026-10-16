@@ -51,11 +51,11 @@ function rejected(Closure $statement): Closure
     return fn () => DB::transaction($statement);
 }
 
-// Reference data that database/schema/12-seed-reference.sql may already hold: matching on the natural key
-// gives every test the same state before and after the seed migration.
-function ensure(string $table, array $key, array $values = []): void
+// Reference rows exactly as database/schema/12-seed-reference.sql inserts them. Rows the seed already
+// holds are skipped, so every test sees the same state before and after the seed migration.
+function ensure(string $table, array ...$rows): void
 {
-    DB::table($table)->updateOrInsert($key, $values);
+    DB::table($table)->insertOrIgnore($rows);
 }
 
 function insertUser(string $type, string $email, array $extra = []): int

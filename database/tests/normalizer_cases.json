@@ -1,0 +1,75 @@
+[
+  {
+    "input": "أسعار الذهب",
+    "expected": "اسعار الذهب"
+  },
+  {
+    "input": "إعلان",
+    "expected": "اعلان"
+  },
+  {
+    "input": "آخر الأخبار",
+    "expected": "اخر الاخبار"
+  },
+  {
+    "input": "ٱلقدس",
+    "expected": "القدس"
+  },
+  {
+    "input": "الطاقة الشمسية",
+    "expected": "الطاقه الشمسيه"
+  },
+  {
+    "input": "مستشفى",
+    "expected": "مستشفي"
+  },
+  {
+    "input": "مسؤول",
+    "expected": "مسوول"
+  },
+  {
+    "input": "مسئول",
+    "expected": "مسيول",
+    "note": "spelling variant: 1 letter apart -> covered by typo tolerance / synonyms"
+  },
+  {
+    "input": "شاطئ",
+    "expected": "شاطي"
+  },
+  {
+    "input": "اقْتِصَادُ",
+    "expected": "اقتصاد"
+  },
+  {
+    "input": "نابلـــس",
+    "expected": "نابلس"
+  },
+  {
+    "input": "سعر الدولار ٣٫٧٥",
+    "expected": "سعر الدولار 3٫75"
+  },
+  {
+    "input": "عام ۲۰۲۶",
+    "expected": "عام 2026"
+  },
+  {
+    "input": "  رَقَم\tمنصة   اقتصادية  ",
+    "expected": "رقم منصه اقتصاديه"
+  },
+  {
+    "input": "Bank of PALESTINE",
+    "expected": "bank of palestine"
+  },
+  {
+    "input": "USD/ILS",
+    "expected": "usd/ils"
+  },
+  {
+    "input": "هل تعلم؟",
+    "expected": "هل تعلم؟"
+  },
+  {
+    "input": "",
+    "expected": ""
+  }
+]

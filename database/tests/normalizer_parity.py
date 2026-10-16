@@ -17,26 +17,8 @@ def psql_cmd(db):
 DB = sys.argv[1]
 ROOT = Path(__file__).resolve().parent.parent
 
-CASES = [
-    ("أسعار الذهب", "اسعار الذهب"),
-    ("إعلان", "اعلان"),
-    ("آخر الأخبار", "اخر الاخبار"),
-    ("ٱلقدس", "القدس"),
-    ("الطاقة الشمسية", "الطاقه الشمسيه"),
-    ("مستشفى", "مستشفي"),
-    ("مسؤول", "مسوول"),
-    ("مسئول", "مسيول"),   # spelling variant: 1 letter apart -> covered by typo tolerance / synonyms
-    ("شاطئ", "شاطي"),
-    ("اقْتِصَادُ", "اقتصاد"),
-    ("نابلـــس", "نابلس"),
-    ("سعر الدولار ٣٫٧٥", "سعر الدولار 3٫75"),
-    ("عام ۲۰۲۶", "عام 2026"),
-    ("  رَقَم\tمنصة   اقتصادية  ", "رقم منصه اقتصاديه"),
-    ("Bank of PALESTINE", "bank of palestine"),
-    ("USD/ILS", "usd/ils"),
-    ("هل تعلم؟", "هل تعلم؟"),
-    ("", ""),
-]
+# Shared with the backend Pest suite (tests/Feature/Schema/SearchNormalizationTest.php).
+CASES = [(c["input"], c["expected"]) for c in json.loads((ROOT / "tests/normalizer_cases.json").read_text(encoding="utf-8"))]
 
 php = f"""
 require '{ROOT}/php/ArabicNormalizer.php';
