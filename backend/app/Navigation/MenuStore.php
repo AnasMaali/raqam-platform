@@ -3,6 +3,7 @@
 namespace App\Navigation;
 
 use App\Audit\AuditLogger;
+use App\Support\SafeUrl;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -185,7 +186,7 @@ final class MenuStore
                 'page_id' => ['required_if:type,page', 'nullable', 'integer', 'min:1', 'max:2147483647', 'exists:pages,id'],
                 'category_id' => ['required_if:type,category', 'nullable', 'integer', 'min:1', 'max:2147483647', 'exists:categories,id'],
                 'section_id' => ['required_if:type,section', 'nullable', 'integer', 'min:1', 'max:32767', 'exists:sections,id'],   // smallint in the table
-                'url' => ['required_if:type,url', 'nullable', 'max:500', 'regex:'.self::URL_PATTERN],
+                'url' => ['required_if:type,url', 'nullable', 'max:500', 'regex:'.SafeUrl::PATTERN],
             ], [
                 'label_ar.required' => 'اكتب اسم الرابط.',
                 'label_ar.max' => 'الاسم أطول من 60 حرفاً.',
@@ -211,9 +212,6 @@ final class MenuStore
             throw ValidationException::withMessages($errors);
         }
     }
-
-    /** A site path ("/about", not "//host" or "/\host") or an http(s) address. */
-    private const URL_PATTERN = '~^(/(?![/\\\\])[^\s]*|https?://[^\s/][^\s]*)$~';
 
     /** One line per link, for the audit trail. */
     private function describe(array $tree): string
