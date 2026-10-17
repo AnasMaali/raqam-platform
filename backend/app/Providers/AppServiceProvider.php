@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Console\WipeDatabaseCommand;
+use App\Support\ProductionChecks;
 use Illuminate\Database\Console\WipeCommand;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
@@ -25,5 +26,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+
+        if ($this->app->isProduction() && ProductionChecks::appliesTo($this->app->runningInConsole(), $_SERVER['argv'][1] ?? null)) {
+            ProductionChecks::enforce();
+        }
     }
 }

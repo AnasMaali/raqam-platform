@@ -46,6 +46,7 @@ test('destructive commands are refused in production, even with --force', functi
     $this->artisan('migrate:fresh')->assertSuccessful();
     DB::table('document_counters')->insert(['doc_type' => 'invoice', 'year' => 2026, 'last_value' => 7]);
 
+    productionConfig();   // the production boot also checks the configuration
     app()->detectEnvironment(fn () => 'production');
     (new AppServiceProvider(app()))->boot();
 

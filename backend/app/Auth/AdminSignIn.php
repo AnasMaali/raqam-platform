@@ -116,6 +116,7 @@ final class AdminSignIn
         Filament::auth()->login($user);
         session()->regenerate();
         $this->forget();
+        app(AdminSessionLimits::class)->start();
         app(KnownDevices::class)->recognise($user);          // the device cookie exists only after the code
 
         return $user;

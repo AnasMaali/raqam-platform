@@ -20,6 +20,15 @@ class AdminLogin extends Login
 {
     public const PASSWORD_MAX_LENGTH = 128;
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        if (request()->boolean('expired')) {
+            Notification::make()->warning()->title('انتهت الجلسة، سجّل الدخول من جديد.')->send();
+        }
+    }
+
     public function authenticate(): ?LoginResponse
     {
         $data = $this->form->getState();

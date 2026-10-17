@@ -237,3 +237,24 @@ function insertPayment(int $booking, array $overrides = []): int
         'paid_at' => now(), ...$overrides,
     ]);
 }
+
+/** A configuration that passes every check; each test spoils exactly one thing. */
+function productionConfig(array $overrides = []): void
+{
+    config([
+        'app.debug' => false,
+        'app.key' => 'base64:'.base64_encode(random_bytes(32)),
+        'mail.default' => 'smtp',
+        'session.secure' => true,
+        'session.http_only' => true,
+        'session.same_site' => 'strict',
+        'session.cookie' => '__Host-raqam_session',
+        'session.path' => '/',
+        'session.domain' => null,
+        'session.lifetime' => 30,
+        'raqam.auth.code_key' => 'a-code-key',
+        'raqam.tracking_key' => 'a-tracking-key',
+        'raqam.admin_path' => 'some-path',
+        ...$overrides,
+    ]);
+}
