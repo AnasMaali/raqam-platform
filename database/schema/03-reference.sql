@@ -96,7 +96,10 @@ CREATE TABLE settings (
   CHECK (value IS NULL OR value_type <> 'boolean' OR value IN ('true', 'false')),
   CHECK (value IS NULL OR value_type <> 'url'     OR value ~* '^https?://'),
   CHECK (value IS NULL OR value_type <> 'time'    OR value ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
-  CHECK (value IS NULL OR value_type <> 'media'   OR value ~ '^[0-9]+$')
+  CHECK (value IS NULL OR value_type <> 'media'   OR value ~ '^[0-9]+$'),
+  -- e-mail and phone reuse the domains, so each format rule lives in one place
+  CHECK (value IS NULL OR value_type <> 'email'   OR value::email_address IS NOT NULL),
+  CHECK (value IS NULL OR value_type <> 'phone'   OR value::phone_e164 IS NOT NULL)
 );
 
 -- The platform's own social accounts (one row per platform, not one column each).

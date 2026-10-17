@@ -127,6 +127,21 @@ test('a section post and its subtype row can be saved in one transaction', funct
         ->and(DB::table('posts')->where('id', $post)->value('status'))->toBe('published');
 })->with('section kinds');
 
+test('a published infographic needs its download row', function () {
+    expect(rejected(function () {
+        insertPost(publishedPostValues(['kind_code' => 'infographic']));
+        checkDeferredSubtype();
+    }))->toThrow(QueryException::class, '(kind infographic) needs its infographics row before leaving draft');
+});
+
+test('an infographic with its download file can be published', function () {
+    $post = insertPost(publishedPostValues(['kind_code' => 'infographic']));
+    DB::table('infographics')->insert(['post_id' => $post, 'download_media_id' => insertMedia(['mime_type' => 'image/png'])]);
+    checkDeferredSubtype();
+
+    expect(DB::table('posts')->where('id', $post)->value('status'))->toBe('published');
+});
+
 test('a draft section post needs no subtype row yet', function () {
     insertPost(['kind_code' => 'episode', 'title' => 'حلقة قادمة', 'slug' => 'حلقة-قادمة']);
     checkDeferredSubtype();

@@ -121,6 +121,12 @@ SELECT pg_temp.expect_fail('subtype: published episode without episode row',
     INSERT INTO posts (kind_code, title, slug, body, status, published_at, cover_media_id)
     SELECT 'episode', 'حلقة', 'حلقة', '<p>x</p>', 'published', now(), id FROM media_assets WHERE path = 'a/cover.jpg'$$);
 
+SELECT pg_temp.expect_fail('subtype: published infographic without its download row',
+  $$SET CONSTRAINTS posts_subtype_present IMMEDIATE;
+    INSERT INTO posts (kind_code, category_id, title, slug, body, status, published_at, cover_media_id)
+    SELECT 'infographic', c.id, 'إنفوغراف', 'إنفوغراف', '<p>x</p>', 'published', now(), m.id
+    FROM categories c, media_assets m WHERE c.slug = 'فلسطين' AND m.path = 'a/cover.jpg'$$);
+
 BEGIN;
   INSERT INTO podcast_seasons (season_number, title_ar) VALUES (1, 'الموسم الأول');
   INSERT INTO posts (kind_code, title, slug, body, status, published_at, cover_media_id)
@@ -208,6 +214,12 @@ UPDATE feature_flags SET is_enabled = true WHERE key = 'booking';
 UPDATE feature_flags SET is_enabled = true WHERE key = 'online_payments';
 SELECT pg_temp.expect_fail('flags: cannot switch booking off while payments on',
   $$UPDATE feature_flags SET is_enabled = false WHERE key = 'booking'$$);
+SELECT pg_temp.expect_fail('settings: invalid e-mail refused (email_address domain)',
+  $$UPDATE settings SET value = 'raqam.ps' WHERE key = 'contact.email'$$);
+SELECT pg_temp.expect_fail('settings: local phone refused (phone_e164 domain)',
+  $$UPDATE settings SET value = '0599123456' WHERE key = 'contact.phone'$$);
+UPDATE settings SET value = 'info@raqam.ps' WHERE key = 'contact.email';
+UPDATE settings SET value = '+970599123456' WHERE key = 'contact.phone';
 SELECT pg_temp.expect_fail('providers: two primary currency providers',
   $$UPDATE data_providers SET is_active = true, is_backup = false WHERE code = 'exchangerate_api'$$);
 
@@ -238,6 +250,14 @@ SELECT pg_temp.expect_fail('bookings: illegal transition new -> published',
 INSERT INTO booking_status_history (booking_id, status_code, note) SELECT id, 'contacted', 'اتصلنا' FROM bookings LIMIT 1;
 SELECT pg_temp.expect_eq('bookings: legal transition applied',
   (SELECT status_code FROM bookings LIMIT 1), 'contacted');
+INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, visibility)
+SELECT 'b/' || n || '.pdf', n || '.pdf', 'application/pdf', 1000, repeat(n::text, 64), 'private'
+FROM generate_series(1, 4) n;
+INSERT INTO booking_attachments (booking_id, media_id)
+SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path IN ('b/1.pdf', 'b/2.pdf', 'b/3.pdf');
+SELECT pg_temp.expect_fail('bookings: a 4th attachment is refused',
+  $$INSERT INTO booking_attachments (booking_id, media_id)
+    SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path = 'b/4.pdf'$$);
 
 -- ---------------------------------------------------------------- payments & invoices
 INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status,
@@ -253,8 +273,11 @@ INSERT INTO refunds (payment_id, amount, status) SELECT id, 10000, 'succeeded' F
 SELECT pg_temp.expect_fail('refunds: total cannot exceed payment',
   $$INSERT INTO refunds (payment_id, amount) SELECT id, 25000 FROM payments LIMIT 1$$);
 
-INSERT INTO invoices (booking_id, payment_id, billed_name, billed_email, currency_code, tax_rate_bp)
-SELECT b.id, p.id, 'سامي', 'sami@example.com', 'USD', 1600 FROM bookings b, payments p LIMIT 1;
+INSERT INTO invoices (payment_id, billed_name, billed_email, currency_code, tax_rate_bp)
+SELECT p.id, 'سامي', 'sami@example.com', 'USD', 1600 FROM payments p LIMIT 1;
+SELECT pg_temp.expect_eq('invoices: booking comes from the payment (no booking_id copy)',
+  (SELECT count(*)::text FROM information_schema.columns
+   WHERE table_name = 'invoices' AND column_name = 'booking_id'), '0');
 INSERT INTO invoice_lines (invoice_id, line_no, description, quantity, unit_amount)
 SELECT id, 1, 'حلقة بودكاست', 1, 30000 FROM invoices;
 SELECT pg_temp.expect_eq('invoices: number generated',

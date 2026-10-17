@@ -3,6 +3,7 @@
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
@@ -30,75 +31,25 @@ function insertCampaign(array $overrides = []): int
     ]);
 }
 
-function ensureBookingWorkflow(): void
-{
-    DB::statement(<<<'SQL'
-        INSERT INTO booking_statuses (code, name_ar, sort_order, is_terminal, notify_customer, requires_payment_flag) VALUES
-          ('new',              'جديد',            1, false, false, false),
-          ('awaiting_payment', 'بانتظار الدفع',    2, false, true,  true),
-          ('paid',             'مدفوع',           3, false, true,  true),
-          ('contacted',        'تم التواصل',      4, false, false, false),
-          ('confirmed',        'مؤكد',            5, false, true,  false),
-          ('scheduled',        'مجدول',           6, false, true,  false),
-          ('completed',        'منفّذ',            7, false, true,  false),
-          ('published',        'منشور',           8, true,  true,  false),
-          ('cancelled',        'ملغي',            9, true,  true,  false)
-        ON CONFLICT DO NOTHING
-        SQL);
-    DB::statement(<<<'SQL'
-        INSERT INTO booking_status_transitions (from_code, to_code) VALUES
-          ('new', 'contacted'), ('new', 'awaiting_payment'),
-          ('awaiting_payment', 'paid'), ('paid', 'contacted'),
-          ('contacted', 'confirmed'), ('confirmed', 'scheduled'),
-          ('scheduled', 'completed'), ('scheduled', 'published'), ('completed', 'published'),
-          ('new', 'cancelled'), ('awaiting_payment', 'cancelled'), ('paid', 'cancelled'),
-          ('contacted', 'cancelled'), ('confirmed', 'cancelled'), ('scheduled', 'cancelled')
-        ON CONFLICT DO NOTHING
-        SQL);
-}
-
-function insertBooking(array $overrides = []): int
-{
-    static $n = 0;
-    $n++;
-    ensureBookingWorkflow();
-    $customer = DB::table('customers')->insertGetId(['name' => 'سامي', 'email' => "sami{$n}@example.com", 'phone' => '+970599123456']);
-
-    return DB::table('bookings')->insertGetId([
-        'service_id' => insertService(), 'customer_id' => $customer, 'preferred_contact' => 'whatsapp',
-        'details' => 'تفاصيل', 'price_amount' => 30000, 'currency_code' => 'USD',
-        'access_token_hash' => hash('sha256', "booking-{$n}"), 'consent_at' => now(), ...$overrides,
-    ]);
-}
-
 function moveBooking(int $booking, string $status): void
 {
     DB::table('booking_status_history')->insert(['booking_id' => $booking, 'status_code' => $status]);
 }
 
-function insertPayment(int $booking, array $overrides = []): int
-{
-    static $n = 0;
-    $n++;
-    ensure('payment_gateways', ['code' => 'fake', 'name_ar' => 'بوابة تجريبية (للاختبار فقط)']);
-
-    return DB::table('payments')->insertGetId([
-        'booking_id' => $booking, 'gateway_code' => 'fake', 'attempt_no' => $n, 'gateway_order_id' => "ORD-{$n}",
-        'amount' => 30000, 'currency_code' => 'USD', 'status' => 'captured', 'idempotency_key' => "key-{$n}",
-        'paid_at' => now(), ...$overrides,
-    ]);
-}
-
 function insertInvoice(?int $taxRate = 1600): int
 {
-    $booking = insertBooking();
     $invoice = DB::table('invoices')->insertGetId([
-        'booking_id' => $booking, 'payment_id' => insertPayment($booking), 'billed_name' => 'سامي',
+        'payment_id' => insertPayment(insertBooking()), 'billed_name' => 'سامي',
         'billed_email' => 'sami@example.com', 'currency_code' => 'USD', 'tax_rate_bp' => $taxRate,
     ]);
     DB::table('invoice_lines')->insert(['invoice_id' => $invoice, 'line_no' => 1, 'description' => 'حلقة بودكاست', 'quantity' => 1, 'unit_amount' => 30000]);
 
     return $invoice;
+}
+
+function privateFile(): int
+{
+    return insertMedia(['mime_type' => 'application/pdf', 'alt_text' => null, 'width' => null, 'height' => null, 'visibility' => 'private']);
 }
 
 function localYear(): int
@@ -213,6 +164,30 @@ describe('bookings', function () {
             ->and(DB::table('booking_status_history')->where('booking_id', $booking)->count())->toBe(3);
     });
 
+    test('a booking has at most three attachments', function () {
+        $booking = insertBooking();
+        $attach = fn (int $to) => DB::table('booking_attachments')->insert(['booking_id' => $to, 'media_id' => privateFile()]);
+        $attach($booking);
+        $attach($booking);
+        $attach($booking);
+
+        expect(rejected(fn () => $attach($booking)))
+            ->toThrow(QueryException::class, "Booking {$booking} already has 3 attachments");
+    });
+
+    test('an attachment cannot be moved to a booking that is full', function () {
+        $full = insertBooking();
+        $other = insertBooking();
+        foreach (range(1, 3) as $i) {
+            DB::table('booking_attachments')->insert(['booking_id' => $full, 'media_id' => privateFile()]);
+        }
+        $media = privateFile();
+        DB::table('booking_attachments')->insert(['booking_id' => $other, 'media_id' => $media]);
+
+        expect(rejected(fn () => DB::table('booking_attachments')->where('media_id', $media)->update(['booking_id' => $full])))
+            ->toThrow(QueryException::class, "Booking {$full} already has 3 attachments");
+    });
+
     test('a booking price comes with its currency', function () {
         expect(rejected(fn () => insertBooking(['currency_code' => null])))
             ->toThrow(QueryException::class, '"bookings_check"');
@@ -271,6 +246,17 @@ describe('payments and refunds', function () {
 });
 
 describe('invoices', function () {
+    test('an invoice reaches its booking through the payment', function () {
+        $booking = insertBooking();
+        $invoice = DB::table('invoices')->insertGetId([
+            'payment_id' => insertPayment($booking), 'billed_name' => 'سامي', 'billed_email' => 'sami@example.com', 'currency_code' => 'USD',
+        ]);
+
+        expect(Schema::hasColumn('invoices', 'booking_id'))->toBeFalse()
+            ->and(DB::table('invoices')->join('payments', 'payments.id', '=', 'invoices.payment_id')
+                ->where('invoices.id', $invoice)->value('payments.booking_id'))->toBe($booking);
+    });
+
     test('invoice numbers are generated per year', function () {
         $invoice = insertInvoice();
 

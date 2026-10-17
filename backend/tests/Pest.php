@@ -183,3 +183,57 @@ function insertService(array $overrides = []): int
         'price_mode' => 'fixed', 'price_amount' => 30000, 'currency_code' => 'USD', ...$overrides,
     ]);
 }
+
+function ensureBookingWorkflow(): void
+{
+    DB::statement(<<<'SQL'
+        INSERT INTO booking_statuses (code, name_ar, sort_order, is_terminal, notify_customer, requires_payment_flag) VALUES
+          ('new',              'جديد',            1, false, false, false),
+          ('awaiting_payment', 'بانتظار الدفع',    2, false, true,  true),
+          ('paid',             'مدفوع',           3, false, true,  true),
+          ('contacted',        'تم التواصل',      4, false, false, false),
+          ('confirmed',        'مؤكد',            5, false, true,  false),
+          ('scheduled',        'مجدول',           6, false, true,  false),
+          ('completed',        'منفّذ',            7, false, true,  false),
+          ('published',        'منشور',           8, true,  true,  false),
+          ('cancelled',        'ملغي',            9, true,  true,  false)
+        ON CONFLICT DO NOTHING
+        SQL);
+    DB::statement(<<<'SQL'
+        INSERT INTO booking_status_transitions (from_code, to_code) VALUES
+          ('new', 'contacted'), ('new', 'awaiting_payment'),
+          ('awaiting_payment', 'paid'), ('paid', 'contacted'),
+          ('contacted', 'confirmed'), ('confirmed', 'scheduled'),
+          ('scheduled', 'completed'), ('scheduled', 'published'), ('completed', 'published'),
+          ('new', 'cancelled'), ('awaiting_payment', 'cancelled'), ('paid', 'cancelled'),
+          ('contacted', 'cancelled'), ('confirmed', 'cancelled'), ('scheduled', 'cancelled')
+        ON CONFLICT DO NOTHING
+        SQL);
+}
+
+function insertBooking(array $overrides = []): int
+{
+    static $n = 0;
+    $n++;
+    ensureBookingWorkflow();
+    $customer = DB::table('customers')->insertGetId(['name' => 'سامي', 'email' => "sami{$n}@example.com", 'phone' => '+970599123456']);
+
+    return DB::table('bookings')->insertGetId([
+        'service_id' => insertService(), 'customer_id' => $customer, 'preferred_contact' => 'whatsapp',
+        'details' => 'تفاصيل', 'price_amount' => 30000, 'currency_code' => 'USD',
+        'access_token_hash' => hash('sha256', "booking-{$n}"), 'consent_at' => now(), ...$overrides,
+    ]);
+}
+
+function insertPayment(int $booking, array $overrides = []): int
+{
+    static $n = 0;
+    $n++;
+    ensure('payment_gateways', ['code' => 'fake', 'name_ar' => 'بوابة تجريبية (للاختبار فقط)']);
+
+    return DB::table('payments')->insertGetId([
+        'booking_id' => $booking, 'gateway_code' => 'fake', 'attempt_no' => $n, 'gateway_order_id' => "ORD-{$n}",
+        'amount' => 30000, 'currency_code' => 'USD', 'status' => 'captured', 'idempotency_key' => "key-{$n}",
+        'paid_at' => now(), ...$overrides,
+    ]);
+}

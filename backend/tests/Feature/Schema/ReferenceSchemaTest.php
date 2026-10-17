@@ -66,6 +66,8 @@ test('a setting value matches its type', function (string $type, string $value, 
     'url' => ['url', 'ftp://raqam.ps', 'settings_check2'],
     'time' => ['time', '24:00', 'settings_check3'],
     'media' => ['media', 'cover.jpg', 'settings_check4'],
+    'email (email_address domain)' => ['email', 'raqam.ps', 'email_address_check'],
+    'phone (phone_e164 domain)' => ['phone', '0599123456', 'phone_e164_check'],
 ]);
 
 test('a valid typed setting is accepted', function (string $type, string $value) {
@@ -74,6 +76,7 @@ test('a valid typed setting is accepted', function (string $type, string $value)
     expect(DB::table('settings')->where('key', "test.{$type}")->value('value'))->toBe($value);
 })->with([
     ['integer', '-15'], ['boolean', 'true'], ['url', 'https://raqam.ps'], ['time', '23:59'], ['media', '42'],
+    ['email', 'info@raqam.ps'], ['phone', '+970599123456'],
 ]);
 
 test('a setting key is group.name', function () {
