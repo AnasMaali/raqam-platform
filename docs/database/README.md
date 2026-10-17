@@ -4,7 +4,7 @@
 
 المصدر: `database/raqam_schema.sql` (PostgreSQL 16). المخططات أدناه مولّدة تلقائياً من قاعدة البيانات نفسها.
 
-**131** جدول | **197** مفتاح أجنبي | **222** قيد CHECK | **381** فهرس | **45** Trigger | **82 + 18** اختبار ناجح
+**131** جدول | **196** مفتاح أجنبي | **224** قيد CHECK | **380** فهرس | **46** Trigger | **87 + 18** اختبار ناجح
 
 ## 1NF — قيم ذرية بدون قوائم داخل الحقول
 
@@ -42,6 +42,7 @@
 | is_breaking، is_sponsored، حالة «منتهية» للإعلان | تُستنتج: breaking_until > now()، sponsor_organization_id، ends_at |
 | views_total، messages_count، hits، last_login_at | تُحسب من جداولها (Materialized View أو استعلام) |
 | مجموع وضريبة الفاتورة | View اسمه invoice_totals يحسبها من البنود |
+| رقم الحجز داخل الفاتورة | يُعرف من الدفعة: invoices.payment_id ← payments.booking_id |
 | عملة الاسترجاع، الحالة السابقة بسجل الحجز | عملة الدفعة نفسها، والصف السابق بالسجل |
 | RQ-2026-00042 و INV-2026-00001 | أعمدة Generated تُبنى من (السنة، التسلسل) تلقائياً |
 | أسعار الدرهم والريال وجدول «سعر الإغلاق» | الدرهم والريال يُحسبان من الدولار عبر currency_pegs، والسعر السابق من نفس جدول الأسعار (نشرة يومية) |
@@ -1090,7 +1091,6 @@ erDiagram
     smallint number_year
     integer number_seq
     varchar number UK "generated"
-    bigint booking_id FK
     bigint payment_id FK,UK
     varchar billed_name
     email_address billed_email
@@ -1120,7 +1120,6 @@ erDiagram
     bigint created_by FK
     timestamptz created_at
   }
-  bookings ||--o{ invoices : "booking_id"
   bookings ||--o| payments : "booking_id"
   currencies ||--o{ invoices : "currency_code"
   currencies ||--o{ payments : "currency_code"

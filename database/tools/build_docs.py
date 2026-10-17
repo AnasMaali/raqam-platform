@@ -7,8 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent   # repository root
 erd = json.loads((ROOT / "docs/database/erd.json").read_text(encoding="utf-8"))
-STATS = [("جدول", "131"), ("مفتاح أجنبي", "197"), ("قيد CHECK", "222"),
-         ("فهرس", "381"), ("Trigger", "45"), ("اختبار ناجح", "82 + 18")]
+STATS = [("جدول", "131"), ("مفتاح أجنبي", "196"), ("قيد CHECK", "224"),
+         ("فهرس", "380"), ("Trigger", "46"), ("اختبار ناجح", "87 + 18")]
 
 NF1 = [
     ("posts.extra (JSON لحقول كل نوع)", "7 جداول فرعية: podcast_episodes، success_stories، products، history_entries، initiatives، roundtable_sessions، awareness_cards (+ infographics)"),
@@ -37,6 +37,7 @@ NF3 = [
     ("is_breaking، is_sponsored، حالة «منتهية» للإعلان", "تُستنتج: breaking_until > now()، sponsor_organization_id، ends_at"),
     ("views_total، messages_count، hits، last_login_at", "تُحسب من جداولها (Materialized View أو استعلام)"),
     ("مجموع وضريبة الفاتورة", "View اسمه invoice_totals يحسبها من البنود"),
+    ("رقم الحجز داخل الفاتورة", "يُعرف من الدفعة: invoices.payment_id ← payments.booking_id"),
     ("عملة الاسترجاع، الحالة السابقة بسجل الحجز", "عملة الدفعة نفسها، والصف السابق بالسجل"),
     ("RQ-2026-00042 و INV-2026-00001", "أعمدة Generated تُبنى من (السنة، التسلسل) تلقائياً"),
     ("أسعار الدرهم والريال وجدول «سعر الإغلاق»", "الدرهم والريال يُحسبان من الدولار عبر currency_pegs، والسعر السابق من نفس جدول الأسعار (نشرة يومية)"),

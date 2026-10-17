@@ -34,14 +34,14 @@ frontend/   Next.js website            (later)
 
 ## Database
 
-131 tables in 17 modules, 222 CHECK constraints. The database enforces the
+131 tables in 17 modules, 224 CHECK constraints. The database enforces the
 business rules itself (CHECK constraints, domains, exclusion constraints,
 deferred and immutable triggers), so invalid data is rejected even if
 application code has a bug.
 
 ```bash
 # requires PostgreSQL 16 (citext, pg_trgm, btree_gist), PHP 8.4, Python 3
-./database/run_tests.sh          # 82 constraint tests + 18 normaliser parity cases
+./database/run_tests.sh          # 87 constraint tests + 18 normaliser parity cases
 ```
 
 ## Backend
