@@ -3,11 +3,11 @@
 namespace App\Filament\Pages\Auth;
 
 use App\Auth\AdminSignIn;
-use DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Auth\Pages\Login;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Support\Htmlable;
@@ -22,16 +22,13 @@ class AdminLogin extends Login
 
     public function authenticate(): ?LoginResponse
     {
-        try {
-            $this->rateLimit(5);
-        } catch (TooManyRequestsException $exception) {
-            $this->getRateLimitedNotification($exception)?->send();
+        $data = $this->form->getState();
+
+        if (($wait = app(AdminSignIn::class)->begin($data['email'], $data['password'])) !== null) {
+            Notification::make()->danger()->title('محاولات كثيرة، حاول بعد '.ceil($wait / 60).' دقيقة.')->send();
 
             return null;
         }
-
-        $data = $this->form->getState();
-        app(AdminSignIn::class)->begin($data['email'], $data['password']);
 
         $this->redirect(route(Filament::getCurrentOrDefaultPanel()->generateRouteName('auth.login.code')), navigate: false);
 

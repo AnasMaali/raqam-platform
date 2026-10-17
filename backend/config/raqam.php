@@ -19,6 +19,16 @@ return [
         'code_attempts' => 5,
         'resend_seconds' => 60,
         'sends_per_hour' => 3,
+        // Password submissions (each one counts, right or wrong): per e-mail + IP, per e-mail, per IP.
+        'attempts_per_minute' => 5,
+        'attempts_per_email_hour' => 20,
+        'attempts_per_ip_hour' => 30,
     ],
+
+    /*
+    | Secret for the HMAC of IP addresses and device cookies (login_attempts, rate-limit keys, audit log).
+    | Separate from APP_KEY, no default: a raw IP address is never stored.
+    */
+    'tracking_key' => env('TRACKING_HASH_KEY'),
 
 ];
