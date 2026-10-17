@@ -1,5 +1,8 @@
 <?php
 
+use App\Console\AdminCreateCommand;
+use App\Console\AdminUnlockCommand;
+use App\Console\PruneDevicesCommand;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -10,6 +13,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         //
     })

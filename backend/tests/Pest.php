@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /*
@@ -236,4 +238,52 @@ function insertPayment(int $booking, array $overrides = []): int
         'amount' => 30000, 'currency_code' => 'USD', 'status' => 'captured', 'idempotency_key' => "key-{$n}",
         'paid_at' => now(), ...$overrides,
     ]);
+}
+
+/** A configuration that passes every check; each test spoils exactly one thing. */
+function productionConfig(array $overrides = []): void
+{
+    config([
+        'app.debug' => false,
+        'app.key' => 'base64:'.base64_encode(random_bytes(32)),
+        'mail.default' => 'smtp',
+        'session.secure' => true,
+        'session.http_only' => true,
+        'session.same_site' => 'strict',
+        'session.cookie' => '__Host-raqam_session',
+        'session.path' => '/',
+        'session.domain' => null,
+        'session.lifetime' => 30,
+        'raqam.auth.code_key' => 'a-code-key',
+        'raqam.tracking_key' => 'a-tracking-key',
+        'raqam.admin_path' => 'some-path',
+        ...$overrides,
+    ]);
+}
+
+/**
+ * Stands in for the leaked-password range service. Passwords in $leaked are "found in a breach";
+ * with $reachable = false the service does not answer.
+ *
+ * @param  list<string>  $leaked
+ */
+function fakePwned(array $leaked = [], bool $reachable = true): void
+{
+    Http::swap(new Factory);   // a later call replaces an earlier stand-in
+    Http::fake(['api.pwnedpasswords.com/*' => function ($request) use ($leaked, $reachable) {
+        if (! $reachable) {
+            return Http::response('', 503);
+        }
+
+        $prefix = substr($request->url(), -5);
+        $lines = ['0000000000000000000000000000000000A:0'];   // padding, as the real service adds
+        foreach ($leaked as $password) {
+            $hash = strtoupper(sha1($password));
+            if (str_starts_with($hash, $prefix)) {
+                $lines[] = substr($hash, 5).':4242';
+            }
+        }
+
+        return Http::response(implode("\n", $lines));
+    }]);
 }
