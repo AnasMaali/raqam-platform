@@ -38,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('admin-session', fn (Request $request) => Limit::perMinute(10)
             ->by($request->route()?->getName().'|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
 
+        // The largest file the media library accepts (an image); the library itself checks each type's own limit.
+        config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (config('media.limits.image_upload') / 1024)]]);
+
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what
         // AuthenticateSession raises when the password changed since the session began.
         Event::listen(Logout::class, fn (Logout $event) => $event->user && AdminAudit::logout($event->user, AdminAudit::expectedReason()));

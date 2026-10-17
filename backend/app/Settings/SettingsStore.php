@@ -2,6 +2,7 @@
 
 namespace App\Settings;
 
+use App\Models\MediaAsset;
 use App\Models\Setting;
 use App\Models\SiteSocialLink;
 use Illuminate\Database\QueryException;
@@ -65,7 +66,15 @@ final class SettingsStore
             $messages += SettingsCatalog::messages($this->fieldName($key));
         }
 
-        Validator::make($input, $rules, $messages)->validate();
+        Validator::make($input, $rules, $messages)->after(function ($validator) use ($values) {
+            // A "media" setting must name a public image that is in the library and not in the trash.
+            foreach (SettingsCatalog::fields() as $key => $field) {
+                $value = $values[$key] ?? null;
+                if ($field['type'] === 'media' && $value !== null && ! MediaAsset::query()->publicImages()->whereKey((int) $value)->exists()) {
+                    $validator->errors()->add($this->fieldName($key), 'اختر صورة عامة موجودة في مكتبة الوسائط.');
+                }
+            }
+        })->validate();
 
         try {
             DB::transaction(function () use ($values, $social, $userId) {

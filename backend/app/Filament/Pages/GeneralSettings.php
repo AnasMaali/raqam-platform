@@ -2,11 +2,13 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\MediaAsset;
 use App\Settings\SettingsCatalog;
 use App\Settings\SettingsStore;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -78,9 +80,13 @@ class GeneralSettings extends Page
 
         foreach (SettingsCatalog::fields() as $key => $field) {
             $name = $store->fieldName($key);
-            $input = $field['type'] === 'text'
-                ? Textarea::make($name)->rows(3)->maxLength(2000)
-                : TextInput::make($name)->maxLength(255);
+            $input = match ($field['type']) {
+                'text' => Textarea::make($name)->rows(3)->maxLength(2000),
+                'media' => Select::make($name)->searchable()->native(false)
+                    ->getSearchResultsUsing(fn (string $search) => MediaAsset::query()->publicImages()->search($search)->latest()->limit(30)->pluck('original_name', 'id')->all())
+                    ->getOptionLabelUsing(fn ($value) => MediaAsset::query()->find($value)?->original_name),
+                default => TextInput::make($name)->maxLength(255),
+            };
 
             $input->label($field['label'])->helperText($field['hint'] ?? null)->rules(SettingsCatalog::rules($field['type']))
                 ->validationMessages(SettingsCatalog::messages($name));
