@@ -11,3 +11,6 @@ Artisan::command('inspire', function () {
 Schedule::command('devices:prune')->daily();
 
 Schedule::command('queue:prune-failed --hours=720')->daily();
+
+Schedule::command('posts:publish-due')->everyMinute()->withoutOverlapping();
+Schedule::command('posts:purge-trashed')->daily();
