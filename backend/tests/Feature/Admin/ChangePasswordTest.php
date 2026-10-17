@@ -21,6 +21,7 @@ const NEWER = 'a different long passphrase';
 const CHROME_ON_WINDOWS = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36';
 
 beforeEach(function () {
+    $this->freezeTime();   // the tests count seconds: a real second ticking over must not change the result
     Filament::setCurrentPanel('admin');
     Mail::fake();
     fakePwned();

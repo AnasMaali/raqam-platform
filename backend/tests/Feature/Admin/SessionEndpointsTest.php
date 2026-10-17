@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 uses(RefreshDatabase::class);
 
 beforeEach(function () {
+    $this->freezeTime();   // the tests count seconds: a real second ticking over must not change the result
     Filament::setCurrentPanel('admin');
     $this->url = '/'.config('raqam.admin_path');
     $this->admin = User::factory()->staff()->create();
