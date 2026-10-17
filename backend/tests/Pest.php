@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /*
@@ -257,4 +259,31 @@ function productionConfig(array $overrides = []): void
         'raqam.admin_path' => 'some-path',
         ...$overrides,
     ]);
+}
+
+/**
+ * Stands in for the leaked-password range service. Passwords in $leaked are "found in a breach";
+ * with $reachable = false the service does not answer.
+ *
+ * @param  list<string>  $leaked
+ */
+function fakePwned(array $leaked = [], bool $reachable = true): void
+{
+    Http::swap(new Factory);   // a later call replaces an earlier stand-in
+    Http::fake(['api.pwnedpasswords.com/*' => function ($request) use ($leaked, $reachable) {
+        if (! $reachable) {
+            return Http::response('', 503);
+        }
+
+        $prefix = substr($request->url(), -5);
+        $lines = ['0000000000000000000000000000000000A:0'];   // padding, as the real service adds
+        foreach ($leaked as $password) {
+            $hash = strtoupper(sha1($password));
+            if (str_starts_with($hash, $prefix)) {
+                $lines[] = substr($hash, 5).':4242';
+            }
+        }
+
+        return Http::response(implode("\n", $lines));
+    }]);
 }

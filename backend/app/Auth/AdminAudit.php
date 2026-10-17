@@ -44,22 +44,37 @@ final class AdminAudit
         return request()->attributes->get(self::REASON_ATTRIBUTE, self::MANUAL);
     }
 
+    /**
+     * Something done to an admin account, by an admin ($actor) or from the command line (null).
+     *
+     * @param  array<string, string>  $changes
+     */
+    public static function account(string $action, ?User $actor, ?User $subject, array $changes = []): void
+    {
+        // From the command line there is no browser and no address worth recording.
+        self::insert($actor?->id, $action, $subject?->id, $changes, withRequest: $actor !== null);
+    }
+
     /** @param  array<string, string>  $changes */
     private static function write(User $user, string $action, array $changes = []): void
     {
-        if (! $user->isStaff()) {
-            return;
+        if ($user->isStaff()) {
+            self::insert($user->id, $action, $user->id, $changes);
         }
+    }
 
+    /** @param  array<string, string>  $changes */
+    private static function insert(?int $actorId, string $action, ?int $subjectId, array $changes, bool $withRequest = true): void
+    {
         try {
-            DB::transaction(function () use ($user, $action, $changes) {
+            DB::transaction(function () use ($actorId, $action, $subjectId, $changes, $withRequest) {
                 $id = DB::table('audit_log')->insertGetId([
-                    'actor_user_id' => $user->id,
+                    'actor_user_id' => $actorId,
                     'action' => $action,
-                    'subject_table' => 'users',
-                    'subject_id' => $user->id,
-                    'ip_hash' => TrackingHash::ip(),
-                    'user_agent' => ($agent = request()->userAgent()) ? mb_substr($agent, 0, 512) : null,
+                    'subject_table' => $subjectId ? 'users' : null,
+                    'subject_id' => $subjectId,
+                    'ip_hash' => $withRequest ? TrackingHash::ip() : null,
+                    'user_agent' => $withRequest && ($agent = request()->userAgent()) ? mb_substr($agent, 0, 512) : null,
                 ]);
 
                 foreach ($changes as $field => $new) {

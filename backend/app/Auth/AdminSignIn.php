@@ -279,7 +279,29 @@ final class AdminSignIn
 
     private function limitKey(string $name, string $email): string
     {
+        return self::codeLimitKey($name, $email);
+    }
+
+    private static function codeLimitKey(string $name, string $email): string
+    {
         return "admin-code:{$name}:".hash('sha256', $email);
+    }
+
+    /**
+     * Every limit that belongs to an e-mail alone, for admin:unlock. The e-mail + IP key is not here:
+     * it needs the IP, and it expires on its own within a minute.
+     *
+     * @return list<string>
+     */
+    public static function emailLimitKeys(string $email): array
+    {
+        $email = Str::lower(trim($email));
+
+        return [
+            'admin-signin:email:'.hash('sha256', $email),
+            self::codeLimitKey('cooldown', $email),
+            self::codeLimitKey('hourly', $email),
+        ];
     }
 
     private function codeSeconds(): int

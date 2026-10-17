@@ -5,8 +5,10 @@ namespace App\Providers\Filament;
 use App\Auth\AdminSessionLimits;
 use App\Filament\Pages\Auth\AdminLogin;
 use App\Filament\Pages\Auth\AdminLoginCode;
+use App\Filament\Pages\ChangePassword;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
+use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -40,7 +42,10 @@ class AdminPanelProvider extends PanelProvider
             ->routes(fn () => Route::get('/login/code', AdminLoginCode::class)->name('auth.login.code'))
             ->brandName('رَقَم')
             ->colors(['primary' => Color::Amber])
-            ->pages([Dashboard::class])
+            ->pages([Dashboard::class, ChangePassword::class])
+            ->userMenuItems([
+                Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),
+            ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->middleware([
                 EncryptCookies::class,
