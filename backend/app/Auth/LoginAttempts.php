@@ -32,6 +32,7 @@ final class LoginAttempts
                 'user_id' => $userId,
                 'succeeded' => $failure === null,
                 'failure_reason' => $failure,
+                'device_hash' => KnownDevices::presentedHash(),
                 'ip_hash' => TrackingHash::ip(),
             ]));
         } catch (\Throwable $e) {
