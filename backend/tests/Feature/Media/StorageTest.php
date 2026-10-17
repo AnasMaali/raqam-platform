@@ -69,9 +69,9 @@ test('an unknown disk name is refused instead of silently storing nowhere', func
 test('R2 is configured from the environment only, with nothing secret in the repository', function () {
     foreach (['media_r2_public', 'media_r2_private'] as $disk) {
         $config = config("filesystems.disks.{$disk}");
-        expect($config['driver'])->toBe('s3')->and($config['endpoint'])->toBeNull()->and($config['key'])->toBeNull()->and($config['secret'])->toBeNull();
+        expect($config['driver'])->toBe('s3')->and($config['endpoint'])->toBeEmpty()->and($config['key'])->toBeEmpty()->and($config['secret'])->toBeEmpty();   // empty in the repository and in CI: real values only in .env
     }
-    expect(config('filesystems.disks.media_r2_private.url'))->toBeNull();
+    expect(config('filesystems.disks.media_r2_private.url'))->toBeEmpty();
 });
 
 // ---- public and private ---------------------------------------------------------------------------
