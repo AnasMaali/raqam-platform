@@ -8,6 +8,7 @@ use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\GeneralSettings;
+use App\Filament\Pages\MenuEditor;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
 use Filament\Actions\Action;
@@ -47,7 +48,8 @@ class AdminPanelProvider extends PanelProvider
             ->colors(['primary' => Color::Amber])
             ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
             ->sidebarCollapsibleOnDesktop()
-            ->pages([Dashboard::class, GeneralSettings::class, ChangePassword::class])
+            ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'النظام'])
+            ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),
             ])

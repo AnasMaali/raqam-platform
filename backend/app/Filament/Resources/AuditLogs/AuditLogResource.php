@@ -44,6 +44,8 @@ class AuditLogResource extends Resource
 
     protected static ?int $navigationSort = 90;
 
+    protected static string|\UnitEnum|null $navigationGroup = 'النظام';
+
     protected static ?string $recordTitleAttribute = 'id';
 
     public const ACTIONS = [

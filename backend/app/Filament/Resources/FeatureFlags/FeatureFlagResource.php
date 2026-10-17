@@ -31,6 +31,8 @@ class FeatureFlagResource extends Resource
 
     protected static ?int $navigationSort = 81;
 
+    protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
+
     public static function canCreate(): bool
     {
         return false;
