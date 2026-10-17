@@ -1,0 +1,222 @@
+<?php
+
+namespace App\Auth;
+
+use App\Mail\AdminLoginCode;
+use App\Models\User;
+use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Support\Timebox;
+use RuntimeException;
+
+/**
+ * Admin sign-in in two steps: e-mail + password, then a 6-digit code sent by e-mail.
+ *
+ * Nothing here reveals whether the e-mail or the password was right: the second step is shown
+ * after the first in every case, and only a valid, active staff account gets a code. The code is
+ * HMAC-ed with a secret key together with the e-mail and a random value kept in the session that
+ * entered the password, so a code is useless in any other session.
+ */
+final class AdminSignIn
+{
+    private const STATE = 'admin_sign_in';
+
+    /** Fixed work for a password check against an account that does not exist. */
+    private static ?string $decoyHash = null;
+
+    public function begin(string $email, #[\SensitiveParameter] string $password): void
+    {
+        $email = Str::lower(trim($email));
+
+        $userId = app(Timebox::class)->call(function () use ($email, $password): ?int {
+            $user = User::query()->where('email', $email)->first();
+            $passwordMatches = Hash::check($password, $user?->password_hash ?? self::decoyHash());
+
+            return $user && $passwordMatches && $user->canAccessPanel(Filament::getCurrentOrDefaultPanel()) ? $user->id : null;
+        }, (int) config('auth.timebox_duration', 200_000));
+
+        session()->regenerate();
+        $binding = bin2hex(random_bytes(32));
+        session()->put(self::STATE, [
+            'email' => $email,
+            'binding' => $binding,
+            'user_id' => $userId,
+            'started_at' => now()->getTimestamp(),
+            'failures' => 0,
+        ]);
+
+        $this->sendCode($email, $binding, $userId);
+    }
+
+    public function hasPending(): bool
+    {
+        $state = session(self::STATE);
+
+        return $state !== null && now()->getTimestamp() - $state['started_at'] <= $this->codeSeconds();
+    }
+
+    /** Signs the user in when the code is right; null for every kind of failure. */
+    public function verify(#[\SensitiveParameter] string $code): ?User
+    {
+        if (! $this->hasPending()) {
+            $this->forget();
+
+            return null;
+        }
+
+        $state = session(self::STATE);
+        $code = preg_replace('/\s+/', '', $code);
+
+        // Padded to a fixed duration so the answer time does not tell a real account from an unknown one.
+        $user = app(Timebox::class)->call(
+            fn () => preg_match('/^\d{6}$/', $code) && $state['user_id'] && $state['failures'] < $this->maxAttempts()
+                ? DB::transaction(fn () => $this->consume($state, $code))
+                : null,
+            (int) config('auth.timebox_duration', 200_000),
+        );
+
+        if (! $user) {
+            $state['failures']++;
+            $state['failures'] >= $this->maxAttempts() ? $this->forget() : session()->put(self::STATE, $state);
+
+            return null;
+        }
+
+        Filament::auth()->login($user);
+        session()->regenerate();
+        $this->forget();
+
+        return $user;
+    }
+
+    /** @return 'sent'|'too_soon'|'limit' */
+    public function resend(): string
+    {
+        $state = session(self::STATE);
+        if (! $state) {
+            return 'limit';
+        }
+
+        return $this->sendCode($state['email'], $state['binding'], $state['user_id']);
+    }
+
+    /** Seconds until the next code may be requested; 0 when it may be requested now. */
+    public function secondsUntilResend(): int
+    {
+        $state = session(self::STATE);
+
+        return $state ? RateLimiter::availableIn($this->limitKey('cooldown', $state['email'])) : 0;
+    }
+
+    public function forget(): void
+    {
+        session()->forget(self::STATE);
+    }
+
+    /**
+     * Counts every request the same way for every e-mail (a real account or not), so the limits
+     * cannot be used to tell them apart; only a valid account gets a code, after the response.
+     */
+    private function sendCode(string $email, string $binding, ?int $userId): string
+    {
+        $cooldown = $this->limitKey('cooldown', $email);
+        $hourly = $this->limitKey('hourly', $email);
+
+        if (RateLimiter::tooManyAttempts($cooldown, 1)) {
+            return 'too_soon';
+        }
+        if (RateLimiter::tooManyAttempts($hourly, (int) config('raqam.auth.sends_per_hour'))) {
+            return 'limit';
+        }
+
+        RateLimiter::hit($cooldown, (int) config('raqam.auth.resend_seconds'));
+        RateLimiter::hit($hourly, 3600);
+
+        if ($userId) {
+            defer(fn () => $this->issueCode($userId, $email, $binding));
+        }
+
+        return 'sent';
+    }
+
+    private function issueCode(int $userId, string $email, string $binding): void
+    {
+        try {
+            $user = User::find($userId);
+            if (! $user || ! $user->canAccessPanel(Filament::getCurrentOrDefaultPanel())) {
+                return;
+            }
+
+            $code = str_pad((string) random_int(0, 999_999), 6, '0', STR_PAD_LEFT);
+
+            DB::transaction(function () use ($email, $binding, $code) {
+                DB::table('verification_codes')->where('purpose', 'admin_login')->where('email', $email)
+                    ->whereNull('consumed_at')->update(['consumed_at' => DB::raw('now()')]);   // a new code replaces the old ones
+                DB::table('verification_codes')->insert([
+                    'purpose' => 'admin_login', 'email' => $email, 'code_hash' => $this->hash($email, $binding, $code),
+                    'expires_at' => now()->addSeconds($this->codeSeconds()),
+                ]);
+            });
+
+            Mail::to($user->email)->send(new AdminLoginCode($code, (int) config('raqam.auth.code_minutes')));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** @param  array{email: string, binding: string, user_id: int}  $state */
+    private function consume(array $state, string $code): ?User
+    {
+        $row = DB::table('verification_codes')
+            ->where('purpose', 'admin_login')->where('email', $state['email'])
+            ->whereNull('consumed_at')->where('expires_at', '>', now())
+            ->orderByDesc('id')->lockForUpdate()->first();
+
+        if (! $row || $row->attempts >= $this->maxAttempts()) {
+            return null;
+        }
+
+        if (! hash_equals($row->code_hash, $this->hash($state['email'], $state['binding'], $code))) {
+            DB::table('verification_codes')->where('id', $row->id)->increment('attempts');
+
+            return null;
+        }
+
+        DB::table('verification_codes')->where('id', $row->id)->update(['consumed_at' => DB::raw('now()')]);
+        $user = User::find($state['user_id']);
+
+        return $user && $user->canAccessPanel(Filament::getCurrentOrDefaultPanel()) ? $user : null;
+    }
+
+    private function hash(string $email, string $binding, #[\SensitiveParameter] string $code): string
+    {
+        $key = config('raqam.auth.code_key')
+            ?: throw new RuntimeException('ADMIN_CODE_KEY is not set; admin sign-in codes cannot be issued.');
+
+        return hash_hmac('sha256', "admin_login|{$email}|{$binding}|{$code}", $key);
+    }
+
+    private function limitKey(string $name, string $email): string
+    {
+        return "admin-code:{$name}:".hash('sha256', $email);
+    }
+
+    private function codeSeconds(): int
+    {
+        return (int) config('raqam.auth.code_minutes') * 60;
+    }
+
+    private function maxAttempts(): int
+    {
+        return (int) config('raqam.auth.code_attempts');
+    }
+
+    private static function decoyHash(): string
+    {
+        return self::$decoyHash ??= Hash::make(bin2hex(random_bytes(16)));
+    }
+}

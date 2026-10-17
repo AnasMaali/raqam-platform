@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Pages\Auth\AdminLogin;
+use App\Filament\Pages\Auth\AdminLoginCode;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -15,6 +17,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use RuntimeException;
 
@@ -28,7 +31,8 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->id('admin')
             ->path($path)
-            ->login() // placeholder: step 2 replaces it with the e-mail-code sign-in
+            ->login(AdminLogin::class)
+            ->routes(fn () => Route::get('/login/code', AdminLoginCode::class)->name('auth.login.code'))
             ->brandName('رَقَم')
             ->colors(['primary' => Color::Amber])
             ->pages([Dashboard::class])
