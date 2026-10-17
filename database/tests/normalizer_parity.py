@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CASES = [(c["input"], c["expected"]) for c in json.loads((ROOT / "tests/normalizer_cases.json").read_text(encoding="utf-8"))]
 
 php = f"""
-require '{ROOT}/php/ArabicNormalizer.php';
+require '{ROOT.parent}/backend/app/Support/ArabicNormalizer.php';
 $in = json_decode(stream_get_contents(STDIN), true);
 echo json_encode(array_map(fn($s) => \\App\\Support\\ArabicNormalizer::normalize($s), $in), JSON_UNESCAPED_UNICODE);
 """
