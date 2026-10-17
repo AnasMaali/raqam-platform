@@ -22,11 +22,14 @@ const fakeFetch = async (url, options) => {
     return { ok: server.status === 200, status: server.status, json: async () => ({ remaining: server.remaining }) };
 };
 
+const storage = new Map();                                // the browser's localStorage, shared by its tabs
+const localStorage = { getItem: (k) => (storage.has(k) ? storage.get(k) : null), setItem: (k, v) => storage.set(k, v), removeItem: (k) => storage.delete(k) };
+
 /** One browser tab = one JavaScript context with its own window, as in a browser. */
-function openTab(name) {
+function openTab(name, where = {}) {
     const timers = [];
     const hooks = {};
-    const view = { location: { href: '/page' }, Livewire: { hook: (n, cb) => { hooks[n] = cb; } }, BroadcastChannel: FakeChannel };
+    const view = { localStorage, location: { href: '/page', pathname: where.pathname, search: where.search ?? '', replace(path) { this.replaced = path; } }, Livewire: { hook: (n, cb) => { hooks[n] = cb; } }, BroadcastChannel: FakeChannel };
     const context = vm.createContext({
         window: view, Date: fakeDate, fetch: fakeFetch, BroadcastChannel: FakeChannel, JSON, Math, Number, String,
         document: { querySelector: () => ({ content: 'token' }), documentElement: { classList: { contains: () => false } } },
@@ -135,6 +138,35 @@ const LOGIN = '/p/login?expired=1';
     F.tab.hardDeadline = now + 600 * 1000;
     F.tab.restart(1800, false);
     check(F.tab.left <= 600, 'a restart cannot go past the 12-hour limit');
+
+    // --- signing in again brings the person back to what they were doing
+    let g = openTab('G', { pathname: '/p/posts/42/edit', search: '?tab=x' });
+    g.tab.leave(true);
+    check(g.view.location.href === LOGIN && JSON.parse(storage.get('raqam:return')).path === '/p/posts/42/edit?tab=x', 'leaving remembers the page, for this panel only');
+    let h = openTab('H', { pathname: '/p' });
+    check(h.view.location.replaced === '/p/posts/42/edit?tab=x' && !storage.has('raqam:return'), 'the dashboard after signing in goes back to it, once');
+    h = openTab('H2', { pathname: '/p' });
+    check(h.view.location.replaced === undefined, 'and does not do it twice');
+
+    bus.length = 0;   // the earlier tabs are closed
+    openTab('I', { pathname: '/elsewhere/page' }).tab.leave(true);
+    check(!storage.has('raqam:return'), 'a page outside the panel is not remembered');
+    openTab('I2', { pathname: '/p/login' }).tab.leave(true);
+    check(!storage.has('raqam:return'), 'nor is the sign-in page itself');
+
+    for (const evil of ['//evil.example/x', '/other/panel', '/p/../../x\\y', 'https://evil.example', '/p//evil.example']) {
+        storage.set('raqam:return', JSON.stringify({ path: evil, at: now }));
+        const j = openTab('J', { pathname: '/p' });
+        check(j.view.location.replaced === undefined, `a stored address that leaves the panel is never followed (${evil})`);
+    }
+
+    storage.set('raqam:return', JSON.stringify({ path: '/p/posts/1/edit', at: now - 13 * 3600 * 1000 }));
+    check(openTab('K', { pathname: '/p' }).view.location.replaced === undefined, 'a remembered page older than twelve hours is dropped');
+
+    storage.set('raqam:return', JSON.stringify({ path: '/p/posts/1/edit', at: now }));
+    check(openTab('L', { pathname: '/p/posts' }).view.location.replaced === undefined && storage.has('raqam:return'), 'only the dashboard acts on it; other pages leave it alone');
+    storage.set('raqam:return', 'not json');
+    check(openTab('M', { pathname: '/p' }).view.location.replaced === undefined, 'a broken value does no harm');
 
     process.exit(failed ? 1 : 0);
 })();
