@@ -6,14 +6,12 @@ on:
     paths:
       - "backend/**"
       - "database/schema/**"
-      - "database/php/**"
       - "database/tests/normalizer_cases.json"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
       - "backend/**"
       - "database/schema/**"
-      - "database/php/**"
       - "database/tests/normalizer_cases.json"
       - ".github/workflows/backend.yml"
 

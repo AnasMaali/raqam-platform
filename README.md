@@ -23,7 +23,6 @@ database/   PostgreSQL schema (source of truth), tests and tooling
   schema/         one SQL file per module, applied in order
   raqam_schema.sql  all modules concatenated
   tests/          constraint/trigger tests + PHP↔SQL normaliser parity
-  php/            ArabicNormalizer (moves to backend/app/Support)
   tools/          ER-diagram generator and docs builder
 docs/       Engineering documentation
 backend/    Laravel application

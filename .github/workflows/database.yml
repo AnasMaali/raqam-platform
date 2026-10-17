@@ -5,10 +5,12 @@ on:
     branches: [main, "feature/**"]
     paths:
       - "database/**"
+      - "backend/app/Support/ArabicNormalizer.php"
       - ".github/workflows/database.yml"
   pull_request:
     paths:
       - "database/**"
+      - "backend/app/Support/ArabicNormalizer.php"
       - ".github/workflows/database.yml"
 
 permissions:
