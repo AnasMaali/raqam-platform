@@ -274,7 +274,7 @@ CREATE TABLE infographics (                               -- 9.11 full-size down
   FOREIGN KEY (post_id, kind_code) REFERENCES posts (id, kind_code) ON DELETE CASCADE
 );
 
--- A section post must have its subtype row before it leaves draft.
+-- A section post (and an infographic) must have its subtype row before it leaves draft.
 -- DEFERRED constraint trigger: checked at COMMIT, so the post and its
 -- subtype row can be inserted in either order inside one transaction.
 CREATE FUNCTION trg_posts_subtype_present() RETURNS trigger
@@ -288,6 +288,7 @@ DECLARE
     WHEN 'initiative' THEN 'initiatives'
     WHEN 'roundtable' THEN 'roundtable_sessions'
     WHEN 'awareness'  THEN 'awareness_cards'
+    WHEN 'infographic' THEN 'infographics'          -- the downloadable file (9.11)
     ELSE NULL END;
   v_found boolean;
 BEGIN

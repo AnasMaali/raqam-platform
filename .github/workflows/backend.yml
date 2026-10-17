@@ -6,11 +6,15 @@ on:
     paths:
       - "backend/**"
       - "database/schema/**"
+      - "database/php/**"
+      - "database/tests/normalizer_cases.json"
       - ".github/workflows/backend.yml"
   pull_request:
     paths:
       - "backend/**"
       - "database/schema/**"
+      - "database/php/**"
+      - "database/tests/normalizer_cases.json"
       - ".github/workflows/backend.yml"
 
 permissions:
@@ -73,6 +77,9 @@ jobs:
           tools: composer:v2
           coverage: none
 
+      - name: Every schema file has a migration
+        run: ./scripts/check-migration-coverage.sh
+
       - name: Install PostgreSQL client
         run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
 
@@ -100,5 +107,12 @@ jobs:
       - name: Pest
         run: php artisan test
 
-      - name: Schema parity (migrations == database/schema)
+      - name: Schema parity (migrations == database/schema, step-by-step rollback)
         run: ./scripts/check-schema-parity.sh
+
+      - name: migrate:fresh twice in a row
+        env:
+          DB_DATABASE: raqam_testing
+        run: |
+          php artisan migrate:fresh --force --no-interaction
+          php artisan migrate:fresh --force --no-interaction

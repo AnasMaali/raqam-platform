@@ -57,18 +57,32 @@ INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد');
 
 -- ---------------------------------------------------------------- media
 SELECT pg_temp.expect_fail('media: public image without alt text',
-  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256)
-    VALUES ('a/1.jpg', '1.jpg', 'image/jpeg', 1000, repeat('a', 64))$$);
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, width, height)
+    VALUES ('a/1.jpg', '1.jpg', 'image/jpeg', 1000, repeat('a', 64), 800, 600)$$);
 SELECT pg_temp.expect_fail('media: uploaded clip longer than 90 s',
-  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds)
-    VALUES ('v/1.mp4', '1.mp4', 'video/mp4', 1000, repeat('b', 64), 120)$$);
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds, width, height)
+    VALUES ('v/1.mp4', '1.mp4', 'video/mp4', 1000, repeat('b', 64), 120, 1920, 1080)$$);
 SELECT pg_temp.expect_fail('media: image over 10 MB',
-  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
-    VALUES ('a/big.jpg', 'big.jpg', 'image/jpeg', 11 * 1024 * 1024, repeat('c', 64), 'alt')$$);
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width, height)
+    VALUES ('a/big.jpg', 'big.jpg', 'image/jpeg', 11 * 1024 * 1024, repeat('c', 64), 'alt', 4000, 3000)$$);
 INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width, height)
 VALUES ('a/cover.jpg', 'cover.jpg', 'image/jpeg', 200000, repeat('d', 64), 'صورة الغلاف', 1600, 900),
        ('a/pose.png',  'pose.png',  'image/png',  50000,  repeat('e', 64), 'شخصية رقم', 800, 800),
        ('a/pdf.pdf',   'inv.pdf',   'application/pdf', 50000, repeat('f', 64), NULL, NULL, NULL);
+SELECT pg_temp.expect_fail('media: raster image without dimensions',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
+    VALUES ('a/nodim.jpg', 'nodim.jpg', 'image/jpeg', 1000, repeat('7', 64), 'alt')$$);
+SELECT pg_temp.expect_fail('media: video without dimensions',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds)
+    VALUES ('v/nodim.mp4', 'nodim.mp4', 'video/mp4', 1000, repeat('8', 64), 30)$$);
+SELECT pg_temp.expect_fail('media: width without height',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width)
+    VALUES ('a/half.svg', 'half.svg', 'image/svg+xml', 1000, repeat('9', 64), 'alt', 100)$$);
+INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
+VALUES ('a/logo.svg', 'logo.svg', 'image/svg+xml', 3000, repeat('0', 64), 'شعار رقم'),
+       ('a/raqam.riv', 'raqam.riv', 'application/x-rive', 90000, repeat('3', 64), NULL);
+SELECT pg_temp.expect_eq('media: SVG and Rive need no dimensions',
+  (SELECT count(*)::text FROM media_assets WHERE path IN ('a/logo.svg', 'a/raqam.riv')), '2');
 
 -- ---------------------------------------------------------------- taxonomy
 INSERT INTO categories (parent_id, name_ar, slug)
@@ -106,6 +120,12 @@ SELECT pg_temp.expect_fail('subtype: published episode without episode row',
   $$SET CONSTRAINTS posts_subtype_present IMMEDIATE;
     INSERT INTO posts (kind_code, title, slug, body, status, published_at, cover_media_id)
     SELECT 'episode', 'حلقة', 'حلقة', '<p>x</p>', 'published', now(), id FROM media_assets WHERE path = 'a/cover.jpg'$$);
+
+SELECT pg_temp.expect_fail('subtype: published infographic without its download row',
+  $$SET CONSTRAINTS posts_subtype_present IMMEDIATE;
+    INSERT INTO posts (kind_code, category_id, title, slug, body, status, published_at, cover_media_id)
+    SELECT 'infographic', c.id, 'إنفوغراف', 'إنفوغراف', '<p>x</p>', 'published', now(), m.id
+    FROM categories c, media_assets m WHERE c.slug = 'فلسطين' AND m.path = 'a/cover.jpg'$$);
 
 BEGIN;
   INSERT INTO podcast_seasons (season_number, title_ar) VALUES (1, 'الموسم الأول');
@@ -194,6 +214,12 @@ UPDATE feature_flags SET is_enabled = true WHERE key = 'booking';
 UPDATE feature_flags SET is_enabled = true WHERE key = 'online_payments';
 SELECT pg_temp.expect_fail('flags: cannot switch booking off while payments on',
   $$UPDATE feature_flags SET is_enabled = false WHERE key = 'booking'$$);
+SELECT pg_temp.expect_fail('settings: invalid e-mail refused (email_address domain)',
+  $$UPDATE settings SET value = 'raqam.ps' WHERE key = 'contact.email'$$);
+SELECT pg_temp.expect_fail('settings: local phone refused (phone_e164 domain)',
+  $$UPDATE settings SET value = '0599123456' WHERE key = 'contact.phone'$$);
+UPDATE settings SET value = 'info@raqam.ps' WHERE key = 'contact.email';
+UPDATE settings SET value = '+970599123456' WHERE key = 'contact.phone';
 SELECT pg_temp.expect_fail('providers: two primary currency providers',
   $$UPDATE data_providers SET is_active = true, is_backup = false WHERE code = 'exchangerate_api'$$);
 
@@ -224,6 +250,14 @@ SELECT pg_temp.expect_fail('bookings: illegal transition new -> published',
 INSERT INTO booking_status_history (booking_id, status_code, note) SELECT id, 'contacted', 'اتصلنا' FROM bookings LIMIT 1;
 SELECT pg_temp.expect_eq('bookings: legal transition applied',
   (SELECT status_code FROM bookings LIMIT 1), 'contacted');
+INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, visibility)
+SELECT 'b/' || n || '.pdf', n || '.pdf', 'application/pdf', 1000, repeat(n::text, 64), 'private'
+FROM generate_series(1, 4) n;
+INSERT INTO booking_attachments (booking_id, media_id)
+SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path IN ('b/1.pdf', 'b/2.pdf', 'b/3.pdf');
+SELECT pg_temp.expect_fail('bookings: a 4th attachment is refused',
+  $$INSERT INTO booking_attachments (booking_id, media_id)
+    SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path = 'b/4.pdf'$$);
 
 -- ---------------------------------------------------------------- payments & invoices
 INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status,
@@ -239,8 +273,11 @@ INSERT INTO refunds (payment_id, amount, status) SELECT id, 10000, 'succeeded' F
 SELECT pg_temp.expect_fail('refunds: total cannot exceed payment',
   $$INSERT INTO refunds (payment_id, amount) SELECT id, 25000 FROM payments LIMIT 1$$);
 
-INSERT INTO invoices (booking_id, payment_id, billed_name, billed_email, currency_code, tax_rate_bp)
-SELECT b.id, p.id, 'سامي', 'sami@example.com', 'USD', 1600 FROM bookings b, payments p LIMIT 1;
+INSERT INTO invoices (payment_id, billed_name, billed_email, currency_code, tax_rate_bp)
+SELECT p.id, 'سامي', 'sami@example.com', 'USD', 1600 FROM payments p LIMIT 1;
+SELECT pg_temp.expect_eq('invoices: booking comes from the payment (no booking_id copy)',
+  (SELECT count(*)::text FROM information_schema.columns
+   WHERE table_name = 'invoices' AND column_name = 'booking_id'), '0');
 INSERT INTO invoice_lines (invoice_id, line_no, description, quantity, unit_amount)
 SELECT id, 1, 'حلقة بودكاست', 1, 30000 FROM invoices;
 SELECT pg_temp.expect_eq('invoices: number generated',
@@ -288,6 +325,19 @@ SELECT pg_temp.expect_fail('audit: DELETE refused', $$DELETE FROM audit_log$$);
 SELECT pg_temp.expect_fail('audit: change rows immutable', $$UPDATE audit_log_changes SET new_value = 'x'$$);
 SELECT pg_temp.expect_fail('audit: pruning young rows refused',
   $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log$$);
+SELECT pg_temp.expect_fail('audit: pruning changes of a young row refused',
+  $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log_changes$$);
+INSERT INTO audit_log (action, subject_table, subject_id, occurred_at)
+VALUES ('update', 'posts', 2, now() - interval '3 years');
+INSERT INTO audit_log_changes (audit_id, field, old_value, new_value)
+SELECT max(id), 'title', 'قديم', 'جديد' FROM audit_log;
+BEGIN;
+  SET LOCAL raqam.audit_prune = 'on';
+  DELETE FROM audit_log WHERE occurred_at < now() - interval '2 years';
+COMMIT;
+SELECT pg_temp.expect_eq('audit: pruning removes an old row with its changes',
+  (SELECT count(*)::text FROM audit_log_changes c JOIN audit_log a ON a.id = c.audit_id
+   WHERE a.occurred_at < now() - interval '2 years'), '0');
 
 -- ---------------------------------------------------------------- analytics
 INSERT INTO post_views_daily SELECT id, d, v FROM posts, (VALUES (current_date - 1, 40), (current_date, 60)) x(d, v) WHERE slug = 'ارتفاع-الدولار';

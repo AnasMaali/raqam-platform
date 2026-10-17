@@ -8,19 +8,6 @@ uses(RefreshDatabase::class);
 
 // Rules enforced by database/schema/01-identity.sql, ported from database/tests/schema_tests.sql.
 
-function insertUser(string $type, string $email, array $extra = []): int
-{
-    return DB::table('users')->insertGetId([
-        'user_type' => $type, 'name' => 'User', 'email' => $email, 'password_hash' => 'x', ...$extra,
-    ]);
-}
-
-// A failing statement aborts a PostgreSQL transaction; the savepoint keeps the test's own transaction usable.
-function rejected(Closure $statement): Closure
-{
-    return fn () => DB::transaction($statement);
-}
-
 test('e-mail lookup is case-insensitive (citext)', function () {
     insertUser('staff', 'Admin@Raqam.ps');
 
@@ -31,7 +18,7 @@ test('the same e-mail with other letter case is refused', function () {
     insertUser('staff', 'Admin@Raqam.ps');
 
     expect(rejected(fn () => insertUser('staff', 'ADMIN@raqam.ps')))
-        ->toThrow(QueryException::class, 'users_email_live_uq');
+        ->toThrow(QueryException::class, '"users_email_live_uq"');
 });
 
 test('a deleted account frees its e-mail', function () {
@@ -41,7 +28,8 @@ test('a deleted account frees its e-mail', function () {
 });
 
 test('only staff can hold a role', function () {
-    $role = DB::table('roles')->insertGetId(['code' => 'admin', 'name_ar' => 'مدير المنصة']);
+    ensure('roles', ['code' => 'admin', 'name_ar' => 'مدير المنصة', 'is_system' => true]);
+    $role = DB::table('roles')->where('code', 'admin')->value('id');
     $staff = insertUser('staff', 'admin@raqam.ps');
     $customer = insertUser('customer', 'ali@example.com');
 
@@ -55,10 +43,10 @@ test('a verification code allows at most 5 attempts', function () {
     expect(rejected(fn () => DB::table('verification_codes')->insert([
         'purpose' => 'admin_login', 'email' => 'admin@raqam.ps', 'code_hash' => 'h',
         'attempts' => 6, 'expires_at' => now()->addMinutes(10),
-    ])))->toThrow(QueryException::class, 'verification_codes_attempts_check');
+    ])))->toThrow(QueryException::class, '"verification_codes_attempts_check"');
 });
 
 test('a failed login attempt needs a reason', function () {
     expect(rejected(fn () => DB::table('login_attempts')->insert(['email' => 'admin@raqam.ps', 'succeeded' => false])))
-        ->toThrow(QueryException::class, 'login_attempts_check');
+        ->toThrow(QueryException::class, '"login_attempts_check"');
 });

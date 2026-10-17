@@ -288,6 +288,12 @@ CREATE TABLE media_assets (
   deleted_at        timestamptz,
   UNIQUE (disk, path),
   CHECK ((focal_x IS NULL) = (focal_y IS NULL)),
+  -- Dimensions: both or neither, for every type
+  CHECK ((width IS NULL) = (height IS NULL)),
+  -- Raster images and video need dimensions (no layout shift; ffprobe reads them with
+  -- the duration). SVG and Rive are exempt.
+  CHECK (mime_type NOT IN ('image/jpeg', 'image/png', 'image/webp', 'image/avif', 'video/mp4')
+         OR width IS NOT NULL),
   -- 9.2: alt text is mandatory for every public raster/vector image
   CHECK (mime_type NOT LIKE 'image/%' OR visibility = 'private' OR alt_text IS NOT NULL),
   -- 9.9: size limits (stored file, after compression)
@@ -410,7 +416,10 @@ CREATE TABLE settings (
   CHECK (value IS NULL OR value_type <> 'boolean' OR value IN ('true', 'false')),
   CHECK (value IS NULL OR value_type <> 'url'     OR value ~* '^https?://'),
   CHECK (value IS NULL OR value_type <> 'time'    OR value ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
-  CHECK (value IS NULL OR value_type <> 'media'   OR value ~ '^[0-9]+$')
+  CHECK (value IS NULL OR value_type <> 'media'   OR value ~ '^[0-9]+$'),
+  -- e-mail and phone reuse the domains, so each format rule lives in one place
+  CHECK (value IS NULL OR value_type <> 'email'   OR value::email_address IS NOT NULL),
+  CHECK (value IS NULL OR value_type <> 'phone'   OR value::phone_e164 IS NOT NULL)
 );
 
 -- The platform's own social accounts (one row per platform, not one column each).
@@ -978,7 +987,7 @@ CREATE TABLE infographics (                               -- 9.11 full-size down
   FOREIGN KEY (post_id, kind_code) REFERENCES posts (id, kind_code) ON DELETE CASCADE
 );
 
--- A section post must have its subtype row before it leaves draft.
+-- A section post (and an infographic) must have its subtype row before it leaves draft.
 -- DEFERRED constraint trigger: checked at COMMIT, so the post and its
 -- subtype row can be inserted in either order inside one transaction.
 CREATE FUNCTION trg_posts_subtype_present() RETURNS trigger
@@ -992,6 +1001,7 @@ DECLARE
     WHEN 'initiative' THEN 'initiatives'
     WHEN 'roundtable' THEN 'roundtable_sessions'
     WHEN 'awareness'  THEN 'awareness_cards'
+    WHEN 'infographic' THEN 'infographics'          -- the downloadable file (9.11)
     ELSE NULL END;
   v_found boolean;
 BEGIN
@@ -1430,6 +1440,24 @@ CREATE TABLE booking_attachments (                        -- 15.2 up to 3 privat
   PRIMARY KEY (booking_id, media_id)
 );
 
+-- At most 3 attachments per booking (15.2). The booking row is locked first, so two
+-- concurrent uploads cannot both see 2 attachments and add a 4th.
+CREATE FUNCTION trg_booking_attachments_limit() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM 1 FROM bookings WHERE id = NEW.booking_id FOR UPDATE;
+  IF (SELECT count(*) FROM booking_attachments
+      WHERE booking_id = NEW.booking_id
+        AND (TG_OP = 'INSERT' OR (booking_id, media_id) <> (OLD.booking_id, OLD.media_id))) >= 3 THEN
+    RAISE EXCEPTION 'Booking % already has 3 attachments', NEW.booking_id
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER booking_attachments_limit
+  BEFORE INSERT OR UPDATE OF booking_id ON booking_attachments
+  FOR EACH ROW EXECUTE FUNCTION trg_booking_attachments_limit();
+
 -- Ad space sold through a booking (dormant link)
 ALTER TABLE ad_campaigns
   ADD COLUMN booking_id bigint REFERENCES bookings (id) ON DELETE SET NULL;
@@ -1554,8 +1582,7 @@ CREATE TABLE invoices (                                   -- 16.9
   number_seq           integer      NOT NULL CHECK (number_seq > 0),
   number               varchar(16)  GENERATED ALWAYS AS
                          ('INV-' || number_year::text || '-' || lpad(number_seq::text, 5, '0')) STORED,
-  booking_id           bigint       NOT NULL REFERENCES bookings (id) ON DELETE RESTRICT,
-  payment_id           bigint       NOT NULL UNIQUE REFERENCES payments (id) ON DELETE RESTRICT,
+  payment_id           bigint       NOT NULL UNIQUE REFERENCES payments (id) ON DELETE RESTRICT,   -- booking = payments.booking_id
   -- Legal snapshot at issue time (a historical fact, not a copy of customers.*)
   billed_name          varchar(120) NOT NULL,
   billed_email         email_address NOT NULL,
@@ -1618,11 +1645,11 @@ BEGIN
   END IF;
   -- invoices: allow exactly one change — attaching the PDF.
   IF OLD.pdf_media_id IS NOT NULL OR NEW.pdf_media_id IS NULL
-     OR (NEW.booking_id, NEW.payment_id, NEW.billed_name, NEW.billed_email, NEW.billed_phone,
+     OR (NEW.payment_id, NEW.billed_name, NEW.billed_email, NEW.billed_phone,
          NEW.billed_company, NEW.billed_tax_number, NEW.seller_tax_number, NEW.currency_code,
          NEW.tax_rate_bp, NEW.issued_at, NEW.number_year, NEW.number_seq)
         IS DISTINCT FROM
-        (OLD.booking_id, OLD.payment_id, OLD.billed_name, OLD.billed_email, OLD.billed_phone,
+        (OLD.payment_id, OLD.billed_name, OLD.billed_email, OLD.billed_phone,
          OLD.billed_company, OLD.billed_tax_number, OLD.seller_tax_number, OLD.currency_code,
          OLD.tax_rate_bp, OLD.issued_at, OLD.number_year, OLD.number_seq) THEN
     RAISE EXCEPTION 'Issued invoices are immutable (only the PDF can be attached once)'
@@ -2054,7 +2081,14 @@ CREATE FUNCTION trg_audit_append_only() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
   IF TG_OP = 'DELETE' AND current_setting('raqam.audit_prune', true) = 'on' THEN
-    IF TG_TABLE_NAME = 'audit_log' AND OLD.occurred_at >= now() - interval '2 years' THEN
+    IF TG_TABLE_NAME = 'audit_log' THEN
+      IF OLD.occurred_at >= now() - interval '2 years' THEN
+        RAISE EXCEPTION 'Audit rows younger than 2 years cannot be pruned' USING ERRCODE = 'check_violation';
+      END IF;
+    -- audit_log_changes: only together with its (old) parent row; the cascade
+    -- runs after the parent is gone, so a still-visible young parent means a direct delete.
+    ELSIF EXISTS (SELECT 1 FROM audit_log
+                  WHERE id = OLD.audit_id AND occurred_at >= now() - interval '2 years') THEN
       RAISE EXCEPTION 'Audit rows younger than 2 years cannot be pruned' USING ERRCODE = 'check_violation';
     END IF;
     RETURN OLD;

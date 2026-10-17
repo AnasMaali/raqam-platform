@@ -232,6 +232,24 @@ CREATE TABLE booking_attachments (                        -- 15.2 up to 3 privat
   PRIMARY KEY (booking_id, media_id)
 );
 
+-- At most 3 attachments per booking (15.2). The booking row is locked first, so two
+-- concurrent uploads cannot both see 2 attachments and add a 4th.
+CREATE FUNCTION trg_booking_attachments_limit() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  PERFORM 1 FROM bookings WHERE id = NEW.booking_id FOR UPDATE;
+  IF (SELECT count(*) FROM booking_attachments
+      WHERE booking_id = NEW.booking_id
+        AND (TG_OP = 'INSERT' OR (booking_id, media_id) <> (OLD.booking_id, OLD.media_id))) >= 3 THEN
+    RAISE EXCEPTION 'Booking % already has 3 attachments', NEW.booking_id
+      USING ERRCODE = 'check_violation';
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER booking_attachments_limit
+  BEFORE INSERT OR UPDATE OF booking_id ON booking_attachments
+  FOR EACH ROW EXECUTE FUNCTION trg_booking_attachments_limit();
+
 -- Ad space sold through a booking (dormant link)
 ALTER TABLE ad_campaigns
   ADD COLUMN booking_id bigint REFERENCES bookings (id) ON DELETE SET NULL;
@@ -356,8 +374,7 @@ CREATE TABLE invoices (                                   -- 16.9
   number_seq           integer      NOT NULL CHECK (number_seq > 0),
   number               varchar(16)  GENERATED ALWAYS AS
                          ('INV-' || number_year::text || '-' || lpad(number_seq::text, 5, '0')) STORED,
-  booking_id           bigint       NOT NULL REFERENCES bookings (id) ON DELETE RESTRICT,
-  payment_id           bigint       NOT NULL UNIQUE REFERENCES payments (id) ON DELETE RESTRICT,
+  payment_id           bigint       NOT NULL UNIQUE REFERENCES payments (id) ON DELETE RESTRICT,   -- booking = payments.booking_id
   -- Legal snapshot at issue time (a historical fact, not a copy of customers.*)
   billed_name          varchar(120) NOT NULL,
   billed_email         email_address NOT NULL,
@@ -420,11 +437,11 @@ BEGIN
   END IF;
   -- invoices: allow exactly one change — attaching the PDF.
   IF OLD.pdf_media_id IS NOT NULL OR NEW.pdf_media_id IS NULL
-     OR (NEW.booking_id, NEW.payment_id, NEW.billed_name, NEW.billed_email, NEW.billed_phone,
+     OR (NEW.payment_id, NEW.billed_name, NEW.billed_email, NEW.billed_phone,
          NEW.billed_company, NEW.billed_tax_number, NEW.seller_tax_number, NEW.currency_code,
          NEW.tax_rate_bp, NEW.issued_at, NEW.number_year, NEW.number_seq)
         IS DISTINCT FROM
-        (OLD.booking_id, OLD.payment_id, OLD.billed_name, OLD.billed_email, OLD.billed_phone,
+        (OLD.payment_id, OLD.billed_name, OLD.billed_email, OLD.billed_phone,
          OLD.billed_company, OLD.billed_tax_number, OLD.seller_tax_number, OLD.currency_code,
          OLD.tax_rate_bp, OLD.issued_at, OLD.number_year, OLD.number_seq) THEN
     RAISE EXCEPTION 'Issued invoices are immutable (only the PDF can be attached once)'
