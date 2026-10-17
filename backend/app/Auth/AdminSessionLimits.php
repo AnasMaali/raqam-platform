@@ -42,6 +42,12 @@ final class AdminSessionLimits
         return max(0, min($this->idleRemaining(), $this->maxRemaining()));
     }
 
+    /** Seconds until the 12-hour limit, which nothing can extend. */
+    public function absoluteRemaining(): int
+    {
+        return max(0, $this->maxRemaining());
+    }
+
     private function idleRemaining(): int
     {
         return session(self::LAST_ACTIVITY, now()->getTimestamp()) + (int) config('raqam.auth.idle_minutes') * 60 - now()->getTimestamp();

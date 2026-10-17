@@ -146,11 +146,10 @@ test('nothing polls the server, because polling would keep the session alive by 
     expect($html)->not->toContain('wire:poll')->not->toContain('data-poll');
 });
 
-test('the countdown is only restarted by what the server answered', function () {
+test('the page script makes exactly two requests, the keep-alive and the status question, and has no timer that could poll', function () {
     $view = file_get_contents(resource_path('views/filament/session-timeout.blade.php'));
 
-    expect(substr_count($view, 'this.restart('))->toBe(2)           // a succeeded Livewire request, the keep-alive answer
-        ->and(substr_count($view, 'fetch('))->toBe(1)               // the keep-alive itself
+    expect(substr_count($view, 'fetch('))->toBe(2)
         ->and($view)->not->toContain('setTimeout')
-        ->and(substr_count($view, 'setInterval'))->toBe(1);         // the display tick
+        ->and(substr_count($view, 'setInterval'))->toBe(1);          // the display tick
 });

@@ -117,6 +117,7 @@ final class AdminSignIn
         session()->regenerate();
         $this->forget();
         app(AdminSessionLimits::class)->start();
+        AdminAudit::login($user);
         app(KnownDevices::class)->recognise($user);          // the device cookie exists only after the code
 
         return $user;

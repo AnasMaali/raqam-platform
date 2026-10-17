@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Auth\AdminSessionLimits;
 use App\Filament\Pages\Auth\AdminLogin;
 use App\Filament\Pages\Auth\AdminLoginCode;
+use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
 use Filament\Facades\Filament;
 use Filament\Http\Middleware\Authenticate;
@@ -53,14 +54,19 @@ class AdminPanelProvider extends PanelProvider
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([Authenticate::class, EnforceAdminSessionLimits::class], isPersistent: true)
-            ->authenticatedRoutes(fn () => Route::post('/session/keep-alive', fn () => response()->json([
-                'remaining' => app(AdminSessionLimits::class)->remaining(),
-            ]))->name('session.keep-alive'))
+            ->authenticatedRoutes(function () {
+                Route::middleware('throttle:admin-session')->group(function () {
+                    Route::post('/session/keep-alive', [AdminSessionController::class, 'keepAlive'])->name('session.keep-alive');
+                    Route::get('/session/status', [AdminSessionController::class, 'status'])->name('session.status');
+                });
+            })
             ->renderHook(PanelsRenderHook::BODY_END, fn () => Filament::auth()->check() ? view('filament.session-timeout', [
                 'remaining' => app(AdminSessionLimits::class)->remaining(),
                 'idle' => (int) config('raqam.auth.idle_minutes') * 60,
                 'warn' => (int) config('raqam.auth.warn_seconds'),
+                'cap' => app(AdminSessionLimits::class)->absoluteRemaining(),
                 'keepAliveUrl' => route('filament.admin.session.keep-alive'),
+                'statusUrl' => route('filament.admin.session.status'),
                 'loginUrl' => Filament::getLoginUrl().'?expired=1',
             ])->render() : '');
     }
