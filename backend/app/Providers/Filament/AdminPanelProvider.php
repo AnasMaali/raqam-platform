@@ -26,14 +26,15 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use RuntimeException;
 
 class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $path = config('raqam.admin_path')
-            ?: throw new RuntimeException('ADMIN_PATH is not set; the admin panel has no default path.');
+        // Without a configured path the panel is mounted at a random one nobody knows, so it is as good
+        // as off (and package discovery or the image build can still boot the application).
+        // Production refuses to start at all in that case: see ProductionChecks.
+        $path = config('raqam.admin_path') ?: bin2hex(random_bytes(16));
 
         return $panel
             ->id('admin')

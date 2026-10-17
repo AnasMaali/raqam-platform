@@ -19,11 +19,11 @@ test('the panel path comes from ADMIN_PATH and is not the usual one', function (
     $this->get('/admin/login')->assertNotFound();
 });
 
-test('the app refuses to boot the panel without ADMIN_PATH', function () {
+test('without ADMIN_PATH the panel sits at a random path nobody can guess', function () {
     config(['raqam.admin_path' => null]);
+    $path = fn () => (new AdminPanelProvider(app()))->panel(Panel::make())->getPath();
 
-    expect(fn () => app(AdminPanelProvider::class, ['app' => app()])
-        ->panel(Panel::make()))->toThrow(RuntimeException::class, 'ADMIN_PATH');
+    expect($path())->toMatch('/^[0-9a-f]{32}$/')->and($path())->not->toBe($path());
 });
 
 test('a guest is sent to the sign-in page', function () {
