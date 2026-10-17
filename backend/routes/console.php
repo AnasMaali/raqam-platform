@@ -9,3 +9,5 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('devices:prune')->daily();
+
+Schedule::command('queue:prune-failed --hours=720')->daily();

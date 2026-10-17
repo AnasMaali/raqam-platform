@@ -6,15 +6,17 @@ use App\Auth\AdminSessionLimits;
 use App\Filament\Pages\Auth\AdminLogin;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Filament\Pages\ChangePassword;
+use App\Filament\Pages\Dashboard;
+use App\Filament\Pages\GeneralSettings;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\FontProviders\LocalFontProvider;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
-use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -43,7 +45,9 @@ class AdminPanelProvider extends PanelProvider
             ->routes(fn () => Route::get('/login/code', AdminLoginCode::class)->name('auth.login.code'))
             ->brandName('رَقَم')
             ->colors(['primary' => Color::Amber])
-            ->pages([Dashboard::class, ChangePassword::class])
+            ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
+            ->sidebarCollapsibleOnDesktop()
+            ->pages([Dashboard::class, GeneralSettings::class, ChangePassword::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),
             ])
