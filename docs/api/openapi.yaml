@@ -1,0 +1,792 @@
+openapi: 3.1.0
+info:
+  title: Raqam content API
+  version: 1.0.0
+  summary: Read-only access to the published content of the Raqam platform.
+  description: |
+    Everything here is **read only** and serves **published content only**: drafts, scheduled items, archived items
+    and anything in the trash never appear (a request for one is a 404, or a 410 when the address was deleted for good).
+
+    * Lists have **12 items per page** (`page` starts at 1). The response carries `meta` and `links`.
+    * Every response has an `ETag`; send it back in `If-None-Match` to get `304 Not Modified`. Responses are
+      cacheable by a shared cache for a short time (`Cache-Control`).
+    * Requests are limited per client (`429` with `Retry-After`).
+    * Errors always look like `{"error": {"code": "...", "message": "..."}}`. Messages are in Arabic.
+    * Times are ISO 8601 in UTC; show them in Asia/Hebron.
+    * A post's public address is `canonical_path`: `/{prefix}/{id}/{slug}`. The id identifies the post. A request with
+      an old slug answers **301** to the current address; a deleted post answers **410**.
+  license:
+    name: Proprietary
+servers:
+  - url: /api/v1
+tags:
+  - name: Posts
+  - name: Taxonomy
+  - name: People
+  - name: Pages
+  - name: Redirects
+
+paths:
+  /posts:
+    get:
+      tags: [Posts]
+      summary: Published posts, newest first
+      operationId: listPosts
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: kind
+          in: query
+          description: Only this kind of content.
+          schema: { $ref: '#/components/schemas/KindCode' }
+        - name: category
+          in: query
+          description: Slug of a category. A main category includes its sub-categories.
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: tag
+          in: query
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: section
+          in: query
+          description: Slug of a special section (e.g. `podcast`).
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: author
+          in: query
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: guest
+          in: query
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: featured
+          in: query
+          description: Only featured posts (`1`).
+          schema: { type: string, enum: ['1'] }
+        - name: breaking
+          in: query
+          description: Only posts that are breaking right now (`1`).
+          schema: { type: string, enum: ['1'] }
+      responses:
+        '200':
+          description: One page of posts.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/PostSummary' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /posts/{id}:
+    get:
+      tags: [Posts]
+      summary: One published post, by its id
+      operationId: showPost
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+      responses:
+        '200': { $ref: '#/components/responses/Post' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /posts/{id}/{slug}:
+    get:
+      tags: [Posts]
+      summary: One published post, checking the slug
+      description: |
+        Same as `/posts/{id}`, but when `slug` is not the current slug the answer is **301** to the current address
+        (`Location` is the API address, `canonical_path` in the body is the public one).
+      operationId: showPostWithSlug
+      parameters:
+        - $ref: '#/components/parameters/PostId'
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        '200': { $ref: '#/components/responses/Post' }
+        '301':
+          description: The slug is an old one.
+          headers: { Location: { schema: { type: string } } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [canonical_path]
+                properties:
+                  canonical_path: { type: string, example: /news/12/عنوان-جديد }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /categories:
+    get:
+      tags: [Taxonomy]
+      summary: Visible categories with their sub-categories, in the admin's order
+      operationId: listCategories
+      responses:
+        '200':
+          description: The category tree.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/CategoryNode' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /categories/{slug}:
+    get:
+      tags: [Taxonomy]
+      summary: One category
+      operationId: showCategory
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The category.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/CategoryNode' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /tags:
+    get:
+      tags: [Taxonomy]
+      summary: Tags that have published posts, most used first
+      operationId: listTags
+      parameters: [{ $ref: '#/components/parameters/Page' }]
+      responses:
+        '200':
+          description: One page of tags.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /tags/{slug}:
+    get:
+      tags: [Taxonomy]
+      summary: One tag
+      operationId: showTag
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The tag.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Tag' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /sections:
+    get:
+      tags: [Taxonomy]
+      summary: The visible special sections, in the admin's order
+      operationId: listSections
+      responses:
+        '200':
+          description: The sections.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Section' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /sections/{slug}:
+    get:
+      tags: [Taxonomy]
+      summary: One visible section
+      operationId: showSection
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The section.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Section' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /authors:
+    get:
+      tags: [People]
+      summary: Active writers, A to Z
+      operationId: listAuthors
+      parameters: [{ $ref: '#/components/parameters/Page' }]
+      responses:
+        '200':
+          description: One page of writers.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Author' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /authors/{slug}:
+    get:
+      tags: [People]
+      summary: One writer
+      operationId: showAuthor
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The writer.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Author' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /guests:
+    get:
+      tags: [People]
+      summary: Guests, A to Z
+      operationId: listGuests
+      parameters: [{ $ref: '#/components/parameters/Page' }]
+      responses:
+        '200':
+          description: One page of guests.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Guest' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /guests/{slug}:
+    get:
+      tags: [People]
+      summary: One guest
+      operationId: showGuest
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The guest.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Guest' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /pages:
+    get:
+      tags: [Pages]
+      summary: Published static pages (without their text)
+      operationId: listPages
+      responses:
+        '200':
+          description: The pages.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/PageSummary' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /pages/{slug}:
+    get:
+      tags: [Pages]
+      summary: One published static page
+      operationId: showPage
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The page with its text.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Page' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /redirects/lookup:
+    get:
+      tags: [Redirects]
+      summary: What to do with an address the site does not know
+      description: |
+        For addresses managed by hand or left behind by deleted content. `301`/`302` carry the new address,
+        `410` means gone for good, `404` means nothing is known. Each answer counts as a visit of the redirect.
+      operationId: lookupRedirect
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: The address as the visitor typed it, starting with `/` (decoded, not percent-encoded).
+          schema: { type: string, minLength: 1, maxLength: 500, pattern: '^/' }
+      responses:
+        '301': { $ref: '#/components/responses/Redirect' }
+        '302': { $ref: '#/components/responses/Redirect' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Page number, from 1.
+      schema: { type: integer, minimum: 1, maximum: 10000, default: 1 }
+    PostId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/Slug' }
+
+  headers:
+    ETag:
+      description: Validator for `If-None-Match`.
+      schema: { type: string }
+    CacheControl:
+      description: How long a shared cache may keep the answer.
+      schema: { type: string }
+
+  responses:
+    Post:
+      description: The post.
+      headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: { $ref: '#/components/schemas/PostDetail' }
+    NotModified:
+      description: The copy the client holds is still current.
+    Redirect:
+      description: The address moved.
+      headers: { Location: { schema: { type: string } } }
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [to]
+            properties:
+              to: { type: string, description: "The new address (a path of the site or a web address)." }
+    NotFound:
+      description: Nothing here (or it is not published).
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Gone:
+      description: Deleted for good. Do not ask again.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Invalid:
+      description: A parameter is wrong.
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    TooManyRequests:
+      description: Too many requests; wait `Retry-After` seconds.
+      headers: { Retry-After: { schema: { type: integer } } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  schemas:
+    Slug:
+      type: string
+      minLength: 1
+      maxLength: 200
+      pattern: '^[^\s/?#%&]+$'
+    KindCode:
+      type: string
+      enum: [news, report, opinion, infographic, episode, story, product, history, initiative, roundtable, awareness]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: not_found }
+            message: { type: string }
+            details:
+              type: object
+              additionalProperties: { type: array, items: { type: string } }
+    PageMeta:
+      type: object
+      required: [page, per_page, total, last_page]
+      properties:
+        page: { type: integer, minimum: 1 }
+        per_page: { type: integer, const: 12 }
+        total: { type: integer, minimum: 0 }
+        last_page: { type: integer, minimum: 1 }
+    PageLinks:
+      type: object
+      required: [next, prev]
+      properties:
+        next: { type: [string, 'null'], description: "Query string of the next page (e.g. `?page=2&kind=news`), null on the last page." }
+        prev: { type: [string, 'null'] }
+    MediaVariant:
+      type: object
+      required: [url, width, height]
+      properties:
+        url: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+    Media:
+      type: object
+      required: [id, mime_type, url, alt, caption, credit, width, height, focal, variants]
+      properties:
+        id: { type: integer }
+        mime_type: { type: string }
+        url: { type: string, description: "The file itself (the cleaned original)." }
+        alt: { type: [string, 'null'] }
+        caption: { type: [string, 'null'] }
+        credit: { type: [string, 'null'] }
+        width: { type: [integer, 'null'] }
+        height: { type: [integer, 'null'] }
+        focal:
+          description: The important point of the picture, 0 to 1 from the top-left corner; use it as `object-position`.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [x, y]
+              properties: { x: { type: number, minimum: 0, maximum: 1 }, y: { type: number, minimum: 0, maximum: 1 } }
+        variants:
+          description: 'Renditions: `{thumb|sm|md|lg|xl|og: {avif|webp|jpeg: MediaVariant}}`. Absent sizes or formats are simply missing.'
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { $ref: '#/components/schemas/MediaVariant' }
+    Kind:
+      type: object
+      required: [code, name]
+      properties:
+        code: { $ref: '#/components/schemas/KindCode' }
+        name: { type: string }
+    CategoryRef:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+    AuthorRef:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+    Organization:
+      type: object
+      required: [id, name, slug, website]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        website: { type: [string, 'null'] }
+    PostSummary:
+      type: object
+      required: [id, kind, title, subtitle, excerpt, slug, canonical_path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
+      properties:
+        id: { type: integer }
+        kind: { $ref: '#/components/schemas/Kind' }
+        title: { type: string }
+        subtitle: { type: [string, 'null'] }
+        excerpt: { type: [string, 'null'] }
+        slug: { type: string }
+        canonical_path: { type: string, example: /news/12/عنوان-الخبر }
+        published_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        cover:
+          oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }]
+        category:
+          oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/CategoryRef' }]
+        authors:
+          description: Empty means the team («فريق رَقَم»).
+          type: array
+          items: { $ref: '#/components/schemas/AuthorRef' }
+        is_featured: { type: boolean }
+        is_breaking: { type: boolean }
+        breaking_until: { type: [string, 'null'], format: date-time }
+        sponsor:
+          description: Present for sponsored content, which must be shown with a clear label.
+          oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }]
+    Seo:
+      type: object
+      required: [title, description, canonical_url, noindex, share_image]
+      properties:
+        title: { type: string, description: "The title for the search results (the override, or the post title)." }
+        description: { type: [string, 'null'] }
+        canonical_url: { type: [string, 'null'] }
+        noindex: { type: boolean }
+        share_image:
+          oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }]
+    Tag:
+      type: object
+      required: [id, name, slug, posts_count]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        posts_count: { type: integer, minimum: 0 }
+        seo: { $ref: '#/components/schemas/Seo' }
+    Guest:
+      type: object
+      required: [id, name, slug, job_title, bio, photo, organization, links]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        job_title: { type: [string, 'null'] }
+        bio: { type: [string, 'null'] }
+        photo: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
+        organization: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }] }
+        links: { $ref: '#/components/schemas/Links' }
+        seo: { $ref: '#/components/schemas/Seo' }
+    Author:
+      type: object
+      required: [id, name, slug, job_title, bio, photo, team_order, links]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        job_title: { type: [string, 'null'] }
+        bio: { type: [string, 'null'] }
+        photo: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
+        team_order: { type: [integer, 'null'], description: "Position on the team page, null if not on it." }
+        links: { $ref: '#/components/schemas/Links' }
+        seo: { $ref: '#/components/schemas/Seo' }
+    Links:
+      type: object
+      description: Platform code to address.
+      additionalProperties: { type: string }
+    CategoryNode:
+      type: object
+      required: [id, name, slug, description, is_highlighted, children]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        is_highlighted: { type: boolean }
+        parent: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/CategoryRef' }] }
+        children:
+          type: array
+          items:
+            type: object
+            required: [id, name, slug, description]
+            properties:
+              id: { type: integer }
+              name: { type: string }
+              slug: { type: string }
+              description: { type: [string, 'null'] }
+        seo: { $ref: '#/components/schemas/Seo' }
+    Section:
+      type: object
+      required: [id, key, name, slug, description, cover]
+      properties:
+        id: { type: integer }
+        key: { type: string, enum: [podcast, success_stories, made_in_nablus, nablus_history, initiatives, round_table, awareness] }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        cover: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
+        seo: { $ref: '#/components/schemas/Seo' }
+    PageSummary:
+      type: object
+      required: [slug, title, system_key]
+      properties:
+        slug: { type: string }
+        title: { type: string }
+        system_key: { type: [string, 'null'], description: 'For the standard pages: about, privacy, terms ...' }
+    Page:
+      type: object
+      required: [slug, title, system_key, body_html, updated_at, seo]
+      properties:
+        slug: { type: string }
+        title: { type: string }
+        system_key: { type: [string, 'null'] }
+        body_html: { type: string, description: "Cleaned HTML, safe to inject." }
+        updated_at: { type: string, format: date-time }
+        seo: { $ref: '#/components/schemas/Seo' }
+    PostDetail:
+      allOf:
+        - $ref: '#/components/schemas/PostSummary'
+        - type: object
+          required: [body_html, tags, gallery, guests, details, related, correction, seo, revision]
+          properties:
+            body_html:
+              type: string
+              description: Cleaned HTML with every block (picture, gallery, awareness card, "read also") already built. Safe to inject.
+            tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
+            gallery: { type: array, items: { $ref: '#/components/schemas/Media' } }
+            guests:
+              type: array
+              items:
+                type: object
+                required: [role, guest]
+                properties:
+                  role: { type: object, required: [code, name], properties: { code: { type: string, enum: [host, guest, panelist] }, name: { type: string } } }
+                  guest: { $ref: '#/components/schemas/Guest' }
+            details:
+              description: The facts of the kind (episode, story, ...); null for news, reports and opinion pieces.
+              oneOf:
+                - type: 'null'
+                - $ref: '#/components/schemas/EpisodeDetails'
+                - $ref: '#/components/schemas/StoryDetails'
+                - $ref: '#/components/schemas/ProductDetails'
+                - $ref: '#/components/schemas/HistoryDetails'
+                - $ref: '#/components/schemas/InitiativeDetails'
+                - $ref: '#/components/schemas/RoundtableDetails'
+                - $ref: '#/components/schemas/AwarenessDetails'
+                - $ref: '#/components/schemas/InfographicDetails'
+            related:
+              description: Posts the text points to with "read also" (published ones only).
+              type: array
+              items: { $ref: '#/components/schemas/PostSummary' }
+            correction:
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [note, corrected_at]
+                  properties: { note: { type: string }, corrected_at: { type: string, format: date-time } }
+            seo: { $ref: '#/components/schemas/Seo' }
+            revision:
+              type: string
+              description: Changes whenever the text or the facts change; handy as a cache key.
+    EpisodeDetails:
+      type: object
+      required: [kind, season, episode_number]
+      properties:
+        kind: { const: episode }
+        season: { type: object, required: [number, title], properties: { number: { type: integer }, title: { type: [string, 'null'] } } }
+        episode_number: { type: integer }
+    StoryDetails:
+      type: object
+      required: [kind, organization, person_name, figures]
+      properties:
+        kind: { const: story }
+        organization: { $ref: '#/components/schemas/Organization' }
+        person_name: { type: [string, 'null'] }
+        figures: { type: array, items: { type: object, required: [value, label], properties: { value: { type: string }, label: { type: string } } } }
+    ProductDetails:
+      type: object
+      required: [kind, product_name, organization, contact_url, contact_phone]
+      properties:
+        kind: { const: product }
+        product_name: { type: string }
+        organization: { $ref: '#/components/schemas/Organization' }
+        contact_url: { type: [string, 'null'] }
+        contact_phone: { type: [string, 'null'] }
+    HistoryDetails:
+      type: object
+      required: [kind, era, period_label, year_from, year_to]
+      properties:
+        kind: { const: history }
+        era: { type: object, required: [id, name], properties: { id: { type: integer }, name: { type: string } } }
+        period_label: { type: [string, 'null'] }
+        year_from: { type: [integer, 'null'] }
+        year_to: { type: [integer, 'null'] }
+    InitiativeDetails:
+      type: object
+      required: [kind, initiative_name, organizer, status, url]
+      properties:
+        kind: { const: initiative }
+        initiative_name: { type: string }
+        organizer: { $ref: '#/components/schemas/Organization' }
+        status: { type: string, enum: [ongoing, ended] }
+        url: { type: [string, 'null'] }
+    RoundtableDetails:
+      type: object
+      required: [kind, held_on]
+      properties:
+        kind: { const: roundtable }
+        held_on: { type: string, format: date }
+    AwarenessDetails:
+      type: object
+      required: [kind, type, character, pose]
+      properties:
+        kind: { const: awareness }
+        type: { type: object, required: [code, name], properties: { code: { type: string }, name: { type: string } } }
+        character: { type: object, required: [id, name, slug, accent_color], properties: { id: { type: integer }, name: { type: string }, slug: { type: string }, accent_color: { type: string } } }
+        pose: { type: object, required: [code, name, image], properties: { code: { type: string }, name: { type: string }, image: { $ref: '#/components/schemas/Media' } } }
+    InfographicDetails:
+      type: object
+      required: [kind, download]
+      properties:
+        kind: { const: infographic }
+        download: { $ref: '#/components/schemas/Media' }
