@@ -9,8 +9,6 @@ uses(RefreshDatabase::class);
 // normalize_ar() (SQL) and ArabicNormalizer::normalize() (PHP) must stay identical (decision 10.2).
 // The cases are shared with database/tests/normalizer_parity.py.
 
-require_once dirname(__DIR__, 4).'/database/php/ArabicNormalizer.php';
-
 dataset('normalizer cases', fn () => array_map(
     fn (array $case) => [$case['input'], $case['expected']],
     json_decode(file_get_contents(dirname(__DIR__, 4).'/database/tests/normalizer_cases.json'), true),
