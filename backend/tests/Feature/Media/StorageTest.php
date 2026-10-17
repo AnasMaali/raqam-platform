@@ -18,7 +18,10 @@ function refusedStatus(): int
 
 function put(string $visibility = 'public', ?string $bytes = null): MediaAsset
 {
-    return app(MediaUploader::class)->store(uploadFile($bytes ?? imageBytes(rand(60, 90), 60)), 'a.jpg', ['alt_text' => 'x', 'visibility' => $visibility], null)->asset;
+    static $n = 0;   // each call a picture of its own size: identical bytes would be recognised as the same file
+    $n++;
+
+    return app(MediaUploader::class)->store(uploadFile($bytes ?? imageBytes(60 + $n, 60)), 'a.jpg', ['alt_text' => 'x', 'visibility' => $visibility], null)->asset;
 }
 
 // ---- local or R2 by configuration only (9.10) -----------------------------------------------------
