@@ -2,6 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Jobs\SendSiteWebhook;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -26,6 +29,23 @@ class Dashboard extends BaseDashboard
         'حالة مصادر العملات والطقس' => 'تظهر مع مرحلة العملات والطقس.',
         'التنبيهات' => 'تظهر مع مرحلة التنبيهات.',
     ];
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('refreshSite')->label('تحديث الموقع الآن')->icon('heroicon-o-arrow-path')->requiresConfirmation()
+                ->modalDescription('يُبلَّغ الموقع بتحديث كل صفحاته من آخر محتوى.')
+                ->action(function () {
+                    if (! SendSiteWebhook::configured()) {
+                        Notification::make()->warning()->title('رابط تحديث الموقع غير مضبوط بعد.')->send();
+
+                        return;
+                    }
+                    SendSiteWebhook::notify(['type' => 'all', 'change' => 'refresh', 'paths' => []]);
+                    Notification::make()->success()->title('أُرسل طلب التحديث.')->send();
+                }),
+        ];
+    }
 
     public function getWidgets(): array
     {

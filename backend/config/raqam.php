@@ -35,4 +35,13 @@ return [
     */
     'tracking_key' => env('TRACKING_HASH_KEY'),
 
+    /*
+    | The website is told when content changes (decision 21.16). Both must be set, or nothing is sent.
+    | The secret signs every request; the site checks it.
+    */
+    'site_webhook' => [
+        'url' => env('SITE_WEBHOOK_URL'),
+        'secret' => env('SITE_WEBHOOK_SECRET'),
+    ],
+
 ];
