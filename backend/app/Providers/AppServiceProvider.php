@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Auth\AdminAudit;
 use App\Console\WipeDatabaseCommand;
 use App\Events\PostChanged;
+use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifySiteOfPostChange;
 use App\Support\ProductionChecks;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,6 +37,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+
+        // The sign-in code page is a bare route, not a panel page, so Filament does not register it. Without
+        // a name Livewire cannot find it again when the page posts back to /livewire/update (419).
+        Livewire::component('admin-login-code', AdminLoginCode::class);
 
         // The dialog's keep-alive and status requests: 10 a minute for each, per admin.
         RateLimiter::for('admin-session', fn (Request $request) => Limit::perMinute(10)

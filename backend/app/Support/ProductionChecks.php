@@ -14,7 +14,7 @@ final class ProductionChecks
     /** Console commands that run while the image is built, before any secret exists. */
     private const BUILD_COMMANDS = [
         'package:discover', 'config:cache', 'config:clear', 'route:cache', 'view:cache', 'event:cache',
-        'optimize', 'optimize:clear', 'key:generate', 'storage:link', 'about', 'list', 'help', 'env',
+        'optimize', 'optimize:clear', 'key:generate', 'storage:link', 'filament:assets', 'about', 'list', 'help', 'env',
     ];
 
     /** @return list<string> */
