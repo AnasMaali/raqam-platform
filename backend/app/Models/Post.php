@@ -95,6 +95,12 @@ class Post extends Model
         return $query->where('status', 'published')->where('published_at', '<=', now())->whereNull('deleted_at');
     }
 
+    /** Reachable by its address: live, or archived (an archived item stays at its address but leaves every list). */
+    public function scopeViewable(Builder $query): Builder
+    {
+        return $query->whereIn('status', ['published', 'archived'])->where('published_at', '<=', now())->whereNull('deleted_at');
+    }
+
     // ---- audit ---------------------------------------------------------------------------------------
 
     protected function auditIgnored(): array

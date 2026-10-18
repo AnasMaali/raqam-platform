@@ -180,7 +180,7 @@ test('a post has everything the contract promises', function () {
     $data = api("/posts/{$post->id}")->assertOk()->json('data');
 
     matchesContract($data, 'PostDetail');
-    expect($data)->toMatchArray(['id' => $post->id, 'title' => 'خبر كامل', 'canonical_path' => "/news/{$post->id}/".$post->fresh()->slug, 'is_breaking' => false, 'sponsor' => null])
+    expect($data)->toMatchArray(['id' => $post->id, 'title' => 'خبر كامل', 'path' => "/news/{$post->id}/".$post->fresh()->slug, 'is_breaking' => false, 'sponsor' => null])
         ->and($data['tags'][0]['name'])->toBe('ذهب')->and($data['gallery'])->toHaveCount(1)->and($data['correction']['note'])->toBe('صُحّح الرقم')
         ->and($data['cover']['variants'])->toHaveKey('thumb')->and($data['cover']['variants']['og'])->toHaveKey('jpeg')
         ->and($data['details'])->toBeNull()->and($data['seo']['title'])->toBe('خبر كامل');
@@ -242,11 +242,28 @@ test('related posts that are not published never show', function () {
 test('a post that is not public is not found, whatever its state', function () {
     $draft = app(PostSaver::class)->create('news', 'مسودة', $this->user->id);
     $scheduled = publish('news', ['status' => 'scheduled', 'published_at' => now()->addDay()]);
-    $archived = publish('news');
-    $this->saver->save($archived, ['title' => 'x', 'body' => '<p>x</p>', 'category_id' => $this->energy->id, 'cover_media_id' => $this->cover->id, 'status' => 'archived'], $this->user->id);
-
-    foreach ([$draft->id, $scheduled->id, $archived->id, 987654] as $id) {
+    foreach ([$draft->id, $scheduled->id, 987654] as $id) {
         matchesContract(api("/posts/{$id}")->assertNotFound()->json(), 'Error');
+    }
+});
+
+test('an archived post keeps working at its address but leaves every list', function () {
+    $post = publish('news', ['title' => 'قديم']);
+    $this->saver->save($post, ['title' => 'قديم', 'body' => '<p>x</p>', 'category_id' => $this->energy->id, 'cover_media_id' => $this->cover->id, 'status' => 'archived'], $this->user->id);
+    $current = publish('news', ['title' => 'حالي', 'body' => '<p>x</p><div data-type="customBlock" data-id="read-also" data-config=\'{"post_ids":['.$post->id.']}\'></div>']);
+
+    matchesContract(api("/posts/{$post->id}")->assertOk()->json('data'), 'PostDetail');
+    api("/posts/{$post->id}/".rawurlencode('غير-الرابط'))->assertStatus(301);
+    expect(collect(api('/posts')->json('data'))->pluck('title')->all())->toBe(['حالي'])
+        ->and(api("/posts/{$current->id}")->json('data.related'))->toBe([])
+        ->and(api('/posts?category=طاقة')->json('meta.total'))->toBe(1);
+});
+
+test('every kind of the news family lives under /news, and the sections under their own address', function () {
+    foreach (['news', 'report', 'opinion', 'infographic'] as $kind) {
+        $facts = $kind === 'infographic' ? ['infographic' => ['download_media_id' => $this->cover->id]] : [];
+        $post = publish($kind, $facts);
+        expect(api("/posts/{$post->id}")->json('data.path'))->toStartWith("/news/{$post->id}/");
     }
 });
 
@@ -266,7 +283,7 @@ test('an old slug answers 301 to the current address, the current slug answers 2
     $this->saver->save($post->fresh(), ['title' => 'عنوان قديم', 'body' => '<p>x</p>', 'category_id' => $this->energy->id, 'cover_media_id' => $this->cover->id, 'status' => 'published', 'slug' => 'عنوان-جديد'], $this->user->id);
 
     $r = api("/posts/{$post->id}/".rawurlencode($old))->assertStatus(301);
-    expect($r->json('canonical_path'))->toBe("/news/{$post->id}/عنوان-جديد")->and($r->headers->get('Location'))->toContain("/api/v1/posts/{$post->id}/");
+    expect($r->json('path'))->toBe("/news/{$post->id}/عنوان-جديد")->and($r->headers->get('Location'))->toContain("/api/v1/posts/{$post->id}/");
     api("/posts/{$post->id}/".rawurlencode('عنوان-جديد'))->assertOk();
     api("/posts/{$post->id}/".rawurlencode('أي-شيء'))->assertStatus(301);
 });
@@ -415,6 +432,28 @@ test('a client that asks too often is told to wait', function () {
     $r = api('/sections')->assertStatus(429);
     matchesContract($r->json(), 'Error');
     expect($r->headers->get('Retry-After'))->not->toBeNull();
+});
+
+test('the website, holding the secret token, has a much higher limit; a wrong or empty token has the ordinary one', function () {
+    config(['raqam.api.site_token' => 'site-secret-0123456789', 'raqam.api.limit' => 3, 'raqam.api.site_limit' => 10]);
+
+    for ($i = 0; $i < 10; $i++) {
+        api('/sections', ['X-Raqam-Site-Token' => 'site-secret-0123456789'])->assertOk();
+    }
+    api('/sections', ['X-Raqam-Site-Token' => 'site-secret-0123456789'])->assertStatus(429);
+
+    foreach (range(1, 3) as $_) {
+        api('/tags', ['X-Raqam-Site-Token' => 'wrong'])->assertOk();
+    }
+    api('/tags', ['X-Raqam-Site-Token' => 'wrong'])->assertStatus(429);
+});
+
+test('with no token configured an empty header does not unlock the higher limit', function () {
+    config(['raqam.api.site_token' => '', 'raqam.api.limit' => 2, 'raqam.api.site_limit' => 50]);
+
+    api('/pages', ['X-Raqam-Site-Token' => ''])->assertOk();
+    api('/pages', ['X-Raqam-Site-Token' => ''])->assertOk();
+    api('/pages', ['X-Raqam-Site-Token' => ''])->assertStatus(429);
 });
 
 test('the API answers JSON even when asked for HTML, and an unknown path is a JSON 404', function () {

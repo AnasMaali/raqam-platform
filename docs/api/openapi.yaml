@@ -13,7 +13,7 @@ info:
     * Requests are limited per client (`429` with `Retry-After`).
     * Errors always look like `{"error": {"code": "...", "message": "..."}}`. Messages are in Arabic.
     * Times are ISO 8601 in UTC; show them in Asia/Hebron.
-    * A post's public address is `canonical_path`: `/{prefix}/{id}/{slug}`. The id identifies the post. A request with
+    * A post's public address is `path`: `/{prefix}/{id}/{slug}`. The id identifies the post. A request with
       an old slug answers **301** to the current address; a deleted post answers **410**.
   license:
     name: Proprietary
@@ -100,7 +100,7 @@ paths:
       summary: One published post, checking the slug
       description: |
         Same as `/posts/{id}`, but when `slug` is not the current slug the answer is **301** to the current address
-        (`Location` is the API address, `canonical_path` in the body is the public one).
+        (`Location` is the API address, `path` in the body is the public one).
       operationId: showPostWithSlug
       parameters:
         - $ref: '#/components/parameters/PostId'
@@ -117,9 +117,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [canonical_path]
+                required: [path]
                 properties:
-                  canonical_path: { type: string, example: /news/12/عنوان-جديد }
+                  path: { type: string, example: /news/12/عنوان-جديد }
         '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
         '410': { $ref: '#/components/responses/Gone' }
@@ -560,7 +560,7 @@ components:
         website: { type: [string, 'null'] }
     PostSummary:
       type: object
-      required: [id, kind, title, subtitle, excerpt, slug, canonical_path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
+      required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
       properties:
         id: { type: integer }
         kind: { $ref: '#/components/schemas/Kind' }
@@ -568,7 +568,7 @@ components:
         subtitle: { type: [string, 'null'] }
         excerpt: { type: [string, 'null'] }
         slug: { type: string }
-        canonical_path: { type: string, example: /news/12/عنوان-الخبر }
+        path: { type: string, example: /news/12/عنوان-الخبر }
         published_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         cover:

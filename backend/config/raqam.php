@@ -39,6 +39,16 @@ return [
     | The website is told when content changes (decision 21.16). Both must be set, or nothing is sent.
     | The secret signs every request; the site checks it.
     */
+    /*
+    | The website sends this secret in the X-Raqam-Site-Token header and gets a much higher API limit than
+    | anonymous clients. Empty means nobody gets it. Compared with hash_equals.
+    */
+    'api' => [
+        'site_token' => env('API_SITE_TOKEN'),
+        'limit' => 120,
+        'site_limit' => 3000,
+    ],
+
     'site_webhook' => [
         'url' => env('SITE_WEBHOOK_URL'),
         'secret' => env('SITE_WEBHOOK_SECRET'),

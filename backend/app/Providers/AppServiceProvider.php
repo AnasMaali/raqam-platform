@@ -45,8 +45,13 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(PostChanged::class, NotifySiteOfPostChange::class);
 
-        // The public API: 120 requests a minute per client address.
-        RateLimiter::for('api-public', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
+        // The public API: 120 a minute per client address; the website, holding the secret token, gets far more.
+        RateLimiter::for('api-public', function (Request $request) {
+            $token = (string) config('raqam.api.site_token');
+            $isSite = $token !== '' && hash_equals($token, (string) $request->header('X-Raqam-Site-Token'));
+
+            return $isSite ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : Limit::perMinute((int) config('raqam.api.limit'))->by($request->ip());
+        });
 
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what
         // AuthenticateSession raises when the password changed since the session began.
