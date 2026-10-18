@@ -23,12 +23,20 @@ function openTab({ draft = true, serverAt = 1_699_999_000, data = { title: 'أ',
     const wire = {
         data,
         autosave: () => { calls.push('autosave'); return Promise.resolve(); },
+        $get: (key) => wire[key],
         $set: (key, value) => { calls.push(['set', key]); wire[key] = value; },
     };
     const view = {
         localStorage,
         Livewire: {
-            all: () => [{ $wire: wire }],
+            // The real page has many components, and every $wire answers "a function" for any property (it is a proxy):
+            // the script must pick the editor by name, not by "has an autosave method".
+            all: () => [
+                { name: 'filament.livewire.topbar', $wire: new Proxy({}, { get: () => () => {} }) },
+                { name: 'filament.livewire.sidebar', $wire: new Proxy({}, { get: () => () => {} }) },
+                { name: 'app.filament.resources.posts.pages.edit-post', $wire: wire },
+                { name: 'filament.livewire.notifications', $wire: new Proxy({}, { get: () => () => {} }) },
+            ],
             on: (name, cb) => { listeners[name] = cb; },
         },
     };

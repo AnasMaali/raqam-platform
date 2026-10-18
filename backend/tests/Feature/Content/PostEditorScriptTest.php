@@ -20,6 +20,9 @@ test('autosave, the browser copy and its restore behave', function () {
     preg_match('/x-data="(\{.*?\n    \})"\n    x-cloak/s', $html, $match);
     expect($match)->not->toBeEmpty();
 
+    // The script sits inside an HTML attribute: a stray double quote would cut it short and kill it in the browser.
+    expect(html_entity_decode($match[1]))->not->toContain('"');
+
     $file = tempnam(sys_get_temp_dir(), 'editor').'.js';
     file_put_contents($file, '('.html_entity_decode($match[1]).')');
 

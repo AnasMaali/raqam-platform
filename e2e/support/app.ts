@@ -135,7 +135,7 @@ function freePort(): Promise<number> {
 }
 
 function php(args: string[], env: NodeJS.ProcessEnv): string {
-    const result = spawnSync('php', ['-d', 'memory_limit=512M', ...args], { cwd: BACKEND, env, encoding: 'utf8' });
+    const result = spawnSync('php', ['-d', 'memory_limit=512M', ...args], { cwd: BACKEND, env, encoding: 'utf8', input: '', timeout: 120_000 });
     if (result.status !== 0) throw new Error(`php ${args.join(' ')} failed:\n${result.stdout}\n${result.stderr}`);
     return result.stdout;
 }

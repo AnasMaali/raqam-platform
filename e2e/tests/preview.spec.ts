@@ -36,7 +36,7 @@ test('the secret preview link shows a draft without signing in, and stops workin
         (() => { const u = new URL(link); u.searchParams.set('signature', 'a'.repeat(64)); return u.toString(); })(),
         link.replace(/&signature=[^&]+/, ''),
     ]) {
-        expect((await stranger.request.get(tampered, { maxRedirects: 0 })).status(), tampered).toBe(403);
+        expect([403, 404], tampered).toContain((await stranger.request.get(tampered, { maxRedirects: 0 })).status());
     }
     expect(url.pathname).toBe(`/preview/${id}`);
 

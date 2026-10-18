@@ -8,8 +8,10 @@ import { publishedNews, uploadImage } from '../support/panel';
 
 test('after real use there is no raw IP address and no secret in the database, the cache keys or the log', async ({ page, browser, app, adminPassword }) => {
     // A failed sign-in, a good one, an upload (Livewire's endpoint), a publication, the public API and a preview link.
-    await submitPassword(page, ADMIN_EMAIL, 'Wrong-Password-123');
     await signIn(page, app, adminPassword);
+    const intruder = await browser.newContext({ baseURL: app.url });
+    await submitPassword(await intruder.newPage(), ADMIN_EMAIL, 'Wrong-Password-123');
+    await intruder.close();
     await uploadImage(page, 'cover.png', 'صورة');
     const id = await publishedNews(page, 'خبر الخصوصية');
     await page.request.get(`${app.url}/api/v1/posts`);

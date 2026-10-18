@@ -14,16 +14,17 @@
         draft: @js($isDraft),
         every: 30000,
         keep: 14 * 24 * 3600 * 1000,
-        wire: null,
         sent: '',
         savedHash: '',
         backedUpHash: '',
         offer: null,
         note: '',
         init() { this.attach() },
+        // The editor's own component, looked up by name each time and never kept in this object: the page makes
+        // everything stored here reactive, and a reactive wrapper around $wire cannot be turned into JSON.
+        w() { return window.Livewire?.all().find((c) => String(c.name).endsWith('.edit-post'))?.$wire },
         attach() {
-            this.wire = window.Livewire?.all().find((c) => typeof c.$wire?.autosave === 'function')?.$wire
-            if (! this.wire) return setTimeout(() => this.attach(), 300)
+            if (! this.w()) return setTimeout(() => this.attach(), 300)
 
             this.savedHash = this.backedUpHash = this.hash()
             this.look()
@@ -35,12 +36,12 @@
             setInterval(() => this.autosave(), this.every)
             setInterval(() => this.copy(), 2000)
         },
-        hash() { try { return JSON.stringify(this.wire.data) } catch (e) { return '' } },
+        hash() { try { return JSON.stringify(this.w().data) ?? '' } catch (e) { return '' } },
         autosave() {
             const now = this.hash()
             if (! this.draft || now === this.savedHash || now === '') return
             this.sent = now
-            this.wire.autosave()
+            this.w().autosave()
         },
         copy() {
             const now = this.hash()
@@ -59,7 +60,7 @@
             } catch (e) { this.forget() }
         },
         restore() {
-            this.wire.$set('data', this.offer.data)
+            this.w().$set('data', this.offer.data)
             this.offer = null
             this.note = 'استُرجعت النسخة المحلية. راجعها ثم احفظ.'
         },
