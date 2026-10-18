@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Audit\Audited;
+use App\Jobs\SendSiteWebhook;
 use App\Models\Concerns\HasSeoMeta;
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,6 +20,13 @@ class Page extends Model
     protected function casts(): array
     {
         return ['is_published' => 'boolean'];
+    }
+
+    protected static function booted(): void
+    {
+        $tell = fn (self $page) => SendSiteWebhook::notify(['type' => 'page', 'id' => $page->id, 'change' => 'content', 'paths' => ['/'.$page->slug]]);
+        static::saved($tell);
+        static::deleted($tell);
     }
 
     public function isSystem(): bool
