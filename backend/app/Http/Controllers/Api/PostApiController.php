@@ -37,7 +37,7 @@ class PostApiController extends ApiController
 
     public function show(int $id, ?string $slug = null): JsonResponse
     {
-        $post = Post::query()->live()->find($id);
+        $post = Post::query()->viewable()->find($id);
 
         if ($post === null) {
             return $this->missing($id);
@@ -46,7 +46,7 @@ class PostApiController extends ApiController
         if ($slug !== null && $slug !== $post->slug) {
             $path = PostPath::for($post->kind_code, $post->id, $post->slug);
 
-            return response()->json(['canonical_path' => $path], 301)->header('Location', url('/api/v1/posts/'.$post->id.'/'.rawurlencode($post->slug)));
+            return response()->json(['path' => $path], 301)->header('Location', url('/api/v1/posts/'.$post->id.'/'.rawurlencode($post->slug)));
         }
 
         return response()->json(['data' => $this->presenter->detail($post)]);

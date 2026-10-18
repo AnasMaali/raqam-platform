@@ -84,7 +84,7 @@ final class Presenter
             return [
                 'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code] ?? $p->kind_code],
                 'title' => $p->title, 'subtitle' => $p->subtitle, 'excerpt' => $p->excerpt, 'slug' => $p->slug,
-                'canonical_path' => PostPath::for($p->kind_code, $p->id, $p->slug),
+                'path' => PostPath::for($p->kind_code, $p->id, $p->slug),
                 'published_at' => $this->iso($p->published_at), 'updated_at' => $this->iso($p->updated_at),
                 'cover' => $this->media($p->cover_media_id),
                 'category' => $c ? ['id' => $c->id, 'name' => $c->name_ar, 'slug' => $c->slug] : null,

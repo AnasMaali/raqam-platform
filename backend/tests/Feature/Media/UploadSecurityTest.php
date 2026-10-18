@@ -4,6 +4,7 @@ use App\Jobs\GenerateMediaVariants;
 use App\Media\ImageProcessor;
 use App\Media\MediaRejected;
 use App\Media\MediaUploader;
+use App\Media\VariantGenerator;
 use App\Models\MediaAsset;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -261,4 +262,18 @@ test('an AVIF picture stays AVIF where the server can write it, and becomes WebP
     }
 
     expect(upload(imageBytes(80, 60, 'avif'))->asset->mime_type)->toBe('image/avif');
+});
+
+test('a large real photo is accepted and gets all its renditions; one past the limit is refused', function () {
+    ini_set('memory_limit', '256M');   // the uploader raises it for the work, as the server's default is lower than a big photo needs
+    Bus::fake([]);
+
+    $big = imageBytes(6000, 4000, 'jpeg');   // exactly 24 megapixels
+    $asset = upload($big, 'big.jpg')->asset;
+    expect([$asset->width, $asset->height])->toBe([6000, 4000]);
+
+    app(VariantGenerator::class)->generate($asset);
+    expect(DB::table('media_variants')->where('media_id', $asset->id)->count())->toBeGreaterThan(10);
+
+    expect(refusal(imageBytes(5000, 5000, 'jpeg'), 'huge.jpg')->getMessage())->toContain('كبيرة جداً');
 });

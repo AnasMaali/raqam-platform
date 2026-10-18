@@ -146,6 +146,11 @@ final class MediaUploader
             return [$this->svg->clean($bytes), $mime, null, null];
         }
 
+        // Decoding a big picture needs room (24 megapixels is about 100 MB in memory, and a resize holds a second copy).
+        if ($this->memoryBytes() < 512 * 1048576) {
+            @ini_set('memory_limit', '512M');
+        }
+
         $image = $this->images->limitSide($this->images->decode($bytes, $mime));
         $format = $this->storedFormat($mime, $image);
 
@@ -158,6 +163,19 @@ final class MediaUploader
         };
 
         return [$out, $stored, imagesx($image), imagesy($image)];
+    }
+
+    private function memoryBytes(): int
+    {
+        $limit = trim((string) ini_get('memory_limit'));
+        if ($limit === '-1') {
+            return PHP_INT_MAX;
+        }
+        $n = (int) $limit;
+
+        return match (strtolower(substr($limit, -1))) {
+            'g' => $n * 1073741824, 'm' => $n * 1048576, 'k' => $n * 1024, default => $n
+        };
     }
 
     /** An image keeps its format, except that an AVIF the server cannot write again becomes WebP. */

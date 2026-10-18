@@ -5,12 +5,12 @@ namespace App\Content;
 /**
  * The public address of a post (decisions 23.2, 23.3): /{prefix}/{id}/{slug}. The id is what identifies the
  * post; the slug is for people and search engines, and any other slug is redirected to this one. Section
- * kinds live under their section's address; the general kinds have a prefix of their own.
+ * kinds live under their section's address; news, reports, opinion pieces and infographics all live under /news (decision 23.2).
  */
 final class PostPath
 {
     private const PREFIX = [
-        'news' => 'news', 'report' => 'report', 'opinion' => 'opinion', 'infographic' => 'infographic',
+        'news' => 'news', 'report' => 'news', 'opinion' => 'news', 'infographic' => 'news',
         'episode' => 'podcast', 'story' => 'success-stories', 'product' => 'made-in-nablus', 'history' => 'history',
         'initiative' => 'initiatives', 'roundtable' => 'round-table', 'awareness' => 'awareness',
     ];
