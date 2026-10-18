@@ -29,6 +29,8 @@ test('each unsafe setting is refused, and only that one', function (array $spoil
     'session cookie with a domain' => [['session.domain' => '.raqam.ps'], '__Host-'],
     'session cookie with a path' => [['session.path' => '/admin'], '__Host-'],
     'session longer than the idle limit' => [['session.lifetime' => 120], 'SESSION_LIFETIME'],
+    'test-only shorter idle limit' => [['raqam.auth.idle_seconds' => 20], 'ADMIN_IDLE_SECONDS'],
+    'test-only shorter warning' => [['raqam.auth.warn_seconds' => 5], 'ADMIN_WARN_SECONDS'],
     'no APP_KEY' => [['app.key' => null], 'APP_KEY'],
     'no ADMIN_CODE_KEY' => [['raqam.auth.code_key' => null], 'ADMIN_CODE_KEY'],
     'no TRACKING_HASH_KEY' => [['raqam.tracking_key' => ''], 'TRACKING_HASH_KEY'],

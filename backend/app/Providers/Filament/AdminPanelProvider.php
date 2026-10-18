@@ -82,7 +82,7 @@ class AdminPanelProvider extends PanelProvider
             ])->render() : '', scopes: EditPost::class)
             ->renderHook(PanelsRenderHook::BODY_END, fn () => Filament::auth()->check() ? view('filament.session-timeout', [
                 'remaining' => app(AdminSessionLimits::class)->remaining(),
-                'idle' => (int) config('raqam.auth.idle_minutes') * 60,
+                'idle' => app(AdminSessionLimits::class)->idleSeconds(),
                 'warn' => (int) config('raqam.auth.warn_seconds'),
                 'cap' => app(AdminSessionLimits::class)->absoluteRemaining(),
                 'keepAliveUrl' => route('filament.admin.session.keep-alive'),

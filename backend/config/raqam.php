@@ -21,7 +21,9 @@ return [
         // Signed in: out after 30 minutes without activity, and after 12 hours whatever happens.
         'idle_minutes' => 30,
         'max_hours' => 12,
-        'warn_seconds' => 120,
+        'warn_seconds' => (int) env('ADMIN_WARN_SECONDS', 120),
+        // Browser tests only: a shorter idle limit in seconds. Production refuses to start with it set.
+        'idle_seconds' => env('ADMIN_IDLE_SECONDS'),
         'sends_per_hour' => 3,
         // Password submissions (each one counts, right or wrong): per e-mail + IP, per e-mail, per IP.
         'attempts_per_minute' => 5,

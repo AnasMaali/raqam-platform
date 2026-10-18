@@ -46,6 +46,10 @@ final class ProductionChecks
             $failures[] = 'SESSION_LIFETIME must not exceed the '.config('raqam.auth.idle_minutes').'-minute idle limit.';
         }
 
+        if (filled(config('raqam.auth.idle_seconds')) || (int) config('raqam.auth.warn_seconds') !== 120) {
+            $failures[] = 'ADMIN_IDLE_SECONDS and ADMIN_WARN_SECONDS are for browser tests only and must not be set.';
+        }
+
         foreach ([
             'APP_KEY' => 'app.key',
             'ADMIN_CODE_KEY' => 'raqam.auth.code_key',
