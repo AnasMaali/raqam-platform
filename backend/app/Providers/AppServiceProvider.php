@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Auth\AdminAudit;
 use App\Console\WipeDatabaseCommand;
+use App\Events\PostChanged;
+use App\Listeners\NotifySiteOfPostChange;
 use App\Support\ProductionChecks;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
@@ -40,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
 
         // The largest file the media library accepts (an image); the library itself checks each type's own limit.
         config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (config('media.limits.image_upload') / 1024)]]);
+
+        Event::listen(PostChanged::class, NotifySiteOfPostChange::class);
+
+        // The public API: 120 requests a minute per client address.
+        RateLimiter::for('api-public', fn (Request $request) => Limit::perMinute(120)->by($request->ip()));
 
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what
         // AuthenticateSession raises when the password changed since the session began.
