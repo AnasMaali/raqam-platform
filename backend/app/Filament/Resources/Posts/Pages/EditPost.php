@@ -18,11 +18,13 @@ use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * The editor. Saving goes through PostSaver, which also keeps the revisions, the redirect, the body references
@@ -132,17 +134,11 @@ class EditPost extends EditRecord
             Action::make('publishNow')->label('نشر الآن')->icon(Heroicon::OutlinedPaperAirplane)->color('success')
                 ->visible(fn () => in_array($this->getRecord()->status, ['draft', 'scheduled', 'archived'], true))
                 ->requiresConfirmation()->modalDescription('تُحفظ التعديلات وتُنشر المادة فوراً.')
-                ->action(function () {
-                    $this->data['status'] = 'published';
-                    $this->save();
-                }),
+                ->action(fn (Action $action) => $this->saveFromAction($action, ['status' => 'published'], 'تعذّر النشر')),
             Action::make('breaking')->label('عاجل')->icon(Heroicon::OutlinedBolt)->color('danger')
                 ->schema([Select::make('hours')->label('مدة العاجل')->native(false)->options([1 => 'ساعة', 3 => '3 ساعات', 6 => '6 ساعات', 12 => '12 ساعة', 24 => '24 ساعة'])->default(3)->required()])
                 ->modalDescription('تُحفظ التعديلات ويظهر الخبر في شريط العاجل حتى انتهاء المدة.')
-                ->action(function (array $data) {
-                    $this->data['breaking_until'] = now()->addHours((int) $data['hours'])->format('Y-m-d H:i:s');
-                    $this->save();
-                }),
+                ->action(fn (array $data, Action $action) => $this->saveFromAction($action, ['breaking_until' => now()->addHours((int) $data['hours'])->format('Y-m-d H:i:s')], 'تعذّر جعل الخبر عاجلاً')),
             Action::make('preview')->label('معاينة')->icon(Heroicon::OutlinedEye)
                 ->schema([Select::make('hours')->label('مدة صلاحية الرابط')->native(false)->options(PostPreview::HOURS)->default(48)->required()])
                 ->modalDescription('رابط سري يفتح المادة كما هي الآن، على الكمبيوتر أو الجوال، دون تسجيل دخول. لا تشاركه إلا مع من يجب أن يراها.')
@@ -179,6 +175,32 @@ class EditPost extends EditRecord
                     $this->redirect(PostResource::getUrl('index'));
                 }),
         ];
+    }
+
+    /**
+     * Saves the form with a few values set by a header button. If the rules refuse the save, an error raised inside
+     * a button's own dialog would leave that dialog open and say nothing: so the values are put back, the reasons
+     * are shown under their fields and in a notification, and the dialog is closed.
+     *
+     * @param  array<string, mixed>  $changes
+     */
+    private function saveFromAction(Action $action, array $changes, string $failedTitle): void
+    {
+        $before = Arr::only($this->data, array_keys($changes));
+        $this->data = array_merge($this->data, $changes);
+
+        try {
+            $this->save();
+        } catch (ValidationException $e) {
+            $this->data = array_merge($this->data, $before);
+            $this->setErrorBag($e->errors());
+            Notification::make()->danger()->persistent()->title($failedTitle)->body(collect($e->errors())->flatten()->unique()->take(4)->implode(' — '))->send();
+            $action->cancel();
+        } catch (Halt) {
+            // The reason was already shown (a notification from the content rules); only the dialog is left.
+            $this->data = array_merge($this->data, $before);
+            $action->cancel();
+        }
     }
 
     public function getTitle(): string

@@ -128,6 +128,18 @@ test('publishing works, and the quick button publishes with the current text', f
     expect($post->fresh())->status->toBe('published')->and($post->fresh()->published_at)->not->toBeNull();
 });
 
+test('the quick publish button on an incomplete item explains what is missing and closes its dialog', function () {
+    $post = newPost();
+
+    $page = edit($post)->callAction('publishNow')   // no text, no category, no cover
+        ->assertNotified()
+        ->assertHasErrors(['data.cover_media_id'])
+        ->assertSet('mountedActions', [])             // the confirmation dialog is gone, not stuck open
+        ->assertSet('data.status', 'draft');           // and the form does not claim the item is published
+
+    expect($post->fresh()->status)->toBe('draft');
+});
+
 test('the quick publish button is not offered for an item that is already published', function () {
     $post = newPost();
     app(PostSaver::class)->save($post, ['title' => 'x', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
