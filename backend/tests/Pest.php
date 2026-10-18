@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
+require_once __DIR__.'/Support/media.php';
+
 /*
 |--------------------------------------------------------------------------
 | Test Case

@@ -15,12 +15,14 @@ final class SettingsCatalog
     {
         return [
             'general.site_name' => ['group' => 'عام', 'label' => 'اسم المنصة', 'type' => 'string'],
+            'general.logo' => ['group' => 'عام', 'label' => 'الشعار', 'type' => 'media', 'hint' => 'اختر صورة عامة من مكتبة الوسائط'],
             'contact.phone' => ['group' => 'التواصل', 'label' => 'الهاتف', 'type' => 'phone', 'hint' => 'بالصيغة الدولية، مثال: +970599123456'],
             'contact.whatsapp' => ['group' => 'التواصل', 'label' => 'رقم الواتساب', 'type' => 'phone', 'hint' => 'بالصيغة الدولية، مثال: +970599123456'],
             'contact.whatsapp_message' => ['group' => 'التواصل', 'label' => 'رسالة الواتساب الجاهزة', 'type' => 'string', 'hint' => 'يُضاف إليها اسم الخدمة تلقائياً'],
             'contact.email' => ['group' => 'التواصل', 'label' => 'البريد الإلكتروني للتواصل', 'type' => 'email'],
             'contact.address' => ['group' => 'التواصل', 'label' => 'العنوان', 'type' => 'string'],
             'seo.title_suffix' => ['group' => 'محركات البحث', 'label' => 'لاحقة عنوان الصفحة', 'type' => 'string', 'hint' => 'تُضاف بعد عنوان كل صفحة'],
+            'seo.default_image' => ['group' => 'محركات البحث', 'label' => 'صورة المشاركة الافتراضية', 'type' => 'media', 'hint' => 'تظهر عند مشاركة صفحة ليس لها صورة'],
             'seo.default_description' => ['group' => 'محركات البحث', 'label' => 'الوصف الافتراضي', 'type' => 'text', 'hint' => 'يُستعمل عندما لا يكون للصفحة وصف خاص'],
         ];
     }
