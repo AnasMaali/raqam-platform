@@ -35,6 +35,10 @@ export type App = {
     artisan(args: string[]): string;
     /** Runs one SQL statement on this test's database and returns the rows as text (psql -At). */
     sql(statement: string): string;
+    /** The Redis keys this test's server wrote (its own prefix only). */
+    redisKeys(): string[];
+    /** Every row of this test's database as text, for looking for what must never be stored. */
+    dump(): string;
     /** The text of the application log (every e-mail is written here: MAIL_MAILER=log). */
     log(): string;
     /** The newest six-digit sign-in code in the mail log (the mail is sent after the response, so this waits for it). */
@@ -210,6 +214,18 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         artisan: (args) => php(['artisan', ...args], env),
         sql: (statement) => psql(db, statement),
         log,
+        redisKeys() {
+            const keys: string[] = [];
+            for (const db of Object.values(REDIS)) {
+                keys.push(...spawnSync('redis-cli', ['-n', db, '--scan', '--pattern', `${prefix}*`], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean));
+            }
+            return keys;
+        },
+        dump() {
+            const result = spawnSync('pg_dump', ['--data-only', '--inserts', '-d', db], { env: psqlEnv(), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+            if (result.status !== 0) throw new Error(`pg_dump failed: ${result.stderr}`);
+            return result.stdout;
+        },
         codesSent: () => codeMatches(log()).length,
         async lastCode(after = 0) {
             for (let attempt = 0; attempt < 100; attempt++) {

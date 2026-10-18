@@ -7,6 +7,6 @@ use Illuminate\Support\Facades\Route;
 
 // A secret, expiring link to a draft (decision 21.8). Signed by the application; nothing is stored.
 Route::get('/preview/{post}', [PostPreviewController::class, 'show'])
-    ->middleware(['signed', 'throttle:60,1'])
+    ->middleware(['signed', 'throttle:per-visitor'])
     ->whereNumber('post')
     ->name('post.preview');

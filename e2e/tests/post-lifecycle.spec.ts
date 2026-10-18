@@ -16,7 +16,7 @@ test('breaking: one button, a time limit, and it shows in the breaking list', as
 
     // About three hours ahead (the default of the dialog).
     const minutes = Number(app.sql(`SELECT round(extract(epoch FROM breaking_until - now()) / 60) FROM posts WHERE id = ${id}`));
-    expect(minutes).toBeGreaterThan(170);
+    expect(minutes, 'breaking_until minutes ahead').toBeGreaterThan(170);
     expect(minutes).toBeLessThanOrEqual(181);
 
     const breaking = await (await page.request.get(api(app, '/posts?breaking=1'))).json();
@@ -98,7 +98,7 @@ test('scheduling: it stays hidden until its time, then the publisher puts it liv
     const when = `${target.year}-${target.month}-${target.day} ${target.hour}:${target.minute}`;
     await page.locator('input[id="form.published_at"]').click();
     const panel = page.locator('[id="form.published_at-panel"]');
-    await panel.getByRole('gridcell', { name: String(Number(target.day)), exact: true }).click();
+    await panel.locator(`[data-date="${target.year}-${target.month}-${target.day}"]`).click();
     await panel.getByLabel('الساعة').fill(String(Number(target.hour)));
     await panel.getByLabel('الدقيقة').fill(String(Number(target.minute)));
     await page.keyboard.press('Escape');

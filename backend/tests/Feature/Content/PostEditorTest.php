@@ -157,6 +157,19 @@ test('scheduling from the form needs a future time and publishes through the que
     expect($post->fresh()->status)->toBe('scheduled');
 });
 
+test('the time typed in the editor is Palestine time, as the label says, and is stored as UTC', function () {
+    $post = newPost();
+    $data = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled'];
+
+    // 14 January 12:00 in Palestine (UTC+2 in winter) is 10:00 UTC. The form value is "what the person typed".
+    edit($post)->fillForm($data + ['published_at' => '2030-01-14 12:00:00'])->call('save')->assertHasNoFormErrors();
+
+    expect($post->fresh()->published_at->utc()->format('Y-m-d H:i'))->toBe('2030-01-14 10:00');
+
+    // And it is shown back as it was typed.
+    edit($post->fresh())->assertSet('data.published_at', '2030-01-14 12:00:00');
+});
+
 test('breaking news from the quick action sets an end time and saves', function () {
     $post = newPost();
     app(PostSaver::class)->save($post, ['title' => 'x', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
