@@ -12,6 +12,7 @@ test('breaking: one button, a time limit, and it shows in the breaking list', as
     const id = await publishedNews(page, 'خبر عاجل للاختبار');
 
     await page.getByRole('button', { name: 'عاجل', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
     await afterLivewire(page, () => page.getByRole('dialog').getByRole('button', { name: 'جعله عاجلاً' }).click());
 
     // About three hours ahead (the default of the dialog).
@@ -37,6 +38,7 @@ test('revisions: an edit is kept, and an older text comes back (and can be undon
     // Open the revisions, take the first one back.
     await page.getByRole('button', { name: 'النسخ السابقة' }).click();
     const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
     const oldest = app.sql(`SELECT min(revision_no) FROM post_revisions WHERE post_id = ${id}`);
     await dialog.locator('[id="mountedActionSchema0.revision_no"], [id$="revision_no"]').first().click();
     await dialog.getByRole('option', { name: new RegExp(`^#${oldest} `) }).click();
@@ -59,7 +61,7 @@ test('trash: it leaves the site at once (410) and comes back when restored', asy
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(410);
 
     // Restore it from the list of trashed items.
-    await page.goto(panel('/posts?filters[trashed][value]=1'));
+    await page.goto(panel('/posts?filters[trashed][value]=0'));
     await page.getByRole('row', { name: /خبر السلة/ }).getByRole('button', { name: 'استرجاع' }).click();
     await expect(page.getByText(/استُرجعت|تم الاسترجاع|تمت الاستعادة/)).toBeVisible();
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(200);
@@ -101,6 +103,8 @@ test('scheduling: it stays hidden until its time, then the publisher puts it liv
     await panel.locator(`[data-date="${target.year}-${target.month}-${target.day}"]`).click();
     await panel.getByLabel('الساعة').fill(String(Number(target.hour)));
     await panel.getByLabel('الدقيقة').fill(String(Number(target.minute)));
+    await panel.getByLabel('الدقيقة').blur();
+    await page.waitForTimeout(800);   // the time fields apply after a short pause
     await page.keyboard.press('Escape');
     await save(page);
 
