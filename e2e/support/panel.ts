@@ -44,15 +44,15 @@ export async function writeBody(page: Page, text: string) {
 }
 
 /** Runs something that sends one Livewire request (a button, a confirmation) and waits until the server has answered it. */
-export async function afterLivewire(page: Page, trigger: () => Promise<unknown>) {
-    const answered = page.waitForResponse((r) => r.url().includes('/livewire/update') && r.request().method() === 'POST');
+export async function afterLivewire(page: Page, trigger: () => Promise<unknown>, method?: string) {
+    const answered = page.waitForResponse((r) => r.url().includes('/livewire/update') && r.request().method() === 'POST' && (method === undefined || (r.request().postData() ?? '').includes(`"method":"${method}"`)));
     await trigger();
     await answered;
 }
 
 export async function save(page: Page) {
     // The toast of an earlier save may still be on screen, so wait for this save's own answer, not for the toast.
-    await afterLivewire(page, () => page.getByRole('button', { name: 'حفظ التغييرات' }).click());
+    await afterLivewire(page, () => page.getByRole('button', { name: 'حفظ التغييرات' }).click(), 'save');
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 }
 

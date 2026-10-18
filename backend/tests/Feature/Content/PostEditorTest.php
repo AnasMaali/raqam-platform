@@ -299,14 +299,34 @@ test('an earlier revision can be put back from the editor', function () {
     expect($post->fresh())->title->toBe('الأول')->body->toBe('<p>نص أول</p>');
 });
 
+test('putting back a revision the rules refuse says why and closes the dialog', function () {
+    $post = newPost();   // revision 1 is the empty draft it was created as
+    app(PostSaver::class)->save($post, ['title' => 'x', 'body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
+
+    edit($post->fresh())->callAction('revisions', ['revision_no' => 1])   // an empty text on a published item
+        ->assertNotified()
+        ->assertSet('mountedActions', []);
+
+    expect($post->fresh()->body)->toBe('<p>نص</p>');
+});
+
 test('moving to the trash from the editor, and getting it back from the list', function () {
     $post = newPost();
 
     edit($post)->callAction('trash');
     expect(Post::find($post->id))->toBeNull()->and(Post::withTrashed()->find($post->id))->not->toBeNull();
 
-    Livewire::test(ListPosts::class)->set('activeTab', 'trash')->callAction(TestAction::make('restore')->table(Post::withTrashed()->find($post->id)));
+    // The trash tab really lists it (an editor has to see it to restore it), and the other tabs do not.
+    Livewire::test(ListPosts::class)->set('activeTab', 'trash')->assertCanSeeTableRecords([Post::withTrashed()->find($post->id)])
+        ->callAction(TestAction::make('restore')->table(Post::withTrashed()->find($post->id)));
     expect(Post::find($post->id))->not->toBeNull();
+});
+
+test('a trashed item is only in the trash tab', function () {
+    $post = newPost();
+    edit($post)->callAction('trash');
+
+    Livewire::test(ListPosts::class)->assertCanNotSeeTableRecords([Post::withTrashed()->find($post->id)]);
 });
 
 test('the list shows items by status, searches ignoring hamza, and filters by kind', function () {

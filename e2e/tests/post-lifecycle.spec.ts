@@ -12,8 +12,9 @@ test('breaking: one button, a time limit, and it shows in the breaking list', as
     const id = await publishedNews(page, 'خبر عاجل للاختبار');
 
     await page.getByRole('button', { name: 'عاجل', exact: true }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
-    await afterLivewire(page, () => page.getByRole('dialog').getByRole('button', { name: 'جعله عاجلاً' }).click());
+    const confirm = page.getByRole('button', { name: 'جعله عاجلاً' });
+    await expect(confirm).toBeVisible();
+    await afterLivewire(page, () => confirm.click());
 
     // About three hours ahead (the default of the dialog).
     const minutes = Number(app.sql(`SELECT round(extract(epoch FROM breaking_until - now()) / 60) FROM posts WHERE id = ${id}`));
@@ -38,8 +39,8 @@ test('revisions: an edit is kept, and an older text comes back (and can be undon
     // Open the revisions, take the first one back.
     await page.getByRole('button', { name: 'النسخ السابقة' }).click();
     const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    const oldest = app.sql(`SELECT min(revision_no) FROM post_revisions WHERE post_id = ${id}`);
+    await expect(page.getByRole('button', { name: 'استرجاع هذه النسخة' })).toBeVisible();
+    const oldest = app.sql(`SELECT min(revision_no) FROM post_revisions WHERE post_id = ${id} AND body LIKE '%النص الأول الأصلي.%'`);
     await dialog.locator('[id="mountedActionSchema0.revision_no"], [id$="revision_no"]').first().click();
     await dialog.getByRole('option', { name: new RegExp(`^#${oldest} `) }).click();
     await afterLivewire(page, () => dialog.getByRole('button', { name: 'استرجاع هذه النسخة' }).click());
@@ -61,7 +62,8 @@ test('trash: it leaves the site at once (410) and comes back when restored', asy
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(410);
 
     // Restore it from the list of trashed items.
-    await page.goto(panel('/posts?filters[trashed][value]=0'));
+    await page.goto(panel('/posts'));
+    await page.locator('.fi-tabs-item', { hasText: 'السلة' }).click();
     await page.getByRole('row', { name: /خبر السلة/ }).getByRole('button', { name: 'استرجاع' }).click();
     await expect(page.getByText(/استُرجعت|تم الاسترجاع|تمت الاستعادة/)).toBeVisible();
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(200);
@@ -73,7 +75,7 @@ test('slug change: the old address answers 301 to the new one', async ({ page, a
 
     const slug = page.locator('input[id="form.slug"]');
     await slug.fill('عنوان-جديد-للخبر');
-    await slug.blur();
+    await afterLivewire(page, () => slug.blur());   // leaving the field sends its own request
     await save(page);
 
     const moved = await page.request.get(api(app, `/posts/${id}/${encodeURIComponent(oldSlug)}`), { maxRedirects: 0 });

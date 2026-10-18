@@ -1,5 +1,7 @@
 <?php
 
+use App\Content\PostPreview;
+use App\Models\Post;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,8 +53,8 @@ test('HTTPS requests are told to stay on HTTPS', function () {
 });
 
 test('a header an endpoint chose for itself is kept (the preview page says no-referrer)', function () {
-    $post = App\Models\Post::query()->forceCreate(['kind_code' => 'news', 'title' => 'x', 'slug' => 'x', 'body' => '']);
-    $url = app(App\Content\PostPreview::class)->url($post, 24);
+    $post = Post::query()->forceCreate(['kind_code' => 'news', 'title' => 'x', 'slug' => 'x', 'body' => '']);
+    $url = app(PostPreview::class)->url($post, 24);
 
     $response = $this->get($url)->assertOk();
 

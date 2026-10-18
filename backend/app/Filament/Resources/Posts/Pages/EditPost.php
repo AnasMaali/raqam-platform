@@ -160,8 +160,16 @@ class EditPost extends EditRecord
                             : 'اختر نسخة لمعاينة نصها.'),
                 ])
                 ->modalDescription('يُحفظ النص الحالي كنسخة قبل الاسترجاع، فيمكن التراجع.')->modalSubmitActionLabel('استرجاع هذه النسخة')
-                ->action(function (array $data) {
-                    $this->reportingViolations(fn () => app(PostSaver::class)->restoreRevision($this->getRecord(), (int) $data['revision_no'], Filament::auth()->id()));
+                ->action(function (array $data, Action $action) {
+                    try {
+                        $this->reportingViolations(fn () => app(PostSaver::class)->restoreRevision($this->getRecord(), (int) $data['revision_no'], Filament::auth()->id()));
+                    } catch (ValidationException $e) {
+                        // The rules refuse this text for this item (an empty body on a published one, say): say so and close the dialog.
+                        Notification::make()->danger()->persistent()->title('تعذّر استرجاع النسخة')->body(collect($e->errors())->flatten()->unique()->take(3)->implode(' — '))->send();
+                        $action->cancel();
+                    } catch (Halt) {
+                        $action->cancel();
+                    }
                     $this->saveToken = app(PostSaver::class)->token($this->getRecord());
                     $this->fillForm();
                     $this->dispatch('post-saved');

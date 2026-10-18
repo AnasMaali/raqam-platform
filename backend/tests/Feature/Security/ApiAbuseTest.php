@@ -9,7 +9,7 @@ uses(RefreshDatabase::class);
  * (400/404/410/422), never a server error, and never leaks a stack trace, an SQL fragment or a file path.
  */
 const HOSTILE_VALUES = [
-    "x' OR '1'='1", "1; DROP TABLE posts;--", '%00', '%', '_', '\\', '../../.env', '<script>alert(1)</script>',
+    "x' OR '1'='1", '1; DROP TABLE posts;--', '%00', '%', '_', '\\', '../../.env', '<script>alert(1)</script>',
     '9999999999999999999999', '-1', '0', '1e999', 'NaN', 'null', '[]', '{}', '😀', 'ثلاثة', '%E0%A4%A', "a\r\nSet-Cookie: x=1",
 ];
 

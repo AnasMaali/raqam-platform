@@ -28,7 +28,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
-use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -89,7 +88,6 @@ class PostResource extends Resource
                 TernaryFilter::make('is_featured')->label('مميز'),
                 Filter::make('breaking')->label('عاجل الآن')->toggle()->query(fn (Builder $query) => $query->where('breaking_until', '>', now())),
                 Filter::make('sponsored')->label('ممول')->toggle()->query(fn (Builder $query) => $query->whereNotNull('sponsor_organization_id')),
-                TrashedFilter::make()->label('سلة المحذوفات'),
             ])
             ->recordActions([
                 EditAction::make()->label('تحرير'),
