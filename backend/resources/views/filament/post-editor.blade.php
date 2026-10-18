@@ -29,9 +29,9 @@
             this.savedHash = this.backedUpHash = this.hash()
             this.look()
 
-            window.Livewire.on('post-saved', () => { this.savedHash = this.hash(); this.forget(); this.note = '' })
+            window.Livewire.on('post-saved', () => { this.savedHash = this.hash(); this.forget(); this.note = ''; this.draft = this.w().data?.status === 'draft' })
             window.Livewire.on('post-autosaved', ({ at }) => { this.savedHash = this.sent; this.note = 'حُفظت المسودة تلقائياً ' + at })
-            window.Livewire.on('post-autosave-failed', ({ message }) => { this.note = message })
+            window.Livewire.on('post-autosave-failed', ({ message }) => { this.sent = ''; this.note = message })
 
             setInterval(() => this.autosave(), this.every)
             setInterval(() => this.copy(), 2000)
@@ -39,7 +39,8 @@
         hash() { try { return JSON.stringify(this.w().data) ?? '' } catch (e) { return '' } },
         autosave() {
             const now = this.hash()
-            if (! this.draft || now === this.savedHash || now === '') return
+            // The same text is asked for once: a page that pinged the server every 30 seconds for an unsaved change would keep the session alive for ever.
+            if (! this.draft || now === this.savedHash || now === this.sent || now === '') return
             this.sent = now
             this.w().autosave()
         },
