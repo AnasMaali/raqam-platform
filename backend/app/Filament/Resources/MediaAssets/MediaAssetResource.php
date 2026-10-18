@@ -9,6 +9,7 @@ use App\Filament\Resources\MediaAssets\Pages\EditMediaAsset;
 use App\Filament\Resources\MediaAssets\Pages\ListMediaAssets;
 use App\Media\MediaInUse;
 use App\Media\MediaStorage;
+use App\Media\MediaThumb;
 use App\Media\MediaTrash;
 use App\Media\MediaUsage;
 use App\Models\MediaAsset;
@@ -118,7 +119,7 @@ class MediaAssetResource extends Resource
             ->columns([
                 Stack::make([
                     ImageColumn::make('preview')->label('')
-                        ->state(fn (MediaAsset $record) => self::previewUrl($record))
+                        ->state(fn (MediaAsset $record) => MediaThumb::url($record))
                         ->imageHeight('9rem')->extraImgAttributes(['style' => 'object-fit: cover; width: 100%;', 'loading' => 'lazy', 'alt' => '']),
                     TextColumn::make('original_name')->weight('medium')->limit(28)
                         ->searchable(query: fn (Builder $query, string $search) => $query->search($search)),
@@ -204,19 +205,5 @@ class MediaAssetResource extends Resource
             'create' => CreateMediaAsset::route('/create'),
             'edit' => EditMediaAsset::route('/{record}/edit'),
         ];
-    }
-
-    /** What the card shows: the thumbnail when it exists, else the file itself if it is a picture. */
-    private static function previewUrl(MediaAsset $record): ?string
-    {
-        $storage = app(MediaStorage::class);
-
-        if ($record->isRaster()) {
-            $thumb = $record->variants()->where('variant', 'thumb')->where('format', 'jpeg')->value('path');
-
-            return $storage->url($record, $thumb ?? $record->path);
-        }
-
-        return $record->mime_type === 'image/svg+xml' ? $storage->url($record) : null;
     }
 }

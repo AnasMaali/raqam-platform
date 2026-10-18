@@ -9,8 +9,10 @@ use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\GeneralSettings;
 use App\Filament\Pages\MenuEditor;
+use App\Filament\Resources\Posts\Pages\EditPost;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
+use App\Models\Post;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\FontProviders\LocalFontProvider;
@@ -48,6 +50,7 @@ class AdminPanelProvider extends PanelProvider
             ->colors(['primary' => Color::Amber])
             ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
             ->sidebarCollapsibleOnDesktop()
+            ->unsavedChangesAlerts()
             ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'النظام'])
             ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class])
             ->userMenuItems([
@@ -72,6 +75,11 @@ class AdminPanelProvider extends PanelProvider
                     Route::get('/session/status', [AdminSessionController::class, 'status'])->name('session.status');
                 });
             })
+            ->renderHook(PanelsRenderHook::BODY_END, fn () => Filament::auth()->check() ? view('filament.post-editor', [
+                'key' => 'raqam:post:'.Filament::auth()->id().':'.request()->route('record'),
+                'serverAt' => optional(Post::query()->withTrashed()->find((int) request()->route('record')))->updated_at?->timestamp ?? 0,
+                'isDraft' => Post::query()->withTrashed()->whereKey((int) request()->route('record'))->value('status') === 'draft',
+            ])->render() : '', scopes: EditPost::class)
             ->renderHook(PanelsRenderHook::BODY_END, fn () => Filament::auth()->check() ? view('filament.session-timeout', [
                 'remaining' => app(AdminSessionLimits::class)->remaining(),
                 'idle' => (int) config('raqam.auth.idle_minutes') * 60,

@@ -4,21 +4,19 @@ namespace App\Filament\Resources\Guests;
 
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\MediaSelect;
+use App\Filament\Forms\OrganizationSelect;
 use App\Filament\Forms\SeoSection;
 use App\Filament\Resources\Guests\Pages\CreateGuest;
 use App\Filament\Resources\Guests\Pages\EditGuest;
 use App\Filament\Resources\Guests\Pages\ListGuests;
 use App\Models\Guest;
 use App\Models\GuestRole;
-use App\Models\Organization;
 use App\Support\ArabicSlug;
-use App\Support\UniqueSlug;
 use App\Taxonomy\PersonLinks;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
@@ -71,17 +69,7 @@ class GuestResource extends Resource
                     ->afterStateUpdated(fn (Get $get, Set $set, ?string $state) => $get('slug') ? null : $set('slug', ArabicSlug::make($state))),
                 TextInput::make('slug')->label('الرابط')->maxLength(200)->helperText('يُنشأ من الاسم تلقائياً ويمكن تعديله.'),
                 TextInput::make('job_title')->label('المنصب')->maxLength(120),
-                Select::make('organization_id')->label('الجهة / الشركة')->native(false)->searchable()
-                    ->getSearchResultsUsing(fn (string $search) => Organization::query()->where('name', 'ilike', '%'.addcslashes($search, '%_\\').'%')->limit(30)->pluck('name', 'id')->all())
-                    ->getOptionLabelUsing(fn ($value) => MediaSelect::isId($value) ? Organization::query()->find((int) $value)?->name : null)
-                    ->createOptionForm([
-                        TextInput::make('name')->label('اسم الجهة')->required()->maxLength(160),
-                        TextInput::make('website')->label('الموقع')->url()->maxLength(2048)->extraInputAttributes(['dir' => 'ltr']),
-                    ])
-                    ->createOptionUsing(fn (array $data) => Organization::query()->create([
-                        'name' => $data['name'], 'website' => $data['website'] ?: null,
-                        'slug' => UniqueSlug::for('organizations', $data['name'], fallback: 'org'),
-                    ])->id),
+                OrganizationSelect::make('organization_id')->label('الجهة / الشركة'),
                 MediaSelect::make('photo_media_id')->label('الصورة'),
                 Textarea::make('bio')->label('نبذة')->rows(4)->columnSpanFull(),
             ]),

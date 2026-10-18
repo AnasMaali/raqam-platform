@@ -19,10 +19,12 @@
         keepAliveUrl: @js($keepAliveUrl),
         statusUrl: @js($statusUrl),
         loginUrl: @js($loginUrl),
+        base: @js(\Illuminate\Support\Str::beforeLast((string) parse_url($loginUrl, PHP_URL_PATH), '/login')),
         timer: null,
         channel: null,
         checking: false,
         init() {
+            this.comeBack()
             this.timer = setInterval(() => this.tick(), 1000)
             if ('BroadcastChannel' in window) {
                 this.channel = new BroadcastChannel('raqam-admin-session')
@@ -88,7 +90,30 @@
         leave(announce) {
             clearInterval(this.timer)
             if (announce) this.channel?.postMessage({ type: 'ended' })
+            this.remember()
             window.location.href = this.loginUrl
+        },
+        // Where the person was when the session ended, so signing in again can bring them back to it (the
+        // editor keeps its own copy of the text). Same site, same panel only, and only for twelve hours.
+        remember() {
+            try {
+                const here = String(window.location.pathname ?? '') + String(window.location.search ?? '')
+                if (here.startsWith(this.base + '/') && ! here.startsWith(this.base + '/login')) {
+                    window.localStorage.setItem('raqam:return', JSON.stringify({ path: here, at: Date.now() }))
+                }
+            } catch (e) { /* storage blocked: they land on the dashboard instead */ }
+        },
+        comeBack() {
+            try {
+                const saved = JSON.parse(window.localStorage.getItem('raqam:return') ?? 'null')
+                const here = String(window.location.pathname ?? '').replace(/\/$/, '')
+                if (here !== this.base) return
+                window.localStorage.removeItem('raqam:return')
+                const path = String(saved?.path ?? '')
+                if (path.startsWith(this.base + '/') && ! path.includes('\\') && ! path.includes('//') && Date.now() - saved.at < 12 * 3600 * 1000) {
+                    window.location.replace(path)
+                }
+            } catch (e) { /* nothing to come back to */ }
         },
         async stay() {
             try {
