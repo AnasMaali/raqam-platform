@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -108,6 +108,17 @@ function newStorage(): string {
     return storage;
 }
 
+/** The web root of one test: the real public files, plus /storage pointing at this test's own public disk (storage:link). */
+function newDocroot(storage: string): string {
+    const root = join(storage, 'public');
+    mkdirSync(root);
+    for (const entry of readdirSync(join(BACKEND, 'public'))) {
+        if (entry !== 'storage') symlinkSync(join(BACKEND, 'public', entry), join(root, entry));
+    }
+    symlinkSync(join(storage, 'app/public'), join(root, 'storage'));
+    return root;
+}
+
 function freePort(): Promise<number> {
     return new Promise((resolvePort, reject) => {
         const probe = createServer();
@@ -170,11 +181,12 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     const env = laravelEnv(db, prefix, storage, port, options.env);
 
     psql('postgres', `CREATE DATABASE ${db} TEMPLATE ${TEMPLATE_DB}`);
+    const docroot = newDocroot(storage);
 
     const server: ChildProcess = spawn(
         'php',
         ['-d', 'variables_order=EGPCS', '-d', 'memory_limit=512M', '-d', 'upload_max_filesize=40M', '-d', 'post_max_size=48M', '-S', `127.0.0.1:${port}`, resolve(BACKEND, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')],
-        { cwd: resolve(BACKEND, 'public'), env, stdio: 'ignore', detached: true },
+        { cwd: docroot, env, stdio: 'ignore', detached: true },
     );
 
     const url = `http://127.0.0.1:${port}`;
