@@ -42,7 +42,8 @@ export async function submitCode(page: Page, code: string) {
 
 /** Password, then the code from the mail log: the real sign-in, as an editor does it. */
 export async function signIn(page: Page, app: App, password: string) {
+    const before = app.codesSent();
     await submitPassword(page, ADMIN_EMAIL, password);
-    await submitCode(page, app.lastCode());
+    await submitCode(page, await app.lastCode(before));
     await expect(page).toHaveURL(new RegExp(`/${ADMIN_PATH}/?$`));
 }

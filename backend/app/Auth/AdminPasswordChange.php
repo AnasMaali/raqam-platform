@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Mail;
 /**
  * Sets a new password for the signed-in admin. Every other session of the account ends with the reason
  * password_changed (the session check notices the new password on its next request); this one gets a
- * fresh session id and goes on. An e-mail says it happened, after the response.
+ * fresh session id (and keeps its CSRF token, as the open page needs it) and goes on. An e-mail says it happened, after the response.
  */
 final class AdminPasswordChange
 {
@@ -27,7 +27,9 @@ final class AdminPasswordChange
             'password_hash_'.Auth::getDefaultDriver(),
             Filament::auth()->hashPasswordForCookie($user->getAuthPassword()),
         );
-        session()->regenerate();
+        // A new session id (fixation), but not a new CSRF token: regenerate() would also change that, and the
+        // page that made this Livewire request still holds the old one, so its next request would fail with 419.
+        session()->migrate();
 
         AdminAudit::account('update', $user, $user, ['password' => 'changed']);
 

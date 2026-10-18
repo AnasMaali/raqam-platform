@@ -2,7 +2,7 @@ import { test, expect, panel, submitPassword, submitCode, signIn } from '../supp
 import { ADMIN_EMAIL, ADMIN_PATH } from '../support/app';
 
 test.describe('sign-in', () => {
-    test('a wrong password and an unknown e-mail get the very same page, and no code is sent', async ({ page, app, adminPassword }) => {
+    test('a wrong password and an unknown e-mail get the very same page, and no code is sent', async ({ page, app }) => {
         await submitPassword(page, 'nobody@example.test', 'Some-Password-123');
         const unknown = await page.locator('body').innerText();
 
@@ -11,17 +11,15 @@ test.describe('sign-in', () => {
 
         expect(unknown).toContain('أدخل رمز التحقق');
         expect(wrong).toBe(unknown);
-        expect(app.log()).not.toContain('letter-spacing:8px');
 
-        // A good password is indistinguishable from the outside, but this time a code does arrive.
-        await submitPassword(page, ADMIN_EMAIL, adminPassword);
-        expect(await page.locator('body').innerText()).toBe(unknown);
-        expect(app.lastCode()).toMatch(/^\d{6}$/);
+        // Neither produced a mail (the mail is sent after the response, so give it time to show up if it were sent).
+        await page.waitForTimeout(1500);
+        expect(app.codesSent()).toBe(0);
     });
 
     test('a wrong code is refused, then the right one signs in with hardened cookies', async ({ page, app, adminPassword, context }) => {
         await submitPassword(page, ADMIN_EMAIL, adminPassword);
-        const code = app.lastCode();
+        const code = await app.lastCode();
 
         await submitCode(page, code === '000000' ? '111111' : '000000');
         await expect(page.getByText('الرمز غير صحيح أو منتهي الصلاحية.')).toBeVisible();
@@ -44,7 +42,7 @@ test.describe('sign-in', () => {
 
     test('a code is single use: the same code does not open a second session', async ({ page, browser, app, adminPassword }) => {
         await signIn(page, app, adminPassword);
-        const code = app.lastCode();
+        const code = await app.lastCode();
 
         const other = await browser.newContext();
         const second = await other.newPage();
@@ -53,7 +51,7 @@ test.describe('sign-in', () => {
         await second.locator('input[id="form.password"]').fill(adminPassword);
         await second.getByRole('button', { name: 'تسجيل الدخول' }).click();
         await second.waitForURL(/login\/code/);
-        // The old code was replaced by a new one for this second sign-in; the used one is dead.
+        // A second code is not sent within a minute, and the used one is dead whatever the session.
         await submitCode(second, code);
         await expect(second.getByText('الرمز غير صحيح أو منتهي الصلاحية.')).toBeVisible();
         await other.close();

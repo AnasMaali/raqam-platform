@@ -37,8 +37,10 @@ export type App = {
     sql(statement: string): string;
     /** The text of the application log (every e-mail is written here: MAIL_MAILER=log). */
     log(): string;
-    /** The newest six-digit sign-in code in the mail log. */
-    lastCode(): string;
+    /** The newest six-digit sign-in code in the mail log (the mail is sent after the response, so this waits for it). */
+    lastCode(after?: number): Promise<string>;
+    /** How many sign-in code mails have been written so far. */
+    codesSent(): number;
     stop(): Promise<void>;
 };
 
@@ -196,12 +198,14 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         artisan: (args) => php(['artisan', ...args], env),
         sql: (statement) => psql(db, statement),
         log,
-        lastCode() {
-            // The mail is written to the log quoted-printable; the code sits alone in a paragraph.
-            const text = log().replace(/=\r?\n/g, '').replace(/=3D/g, '=');
-            const codes = [...text.matchAll(/letter-spacing:8px[^>]*>\s*(\d{6})\s*</g)];
-            if (codes.length === 0) throw new Error('No sign-in code in the mail log.');
-            return codes[codes.length - 1][1];
+        codesSent: () => codeMatches(log()).length,
+        async lastCode(after = 0) {
+            for (let attempt = 0; attempt < 100; attempt++) {
+                const codes = codeMatches(log());
+                if (codes.length > after) return codes[codes.length - 1];
+                await new Promise((r) => setTimeout(r, 100));
+            }
+            throw new Error('No sign-in code in the mail log.');
         },
         async stop() {
             try {
@@ -218,6 +222,12 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
             rmSync(storage, { recursive: true, force: true });
         },
     };
+}
+
+// The mail is written to the log quoted-printable; the code sits alone in a paragraph.
+function codeMatches(text: string): string[] {
+    const clean = text.replace(/=\r?\n/g, '').replace(/=3D/g, '=');
+    return [...clean.matchAll(/letter-spacing:8px[^>]*>\s*(\d{6})\s*</g)].map((m) => m[1]);
 }
 
 /** Removes databases left behind by an interrupted run. */
