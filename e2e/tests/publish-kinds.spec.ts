@@ -63,14 +63,14 @@ const kinds: Kind[] = [
             const name = 'غرفة تجارة نابلس';
             await page.locator('input[id="form.initiative.initiative_name"]').fill('مبادرة دعم المشاريع الصغيرة');
             await pick(page, 'initiative.organizer_organization_id', name, 'غرفة');
+            await pick(page, 'initiative.status', 'جارية');
         },
     },
     {
         code: 'roundtable', label: 'جلسة طاولة مستديرة', prefix: '/round-table/',
         facts: async (page) => {
-            const date = page.locator('input[id="form.roundtable.held_on"]');
-            await date.fill('2026-09-15');
-            await date.press('Enter');
+            await page.locator('input[id="form.roundtable.held_on"]').click();
+            await page.locator('[id="form.roundtable.held_on-panel"]').getByText('15', { exact: true }).click();
         },
     },
     {
