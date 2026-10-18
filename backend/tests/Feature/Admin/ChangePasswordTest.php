@@ -44,6 +44,17 @@ function passwordIs(string $plain): bool
     return Hash::check($plain, DB::table('users')->where('email', 'admin@raqam.ps')->value('password_hash'));
 }
 
+test('the page keeps its CSRF token: a new session id, but the page can still make its next request', function () {
+    session()->start();
+    $token = session()->token();
+    $id = session()->getId();
+
+    app(AdminPasswordChange::class)->change($this->admin, NEWER);
+
+    expect(session()->getId())->not->toBe($id)          // fixation protection stays
+        ->and(session()->token())->toBe($token);         // the open page still holds a valid token
+});
+
 // ---- the page ---------------------------------------------------------------------------------
 
 test('the page is for a signed-in admin only', function () {

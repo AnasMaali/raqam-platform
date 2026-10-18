@@ -14,7 +14,7 @@ final class ProductionChecks
     /** Console commands that run while the image is built, before any secret exists. */
     private const BUILD_COMMANDS = [
         'package:discover', 'config:cache', 'config:clear', 'route:cache', 'view:cache', 'event:cache',
-        'optimize', 'optimize:clear', 'key:generate', 'storage:link', 'about', 'list', 'help', 'env',
+        'optimize', 'optimize:clear', 'key:generate', 'storage:link', 'filament:assets', 'about', 'list', 'help', 'env',
     ];
 
     /** @return list<string> */
@@ -44,6 +44,10 @@ final class ProductionChecks
         }
         if ((int) config('session.lifetime') > (int) config('raqam.auth.idle_minutes')) {
             $failures[] = 'SESSION_LIFETIME must not exceed the '.config('raqam.auth.idle_minutes').'-minute idle limit.';
+        }
+
+        if (filled(config('raqam.auth.idle_seconds')) || (int) config('raqam.auth.warn_seconds') !== 120) {
+            $failures[] = 'ADMIN_IDLE_SECONDS and ADMIN_WARN_SECONDS are for browser tests only and must not be set.';
         }
 
         foreach ([

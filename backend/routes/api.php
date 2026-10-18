@@ -11,8 +11,9 @@ use Illuminate\Support\Facades\Route;
 // Read-only content API, /api/v1 (contract: docs/api/openapi.yaml). Published content only.
 Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(function () {
     Route::get('/posts', [PostApiController::class, 'index']);
-    Route::get('/posts/{id}', [PostApiController::class, 'show'])->whereNumber('id');
-    Route::get('/posts/{id}/{slug}', [PostApiController::class, 'show'])->whereNumber('id');
+    // At most 18 digits: a longer number does not fit the database's bigint (and would be a server error, not a 404).
+    Route::get('/posts/{id}', [PostApiController::class, 'show'])->where('id', '[0-9]{1,18}');
+    Route::get('/posts/{id}/{slug}', [PostApiController::class, 'show'])->where('id', '[0-9]{1,18}');
 
     Route::get('/categories', [TaxonomyApiController::class, 'categories']);
     Route::get('/categories/{slug}', [TaxonomyApiController::class, 'category']);

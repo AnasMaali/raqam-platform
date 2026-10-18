@@ -48,9 +48,15 @@ final class AdminSessionLimits
         return max(0, $this->maxRemaining());
     }
 
+    /** The idle limit in seconds (the shorter test-only value is refused in production). */
+    public function idleSeconds(): int
+    {
+        return (int) (config('raqam.auth.idle_seconds') ?: (int) config('raqam.auth.idle_minutes') * 60);
+    }
+
     private function idleRemaining(): int
     {
-        return session(self::LAST_ACTIVITY, now()->getTimestamp()) + (int) config('raqam.auth.idle_minutes') * 60 - now()->getTimestamp();
+        return session(self::LAST_ACTIVITY, now()->getTimestamp()) + $this->idleSeconds() - now()->getTimestamp();
     }
 
     private function maxRemaining(): int

@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Auth\AdminAudit;
 use App\Console\WipeDatabaseCommand;
 use App\Events\PostChanged;
+use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifySiteOfPostChange;
 use App\Support\ProductionChecks;
+use App\Support\TrackingHash;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -16,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -36,9 +39,17 @@ class AppServiceProvider extends ServiceProvider
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
 
+        // The sign-in code page is a bare route, not a panel page, so Filament does not register it. Without
+        // a name Livewire cannot find it again when the page posts back to /livewire/update (419).
+        Livewire::component('admin-login-code', AdminLoginCode::class);
+
         // The dialog's keep-alive and status requests: 10 a minute for each, per admin.
         RateLimiter::for('admin-session', fn (Request $request) => Limit::perMinute(10)
-            ->by($request->route()?->getName().'|'.($request->user()?->getAuthIdentifier() ?? $request->ip())));
+            ->by($request->route()?->getName().'|'.($request->user()?->getAuthIdentifier() ?? TrackingHash::visitor($request->ip()))));
+
+        // The preview page and the upload endpoint of Livewire: 60 a minute per visitor (an unnamed throttle keys on a bare hash of the address).
+        RateLimiter::for('per-visitor', fn (Request $request) => Limit::perMinute(60)->by(TrackingHash::visitor($request->ip())));
+        config(['livewire.temporary_file_upload.middleware' => 'throttle:per-visitor']);
 
         // The largest file the media library accepts (an image); the library itself checks each type's own limit.
         config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (config('media.limits.image_upload') / 1024)]]);
@@ -50,7 +61,7 @@ class AppServiceProvider extends ServiceProvider
             $token = (string) config('raqam.api.site_token');
             $isSite = $token !== '' && hash_equals($token, (string) $request->header('X-Raqam-Site-Token'));
 
-            return $isSite ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : Limit::perMinute((int) config('raqam.api.limit'))->by($request->ip());
+            return $isSite ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : Limit::perMinute((int) config('raqam.api.limit'))->by(TrackingHash::visitor($request->ip()));
         });
 
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what

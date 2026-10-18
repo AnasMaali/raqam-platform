@@ -23,12 +23,20 @@ function openTab({ draft = true, serverAt = 1_699_999_000, data = { title: 'أ',
     const wire = {
         data,
         autosave: () => { calls.push('autosave'); return Promise.resolve(); },
+        $get: (key) => wire[key],
         $set: (key, value) => { calls.push(['set', key]); wire[key] = value; },
     };
     const view = {
         localStorage,
         Livewire: {
-            all: () => [{ $wire: wire }],
+            // The real page has many components, and every $wire answers "a function" for any property (it is a proxy):
+            // the script must pick the editor by name, not by "has an autosave method".
+            all: () => [
+                { name: 'filament.livewire.topbar', $wire: new Proxy({}, { get: () => () => {} }) },
+                { name: 'filament.livewire.sidebar', $wire: new Proxy({}, { get: () => () => {} }) },
+                { name: 'app.filament.resources.posts.pages.edit-post', $wire: wire },
+                { name: 'filament.livewire.notifications', $wire: new Proxy({}, { get: () => () => {} }) },
+            ],
             on: (name, cb) => { listeners[name] = cb; },
         },
     };
@@ -68,6 +76,21 @@ check(t.calls.length === 1, 'saved: the same text is not sent again');
 t.wire.data = { title: 'أ', body: '<p>نص أطول</p>' };
 t.run(30000);
 check(t.calls.length === 2, 'changed again: sent again');
+
+// --- a request is not repeated for the same text, and a published item is never asked for
+t = openTab();
+t.wire.data = { title: 'أ', body: '<p>تعديل لم يُحفظ</p>' };
+t.run(30000); t.run(30000); t.run(30000);
+check(t.calls.length === 1, 'the same unsaved text is sent once, not every 30 seconds (that would keep the session alive for ever)');
+t.listeners['post-autosave-failed']({ message: 'x' });
+t.run(30000);
+check(t.calls.length === 2, 'after a failure the same text is tried again');
+t = openTab();
+t.wire.data = { title: 'أ', body: '<p>نص</p>', status: 'published' };
+t.listeners['post-saved']();
+t.wire.data = { title: 'أ', body: '<p>نص آخر</p>', status: 'published' };
+t.run(30000);
+check(t.calls.length === 0, 'once the item is saved as published, autosave stops asking');
 
 // --- the local copy
 t = openTab();

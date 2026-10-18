@@ -43,6 +43,17 @@ test('the idle limit is 30 minutes to the second', function (int $quietSeconds, 
     $stillIn ? panelGet()->assertOk() : panelGet()->assertRedirect(Filament::getLoginUrl().'?expired=1');
 })->with([[1799, true], [1801, false]]);
 
+test('a test-only shorter idle limit in seconds replaces the 30 minutes', function () {
+    config(['raqam.auth.idle_seconds' => 20]);
+    panelGet()->assertOk();
+
+    $this->travel(19)->seconds();
+    expect(app(AdminSessionLimits::class)->remaining())->toBe(1);
+
+    $this->travel(2)->seconds();
+    panelGet()->assertRedirect(Filament::getLoginUrl().'?expired=1');
+});
+
 test('twelve hours end the session even for someone who never stops working', function () {
     panelGet()->assertOk();
 

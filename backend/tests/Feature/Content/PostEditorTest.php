@@ -128,6 +128,18 @@ test('publishing works, and the quick button publishes with the current text', f
     expect($post->fresh())->status->toBe('published')->and($post->fresh()->published_at)->not->toBeNull();
 });
 
+test('the quick publish button on an incomplete item explains what is missing and closes its dialog', function () {
+    $post = newPost();
+
+    $page = edit($post)->callAction('publishNow')   // no text, no category, no cover
+        ->assertNotified()
+        ->assertHasErrors(['data.cover_media_id'])
+        ->assertSet('mountedActions', [])             // the confirmation dialog is gone, not stuck open
+        ->assertSet('data.status', 'draft');           // and the form does not claim the item is published
+
+    expect($post->fresh()->status)->toBe('draft');
+});
+
 test('the quick publish button is not offered for an item that is already published', function () {
     $post = newPost();
     app(PostSaver::class)->save($post, ['title' => 'x', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
@@ -143,6 +155,19 @@ test('scheduling from the form needs a future time and publishes through the que
 
     edit($post)->fillForm($data + ['published_at' => now()->addDay()->format('Y-m-d H:i:s')])->call('save')->assertHasNoFormErrors();
     expect($post->fresh()->status)->toBe('scheduled');
+});
+
+test('the time typed in the editor is Palestine time, as the label says, and is stored as UTC', function () {
+    $post = newPost();
+    $data = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled'];
+
+    // 14 January 12:00 in Palestine (UTC+2 in winter) is 10:00 UTC. The form value is "what the person typed".
+    edit($post)->fillForm($data + ['published_at' => '2030-01-14 12:00:00'])->call('save')->assertHasNoFormErrors();
+
+    expect($post->fresh()->published_at->utc()->format('Y-m-d H:i'))->toBe('2030-01-14 10:00');
+
+    // And it is shown back as it was typed.
+    edit($post->fresh())->assertSet('data.published_at', '2030-01-14 12:00:00');
 });
 
 test('breaking news from the quick action sets an end time and saves', function () {
@@ -274,14 +299,34 @@ test('an earlier revision can be put back from the editor', function () {
     expect($post->fresh())->title->toBe('الأول')->body->toBe('<p>نص أول</p>');
 });
 
+test('putting back a revision the rules refuse says why and closes the dialog', function () {
+    $post = newPost();   // revision 1 is the empty draft it was created as
+    app(PostSaver::class)->save($post, ['title' => 'x', 'body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
+
+    edit($post->fresh())->callAction('revisions', ['revision_no' => 1])   // an empty text on a published item
+        ->assertNotified()
+        ->assertSet('mountedActions', []);
+
+    expect($post->fresh()->body)->toBe('<p>نص</p>');
+});
+
 test('moving to the trash from the editor, and getting it back from the list', function () {
     $post = newPost();
 
     edit($post)->callAction('trash');
     expect(Post::find($post->id))->toBeNull()->and(Post::withTrashed()->find($post->id))->not->toBeNull();
 
-    Livewire::test(ListPosts::class)->set('activeTab', 'trash')->callAction(TestAction::make('restore')->table(Post::withTrashed()->find($post->id)));
+    // The trash tab really lists it (an editor has to see it to restore it), and the other tabs do not.
+    Livewire::test(ListPosts::class)->set('activeTab', 'trash')->assertCanSeeTableRecords([Post::withTrashed()->find($post->id)])
+        ->callAction(TestAction::make('restore')->table(Post::withTrashed()->find($post->id)));
     expect(Post::find($post->id))->not->toBeNull();
+});
+
+test('a trashed item is only in the trash tab', function () {
+    $post = newPost();
+    edit($post)->callAction('trash');
+
+    Livewire::test(ListPosts::class)->assertCanNotSeeTableRecords([Post::withTrashed()->find($post->id)]);
 });
 
 test('the list shows items by status, searches ignoring hamza, and filters by kind', function () {

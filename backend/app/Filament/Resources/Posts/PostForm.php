@@ -91,12 +91,12 @@ final class PostForm
             Section::make('النشر')->schema([
                 Select::make('status')->label('الحالة')->native(false)->options(Post::STATUSES)->required()->live(),
                 DateTimePicker::make('published_at')->label(fn (Get $get) => $get('status') === 'scheduled' ? 'وقت النشر' : 'تاريخ النشر')
-                    ->seconds(false)->native(false)->displayFormat('Y-m-d H:i')
+                    ->seconds(false)->native(false)->displayFormat('Y-m-d H:i')->timezone('Asia/Hebron')
                     ->visible(fn (Get $get) => in_array($get('status'), ['scheduled', 'published', 'archived'], true))
                     ->required(fn (Get $get) => $get('status') === 'scheduled')
                     ->helperText(fn (Get $get) => $get('status') === 'scheduled' ? 'يُنشر تلقائياً في هذا الوقت (بتوقيت فلسطين).' : 'اتركه كما هو للحفاظ على تاريخ النشر.'),
                 Toggle::make('is_featured')->label('مادة مميزة'),
-                DateTimePicker::make('breaking_until')->label('عاجل حتى')->seconds(false)->native(false)->displayFormat('Y-m-d H:i')
+                DateTimePicker::make('breaking_until')->label('عاجل حتى')->seconds(false)->native(false)->displayFormat('Y-m-d H:i')->timezone('Asia/Hebron')
                     ->helperText('اتركه فارغاً إن لم تكن عاجلة. يسقط العاجل تلقائياً عند هذا الوقت.'),
                 OrganizationSelect::make('sponsor_organization_id')->label('محتوى ممول — الجهة الراعية')
                     ->helperText('تظهر علامة «ممول» واضحة، وتُضاف rel="sponsored" لروابطه.'),
