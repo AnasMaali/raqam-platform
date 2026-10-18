@@ -2,13 +2,12 @@
 
 namespace App\Filament\Pages;
 
-use App\Models\MediaAsset;
+use App\Filament\Forms\MediaSelect;
 use App\Settings\SettingsCatalog;
 use App\Settings\SettingsStore;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -36,6 +35,8 @@ class GeneralSettings extends Page
     protected static ?string $navigationLabel = 'الإعدادات العامة';
 
     protected static ?int $navigationSort = 80;
+
+    protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
 
     /** @var array<string, mixed>|null */
     public ?array $data = [];
@@ -82,9 +83,7 @@ class GeneralSettings extends Page
             $name = $store->fieldName($key);
             $input = match ($field['type']) {
                 'text' => Textarea::make($name)->rows(3)->maxLength(2000),
-                'media' => Select::make($name)->searchable()->native(false)
-                    ->getSearchResultsUsing(fn (string $search) => MediaAsset::query()->publicImages()->search($search)->latest()->limit(30)->pluck('original_name', 'id')->all())
-                    ->getOptionLabelUsing(fn ($value) => MediaAsset::query()->find($value)?->original_name),
+                'media' => MediaSelect::make($name),
                 default => TextInput::make($name)->maxLength(255),
             };
 

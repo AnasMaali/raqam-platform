@@ -54,6 +54,8 @@ class MediaAssetResource extends Resource
 
     protected static ?int $navigationSort = 20;
 
+    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+
     public const TYPES = [
         'image' => 'صور',
         'svg' => 'صور SVG',
