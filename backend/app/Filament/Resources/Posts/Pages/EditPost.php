@@ -137,7 +137,7 @@ class EditPost extends EditRecord
                 ->action(fn (Action $action) => $this->saveFromAction($action, ['status' => 'published'], 'تعذّر النشر')),
             Action::make('breaking')->label('عاجل')->icon(Heroicon::OutlinedBolt)->color('danger')
                 ->schema([Select::make('hours')->label('مدة العاجل')->native(false)->options([1 => 'ساعة', 3 => '3 ساعات', 6 => '6 ساعات', 12 => '12 ساعة', 24 => '24 ساعة'])->default(3)->required()])
-                ->modalDescription('تُحفظ التعديلات ويظهر الخبر في شريط العاجل حتى انتهاء المدة.')
+                ->modalDescription('تُحفظ التعديلات ويظهر الخبر في شريط العاجل حتى انتهاء المدة.')->modalSubmitActionLabel('جعله عاجلاً')
                 ->action(fn (array $data, Action $action) => $this->saveFromAction($action, ['breaking_until' => now()->addHours((int) $data['hours'])->format('Y-m-d H:i:s')], 'تعذّر جعل الخبر عاجلاً')),
             Action::make('preview')->label('معاينة')->icon(Heroicon::OutlinedEye)
                 ->schema([Select::make('hours')->label('مدة صلاحية الرابط')->native(false)->options(PostPreview::HOURS)->default(48)->required()])

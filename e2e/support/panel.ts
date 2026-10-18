@@ -43,9 +43,17 @@ export async function writeBody(page: Page, text: string) {
     await editor.pressSequentially(text, { delay: 5 });
 }
 
+/** Runs something that sends one Livewire request (a button, a confirmation) and waits until the server has answered it. */
+export async function afterLivewire(page: Page, trigger: () => Promise<unknown>) {
+    const answered = page.waitForResponse((r) => r.url().includes('/livewire/update') && r.request().method() === 'POST');
+    await trigger();
+    await answered;
+}
+
 export async function save(page: Page) {
-    await page.getByRole('button', { name: 'حفظ التغييرات' }).click();
-    await expect(page.getByText('تم الحفظ')).toBeVisible();
+    // The toast of an earlier save may still be on screen, so wait for this save's own answer, not for the toast.
+    await afterLivewire(page, () => page.getByRole('button', { name: 'حفظ التغييرات' }).click());
+    await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 }
 
 /** A published news item made through the editor (the quickest complete item), returning its id. */
@@ -56,8 +64,8 @@ export async function publishedNews(page: Page, title: string, body = 'نص ال
     await pick(page, 'category_id', 'محلي (نابلس)');
     await pick(page, 'cover_media_id', 'cover.png', 'cover');
     await page.getByRole('button', { name: 'نشر الآن' }).click();
-    await page.getByRole('button', { name: 'تأكيد' }).click();
-    await expect(page.getByText('تم الحفظ')).toBeVisible();
+    await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+    await expect(page.getByText('تم الحفظ').first()).toBeVisible();
     return id;
 }
 

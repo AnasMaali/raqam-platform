@@ -1,5 +1,5 @@
 import { test, expect, panel, signIn } from '../support/fixtures';
-import { fillRequired, pick, publishedNews, save, uploadImage, createPost, writeBody } from '../support/panel';
+import { afterLivewire, fillRequired, pick, publishedNews, save, uploadImage, createPost } from '../support/panel';
 
 test.beforeEach(async ({ page, app, adminPassword }) => {
     await signIn(page, app, adminPassword);
@@ -12,8 +12,7 @@ test('breaking: one button, a time limit, and it shows in the breaking list', as
     const id = await publishedNews(page, 'خبر عاجل للاختبار');
 
     await page.getByRole('button', { name: 'عاجل', exact: true }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'تأكيد' }).click();
-    await expect(page.getByText('تم الحفظ')).toBeVisible();
+    await afterLivewire(page, () => page.getByRole('dialog').getByRole('button', { name: 'جعله عاجلاً' }).click());
 
     // About three hours ahead (the default of the dialog).
     const minutes = Number(app.sql(`SELECT round(extract(epoch FROM breaking_until - now()) / 60) FROM posts WHERE id = ${id}`));
@@ -41,7 +40,7 @@ test('revisions: an edit is kept, and an older text comes back (and can be undon
     const oldest = app.sql(`SELECT min(revision_no) FROM post_revisions WHERE post_id = ${id}`);
     await dialog.locator('[id="mountedActionSchema0.revision_no"], [id$="revision_no"]').first().click();
     await dialog.getByRole('option', { name: new RegExp(`^#${oldest} `) }).click();
-    await dialog.getByRole('button', { name: 'استرجاع هذه النسخة' }).click();
+    await afterLivewire(page, () => dialog.getByRole('button', { name: 'استرجاع هذه النسخة' }).click());
     await expect(page.getByText('استُرجعت النسخة.')).toBeVisible();
 
     expect(app.sql(`SELECT body FROM posts WHERE id = ${id}`)).toContain('النص الأول الأصلي.');
@@ -55,7 +54,7 @@ test('trash: it leaves the site at once (410) and comes back when restored', asy
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(200);
 
     await page.getByRole('button', { name: 'نقل إلى السلة' }).click();
-    await page.getByRole('dialog').getByRole('button', { name: 'تأكيد' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'تأكيد' }).click();
     await page.waitForURL(/\/posts\/?(\?.*)?$/);
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(410);
 
@@ -90,16 +89,19 @@ test('scheduling: it stays hidden until its time, then the publisher puts it liv
     await fillRequired(page);
 
     await pick(page, 'status', 'مجدول');
-    // The editor says the time is Palestine time: two minutes from now there.
-    const when = await page.evaluate(() => {
+    // The editor says the time is Palestine time: a little under two minutes from now, there.
+    const target = await page.evaluate(() => {
         const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Hebron', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
             .formatToParts(new Date(Date.now() + 100_000));
-        const p = Object.fromEntries(parts.map((x) => [x.type, x.value]));
-        return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+        return Object.fromEntries(parts.map((x) => [x.type, x.value]));
     });
-    const picker = page.locator('input[id="form.published_at"]');
-    await picker.fill(when);
-    await picker.press('Enter');
+    const when = `${target.year}-${target.month}-${target.day} ${target.hour}:${target.minute}`;
+    await page.locator('input[id="form.published_at"]').click();
+    const panel = page.locator('[id="form.published_at-panel"]');
+    await panel.getByRole('gridcell', { name: String(Number(target.day)), exact: true }).click();
+    await panel.getByLabel('الساعة').fill(String(Number(target.hour)));
+    await panel.getByLabel('الدقيقة').fill(String(Number(target.minute)));
+    await page.keyboard.press('Escape');
     await save(page);
 
     expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('scheduled');
