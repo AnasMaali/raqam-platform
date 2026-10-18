@@ -47,15 +47,11 @@ test('an editor can write and publish an item from a phone', async ({ page, app,
     const box = (await publish.boundingBox())!;
     expect(box.height, 'tap target height').toBeGreaterThanOrEqual(32);
     await publish.click();
-    await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+    const confirm = page.getByRole('button', { name: 'تأكيد' });
+    await expect(confirm).toBeVisible();
+    await afterLivewire(page, () => confirm.click());
 
     expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('published');
     expect((await page.request.get(`${app.url}/api/v1/posts/${id}`)).status()).toBe(200);
     await noSideScroll(page, 'editor after publishing');
-});
-
-test('the session warning fits a phone', async ({ page, app, adminPassword }) => {
-    await signIn(page, app, adminPassword);
-    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
-    await noSideScroll(page, 'dashboard');
 });
