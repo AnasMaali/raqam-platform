@@ -9,6 +9,7 @@ use App\Models\MediaAsset;
 use App\Models\Post;
 use App\Models\Video;
 use App\Video\VideoView;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -117,7 +118,7 @@ final class Presenter
 
         $tags = DB::table('post_tags')->join('tags', 'tags.id', '=', 'post_tags.tag_id')->where('post_id', $post->id)->orderBy('tags.name_ar')->get(['tags.id', 'tags.name_ar', 'tags.slug']);
         $counts = DB::table('post_tags')->join('posts', 'posts.id', '=', 'post_tags.post_id')->whereIn('tag_id', $tags->pluck('id'))
-            ->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->groupBy('tag_id')->selectRaw('tag_id, count(*) as n')->pluck('n', 'tag_id');
+            ->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->whereNotIn('posts.id', Post::hiddenCharacterCards())->groupBy('tag_id')->selectRaw('tag_id, count(*) as n')->pluck('n', 'tag_id');
 
         $galleryIds = DB::table('post_gallery_items')->where('post_id', $post->id)->orderBy('sort_order')->pluck('media_id');
         $this->preload($galleryIds);
@@ -135,6 +136,7 @@ final class Presenter
             'body_html' => $html,
             'tags' => $tags->map(fn ($t) => ['id' => (int) $t->id, 'name' => $t->name_ar, 'slug' => $t->slug, 'posts_count' => (int) ($counts[$t->id] ?? 0)])->all(),
             'video' => $this->primaryVideo($post),
+            'awareness_cards' => $this->linkedCards($post),
             'gallery' => $galleryIds->map(fn ($id) => $this->media((int) $id))->filter()->values()->all(),
             'guests' => $this->guests($post),
             'details' => $this->details($post),
@@ -178,6 +180,21 @@ final class Presenter
         ];
     }
 
+    /**
+     * Every published item the guest appears in with the part played, newest first (decisions 5.10, 6.11).
+     *
+     * @return list<array{role: array{code: string, name: string}, post: array<string, mixed>}>
+     */
+    public function appearances(int $guestId): array
+    {
+        $rows = DB::table('post_guests')->join('guest_roles', 'guest_roles.code', '=', 'post_guests.role_code')->where('post_guests.guest_id', $guestId)
+            ->get(['post_guests.post_id', 'guest_roles.code', 'guest_roles.name_ar'])->keyBy('post_id');
+        $posts = Post::query()->live()->whereIn('id', $rows->keys())->orderByDesc('published_at')->orderByDesc('id')->limit(200)->get();
+        $summaries = $this->summaries($posts);
+
+        return $posts->values()->map(fn (Post $p, int $i) => ['role' => ['code' => $rows[$p->id]->code, 'name' => $rows[$p->id]->name_ar], 'post' => $summaries[$i]])->all();
+    }
+
     public function author(object $a): array
     {
         $links = DB::table('author_links')->where('author_id', $a->id)->pluck('url', 'platform_code')->all();
@@ -186,6 +203,60 @@ final class Presenter
             'id' => (int) $a->id, 'name' => $a->name, 'slug' => $a->slug, 'job_title' => $a->job_title, 'bio' => $a->bio,
             'photo' => $this->media($a->photo_media_id), 'team_order' => $a->team_sort_order === null ? null : (int) $a->team_sort_order, 'links' => (object) $links,
         ];
+    }
+
+    /**
+     * Awareness cards with the character and pose they show (decisions 7.11, 7.13).
+     *
+     * @param  Collection<int, Post>  $cards
+     * @return list<array<string, mixed>>
+     */
+    public function cards(Collection $cards): array
+    {
+        $summaries = $this->summaries($cards);
+
+        return $cards->values()->map(fn (Post $card, int $i) => $summaries[$i] + ['awareness' => $this->details($card)])->all();
+    }
+
+    /** The published awareness cards a post points at, in order (decision 7.12). @return list<array<string, mixed>> */
+    private function linkedCards(Post $post): array
+    {
+        if ($post->kind_code === 'awareness') {
+            return [];
+        }
+        $ids = DB::table('post_related')->join('posts', 'posts.id', '=', 'post_related.related_post_id')->where('post_related.post_id', $post->id)
+            ->where('posts.kind_code', 'awareness')->orderBy('post_related.sort_order')->pluck('posts.id');
+        $cards = Post::query()->live()->whereIn('id', $ids)->get()->sortBy(fn ($c) => $ids->search($c->id))->values();
+
+        return $this->cards($cards->filter(fn (Post $c) => $this->details($c) !== null));
+    }
+
+    /**
+     * A character with its poses (decisions 7.9, 7.10, 7.14).
+     *
+     * @return array<string, mixed>
+     */
+    public function character(object $c, bool $withCount = true): array
+    {
+        $poses = DB::table('character_poses')->join('pose_types', 'pose_types.code', '=', 'character_poses.pose_type_code')->where('character_poses.character_id', $c->id)
+            ->orderBy('pose_types.sort_order')->get(['character_poses.id', 'character_poses.pose_type_code', 'pose_types.name_ar', 'character_poses.static_media_id', 'character_poses.rive_state']);
+        $this->preload($poses->pluck('static_media_id')->push($c->rive_media_id, $c->seo_meta_id ? DB::table('seo_meta')->where('id', $c->seo_meta_id)->value('share_media_id') : null));
+        $seo = $c->seo_meta_id ? DB::table('seo_meta')->where('id', $c->seo_meta_id)->first() : null;
+
+        return [
+            'id' => (int) $c->id, 'name' => $c->name_ar, 'slug' => $c->slug, 'role' => $c->role_ar, 'description' => $c->description,
+            'accent_color' => $c->accent_color, 'rive' => $this->media($c->rive_media_id),
+            'poses' => $poses->map(fn ($p) => ['code' => $p->pose_type_code, 'name' => $p->name_ar, 'image' => $this->media($p->static_media_id), 'rive_state' => $p->rive_state])->all(),
+            'cards_count' => $withCount ? $this->characterCards((int) $c->id)->count() : 0,
+            'seo' => $this->seo($seo, $c->name_ar, $c->description ?: $c->role_ar, null),
+        ];
+    }
+
+    /** Published cards of one character. */
+    public function characterCards(int $characterId): Builder
+    {
+        return Post::query()->live()->where('kind_code', 'awareness')->whereIn('id', DB::table('awareness_cards')
+            ->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')->where('character_poses.character_id', $characterId)->select('awareness_cards.post_id'));
     }
 
     private function details(Post $post): ?array

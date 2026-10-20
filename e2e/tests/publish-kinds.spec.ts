@@ -77,7 +77,8 @@ const kinds: Kind[] = [
         code: 'awareness', label: 'بطاقة توعية', prefix: '/awareness/',
         seed: (app, mediaId) => void seed.characterPose(app, mediaId),
         facts: async (page) => {
-            await pick(page, 'awareness.character_pose_id', 'هل تعلم؟');
+            await pick(page, 'awareness.character_id', 'هل تعلم؟');
+            await pick(page, 'awareness.character_pose_id', 'تشرح');
             await pick(page, 'awareness.awareness_type_code', 'هل تعلم');
         },
     },

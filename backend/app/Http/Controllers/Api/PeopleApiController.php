@@ -35,6 +35,6 @@ class PeopleApiController extends ApiController
     {
         $id = DB::table('guests')->whereNull('deleted_at')->where('slug', $slug)->value('id');
 
-        return $id ? response()->json(['data' => $this->presenter->guest((int) $id)]) : $this->notFound();
+        return $id ? response()->json(['data' => $this->presenter->guest((int) $id) + ['appearances' => $this->presenter->appearances((int) $id)]]) : $this->notFound();
     }
 }

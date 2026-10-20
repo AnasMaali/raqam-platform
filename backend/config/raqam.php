@@ -64,6 +64,13 @@ return [
         'fetch_thumbnails' => (bool) env('YOUTUBE_FETCH_THUMBNAILS', true),
     ],
 
+    /*
+    | The page colour a character's accent is checked against (decision 7.14): it must reach 4.5 to 1.
+    */
+    'awareness' => [
+        'background' => '#FFFFFF',
+    ],
+
     'site_webhook' => [
         'url' => env('SITE_WEBHOOK_URL'),
         'secret' => env('SITE_WEBHOOK_SECRET'),

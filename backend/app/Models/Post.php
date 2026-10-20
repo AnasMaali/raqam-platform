@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Supertype of every kind of content (database/schema/06-content.sql). kind_code and the user stamps are
@@ -89,16 +91,28 @@ class Post extends Model
         return $this->sponsor_organization_id !== null;
     }
 
-    /** Live and visible to visitors: published, its time has come, not in the trash. */
+    /** Live and visible to visitors: published, its time has come, not in the trash, and not the card of a hidden character. */
     public function scopeLive(Builder $query): Builder
     {
-        return $query->where('status', 'published')->where('published_at', '<=', now())->whereNull('deleted_at');
+        return $query->where('status', 'published')->where('published_at', '<=', now())->whereNull('deleted_at')
+            ->whereNotIn($query->qualifyColumn('id'), self::hiddenCharacterCards());
     }
 
     /** Reachable by its address: live, or archived (an archived item stays at its address but leaves every list). */
     public function scopeViewable(Builder $query): Builder
     {
-        return $query->whereIn('status', ['published', 'archived'])->where('published_at', '<=', now())->whereNull('deleted_at');
+        return $query->whereIn('status', ['published', 'archived'])->where('published_at', '<=', now())->whereNull('deleted_at')
+            ->whereNotIn($query->qualifyColumn('id'), self::hiddenCharacterCards());
+    }
+
+    /**
+     * The ids of the awareness cards whose character is hidden. They leave the site with the character: every
+     * list, their own address, and every other item that points at them, so no link leads to a missing page.
+     */
+    public static function hiddenCharacterCards(): QueryBuilder
+    {
+        return DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
+            ->join('characters', 'characters.id', '=', 'character_poses.character_id')->where('characters.is_active', false)->select('awareness_cards.post_id');
     }
 
     // ---- audit ---------------------------------------------------------------------------------------

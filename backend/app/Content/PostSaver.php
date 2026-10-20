@@ -94,7 +94,9 @@ final class PostSaver
                 $this->writeRelations($post, $data);
                 $this->writeKindFacts($post, $data);
                 $this->addToSeasonPlaylist($post);
+                $linkedCards = $this->linkedCards($post->id);
                 $this->references->sync($post->id, $post->body);
+                $this->linkCards($post, array_key_exists('awareness_cards', $data) ? $this->cardIds($data['awareness_cards']) : $linkedCards);
                 $this->snapshot($post, $userId);
 
                 DB::statement('SET CONSTRAINTS posts_subtype_present IMMEDIATE');
@@ -544,6 +546,56 @@ final class PostSaver
         }
 
         AuditLogger::record('update', 'posts', $post->id, [$field => [$beforeText, $afterText]]);
+    }
+
+    /** @return list<int> the awareness cards this post points at (the card blocks of its text, and the cards picked for it) */
+    private function linkedCards(int $postId): array
+    {
+        return DB::table('post_related')->join('posts', 'posts.id', '=', 'post_related.related_post_id')
+            ->where('post_related.post_id', $postId)->where('posts.kind_code', 'awareness')->orderBy('post_related.sort_order')
+            ->pluck('posts.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /** @return list<int> */
+    private function cardIds(mixed $given): array
+    {
+        $ids = [];
+        foreach ((array) $given as $id) {
+            $id = $this->key($id);
+            if ($id === null || $id < 0) {
+                throw new PostRuleViolation('إحدى بطاقات التوعية المرتبطة غير صحيحة.', 'awareness_cards');
+            }
+            $ids[$id] = $id;
+        }
+
+        if (count($ids) > 20) {
+            throw new PostRuleViolation('الحد الأقصى 20 بطاقة توعية مرتبطة.', 'awareness_cards');
+        }
+        if ($ids !== [] && DB::table('posts')->whereIn('id', $ids)->where('kind_code', 'awareness')->whereNull('deleted_at')->count() !== count($ids)) {
+            throw new PostRuleViolation('إحدى بطاقات التوعية المرتبطة غير موجودة.', 'awareness_cards');
+        }
+
+        return array_values($ids);
+    }
+
+    /**
+     * Adds awareness cards to the "related" rows after the text's own references were written (7.12). The result
+     * is the cards of the text together with the ones picked; an awareness card itself links to none.
+     *
+     * @param  list<int>  $cards
+     */
+    private function linkCards(Post $post, array $cards): void
+    {
+        if ($post->kind_code === 'awareness' || $cards === []) {
+            return;
+        }
+
+        $have = DB::table('post_related')->where('post_id', $post->id)->pluck('related_post_id')->map(fn ($id) => (int) $id)->all();
+        $next = (int) DB::table('post_related')->where('post_id', $post->id)->max('sort_order') + 1;
+
+        foreach (array_diff($cards, $have) as $card) {
+            DB::table('post_related')->insert(['post_id' => $post->id, 'related_post_id' => $card, 'sort_order' => min($next++, 32767)]);
+        }
     }
 
     private function writeKindFacts(Post $post, array $data): void

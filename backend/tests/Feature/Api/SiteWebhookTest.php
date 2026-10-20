@@ -2,11 +2,13 @@
 
 use App\Content\PostSaver;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Jobs\GenerateMediaVariants;
 use App\Jobs\PublishScheduledPost;
 use App\Jobs\SendSiteWebhook;
 use App\Media\MediaUploader;
 use App\Models\Category;
+use App\Models\Character;
 use App\Models\Page;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -75,6 +77,25 @@ test('a changed page tells the site too', function () {
     Page::create(['title' => 'صفحة', 'slug' => 'about-us']);
 
     Bus::assertDispatched(SendSiteWebhook::class, fn ($job) => $job->payload['type'] === 'page' && $job->payload['paths'] === ['/about-us']);
+});
+
+test('hiding or showing a character asks the site to refresh everything; other edits of it do not', function () {
+    Filament\Facades\Filament::setCurrentPanel('admin');
+    configureWebhook();
+    $character = Character::create(['name_ar' => 'المستشار', 'slug' => 'advisor', 'role_ar' => 'ينصح', 'accent_color' => '#1F6F5B']);
+    Bus::fake([SendSiteWebhook::class]);
+    $everything = fn (string $change) => fn ($job) => $job->payload['type'] === 'all' && $job->payload['change'] === $change && $job->payload['id'] === $character->id && $job->payload['paths'] === [];
+
+    Livewire\Livewire::test(EditCharacter::class, ['record' => $character->id])->fillForm(['is_active' => false])->call('save')->assertHasNoFormErrors();
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+    Bus::assertDispatched(SendSiteWebhook::class, $everything('character_hidden'));
+
+    $character->refresh()->update(['is_active' => true]);
+    Bus::assertDispatched(SendSiteWebhook::class, $everything('character_shown'));
+
+    $character->update(['role_ar' => 'ينصح ويشرح']);
+    $character->update(['is_active' => true]);
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 2);
 });
 
 test('the request is signed over its time and body, so the site can check it and refuse old ones', function () {
