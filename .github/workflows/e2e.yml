@@ -75,7 +75,7 @@ jobs:
           cache-dependency-path: e2e/package-lock.json
 
       - name: Command line clients used by the tests
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client redis-tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client redis-tools ffmpeg
 
       - name: Create the app role
         env:

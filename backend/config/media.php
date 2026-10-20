@@ -25,6 +25,10 @@ return [
         'image_stored' => 10 * 1024 * 1024,
         'svg' => 2 * 1024 * 1024,
         'pdf' => 20 * 1024 * 1024,
+        // Short uploaded clips (decision 8.11) and Rive animation files (7.10).
+        'video' => 30 * 1024 * 1024,
+        'video_seconds' => 90,
+        'rive' => 5 * 1024 * 1024,
         'max_pixels' => 24_000_000,
         'max_side' => 6000,
     ],
@@ -41,6 +45,16 @@ return [
         'xl' => ['width' => 1920],
         'og' => ['width' => 1200, 'height' => 630],
     ],
+
+    /*
+    | The ffprobe program that measures uploaded videos (decision 8.11). Normally just the name on PATH.
+    */
+    'ffprobe' => env('FFPROBE_BINARY', 'ffprobe'),
+
+    /*
+    | The ffmpeg program that strips the metadata of uploaded clips (decision 9.8).
+    */
+    'ffmpeg' => env('FFMPEG_BINARY', 'ffmpeg'),
 
     'formats' => ['avif', 'webp', 'jpeg'],
 

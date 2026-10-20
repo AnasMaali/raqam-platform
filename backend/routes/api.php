@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\PeopleApiController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\RedirectLookupController;
 use App\Http\Controllers\Api\TaxonomyApiController;
+use App\Http\Controllers\Api\VideoApiController;
 use App\Http\Middleware\ApiResponseCache;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,12 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
 
     Route::get('/pages', [PageApiController::class, 'index']);
     Route::get('/pages/{slug}', [PageApiController::class, 'show']);
+
+    Route::get('/videos', [VideoApiController::class, 'index']);
+    Route::get('/videos/{id}', [VideoApiController::class, 'show'])->where('id', '[0-9]{1,18}');
+    Route::get('/playlists', [VideoApiController::class, 'playlists']);
+    Route::get('/playlists/{slug}', [VideoApiController::class, 'playlistShow']);
+    Route::get('/sitemaps/videos', [VideoApiController::class, 'sitemap']);
 
     Route::get('/redirects/lookup', RedirectLookupController::class);
 });

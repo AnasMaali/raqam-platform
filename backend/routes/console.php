@@ -14,3 +14,4 @@ Schedule::command('queue:prune-failed --hours=720')->daily();
 
 Schedule::command('posts:publish-due')->everyMinute()->withoutOverlapping();
 Schedule::command('posts:purge-trashed')->daily();
+Schedule::command('videos:check-availability')->weeklyOn(0, '04:00')->withoutOverlapping();

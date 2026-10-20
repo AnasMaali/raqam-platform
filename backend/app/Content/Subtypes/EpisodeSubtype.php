@@ -3,6 +3,7 @@
 namespace App\Content\Subtypes;
 
 use App\Content\PostRuleViolation;
+use App\Support\UniqueSlug;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Illuminate\Support\Facades\DB;
@@ -47,7 +48,13 @@ final class EpisodeSubtype extends Subtype
                     TextInput::make('season_number')->label('رقم الموسم')->numeric()->integer()->minValue(1)->maxValue(32767)->required(),
                     TextInput::make('title_ar')->label('اسم الموسم (اختياري)')->maxLength(120),
                 ])
-                ->createOptionUsing(fn (array $data) => DB::table('podcast_seasons')->insertGetId(['season_number' => $data['season_number'], 'title_ar' => $data['title_ar'] ?: null])),
+                // A season is a playlist (5.1, 8.9): making one makes the other, so its episodes' videos gather there.
+                ->createOptionUsing(fn (array $data) => DB::transaction(function () use ($data) {
+                    $name = 'الموسم '.$data['season_number'].($data['title_ar'] ? ' — '.$data['title_ar'] : '');
+                    $playlist = DB::table('playlists')->insertGetId(['name_ar' => mb_substr($name, 0, 120), 'slug' => UniqueSlug::for('playlists', 'podcast-season-'.$data['season_number'], null, 'season'), 'section_id' => DB::table('sections')->where('key', 'podcast')->value('id')]);
+
+                    return DB::table('podcast_seasons')->insertGetId(['season_number' => $data['season_number'], 'title_ar' => $data['title_ar'] ?: null, 'playlist_id' => $playlist]);
+                })),
             TextInput::make('episode_number')->label('رقم الحلقة')->numeric()->integer()->minValue(1)->maxValue(32767),
         ];
     }

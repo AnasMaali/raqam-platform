@@ -16,7 +16,10 @@ panel's home shows a warning. Verify in the built image:
 
 It must print `bool(true)` (and write the image to stdout).
 
-## ffprobe
+## ffmpeg and ffprobe
 
-Short uploaded videos (decision 8.11) are measured with `ffprobe` (package `ffmpeg`). Without it the
-upload is refused with a clear message. The image must contain the binary on `PATH`.
+Short uploaded videos (decision 8.11) are measured with `ffprobe` and rewritten without their metadata
+(GPS position, device, time) by `ffmpeg` (package `ffmpeg`, which provides both). Without them an upload
+is refused with a clear message; a video is never stored with its metadata. Both programs are started
+with `-protocol_whitelist file` and the input forced to MP4, so a crafted file cannot make them read
+other files or reach the network. The image must contain both binaries on `PATH`.

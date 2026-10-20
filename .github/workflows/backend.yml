@@ -79,7 +79,7 @@ jobs:
         run: ./scripts/check-migration-coverage.sh
 
       - name: Install PostgreSQL client
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client ffmpeg
 
       - name: Create the app role and test database
         env:

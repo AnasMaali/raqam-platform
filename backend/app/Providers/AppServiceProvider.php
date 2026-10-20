@@ -53,7 +53,7 @@ class AppServiceProvider extends ServiceProvider
         config(['livewire.temporary_file_upload.middleware' => 'throttle:per-visitor']);
 
         // The largest file the media library accepts (an image); the library itself checks each type's own limit.
-        config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (config('media.limits.image_upload') / 1024)]]);
+        config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (max(config('media.limits.image_upload'), config('media.limits.video')) / 1024)]]);
 
         LtrFields::register();
 

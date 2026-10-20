@@ -22,6 +22,8 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="LOG_CHANNEL" value="single"/>
         <env name="LOG_FILE" value="testing.log"/>
+        <env name="YOUTUBE_API_KEY" value=""/>
+        <env name="YOUTUBE_FETCH_THUMBNAILS" value="false"/>
         <env name="ADMIN_PATH" value="test-panel"/>
         <env name="TRACKING_HASH_KEY" value="test-only-tracking-key-0123456789abcdef"/>
         <env name="ADMIN_CODE_KEY" value="test-only-code-key-0123456789abcdef"/>

@@ -23,6 +23,7 @@ tags:
   - name: Posts
   - name: Taxonomy
   - name: People
+  - name: Videos
   - name: Pages
   - name: Redirects
 
@@ -335,6 +336,124 @@ paths:
                   data: { $ref: '#/components/schemas/Guest' }
         '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /videos:
+    get:
+      tags: [Videos]
+      summary: The video library, newest first
+      description: Only videos a visitor can play and that are in use (in a published item or a visible playlist).
+      operationId: listVideos
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - name: section
+          in: query
+          description: Slug of a special section; videos of its playlists or of its items.
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: playlist
+          in: query
+          description: Slug of a playlist.
+          schema: { $ref: '#/components/schemas/Slug' }
+      responses:
+        '200':
+          description: One page of videos.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Video' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /videos/{id}:
+    get:
+      tags: [Videos]
+      summary: One video with its chapters and structured data
+      operationId: showVideo
+      parameters: [{ $ref: '#/components/parameters/PostId' }]
+      responses:
+        '200':
+          description: The video.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Video' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /playlists:
+    get:
+      tags: [Videos]
+      summary: Visible playlists (podcast seasons are playlists)
+      operationId: listPlaylists
+      parameters: [{ $ref: '#/components/parameters/Page' }]
+      responses:
+        '200':
+          description: One page of playlists.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Playlist' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /playlists/{slug}:
+    get:
+      tags: [Videos]
+      summary: One playlist with its videos in order (the first 200)
+      operationId: showPlaylist
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The playlist.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/PlaylistDetail' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /sitemaps/videos:
+    get:
+      tags: [Videos]
+      summary: Data for the video sitemap
+      description: One entry for every page that shows a video (the video's own page and each published item that uses it). The website writes the XML.
+      operationId: videoSitemap
+      responses:
+        '200':
+          description: The entries.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/VideoSitemapEntry' } }
+        '304': { $ref: '#/components/responses/NotModified' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /pages:
@@ -683,12 +802,105 @@ components:
         body_html: { type: string, description: "Cleaned HTML, safe to inject." }
         updated_at: { type: string, format: date-time }
         seo: { $ref: '#/components/schemas/Seo' }
+    Video:
+      type: object
+      required: [id, source, path, title, description, duration_seconds, thumbnail_url, published_at, youtube, upload, chapters, structured_data]
+      properties:
+        id: { type: integer }
+        source: { type: string, enum: [youtube, upload] }
+        path: { type: string, example: /video/12, description: "The video's own page on the website." }
+        title: { type: string, description: "The title the site shows (ours when set, otherwise YouTube's)." }
+        description: { type: [string, 'null'] }
+        duration_seconds: { type: [integer, 'null'] }
+        thumbnail_url: { type: [string, 'null'] }
+        published_at: { type: string, format: date-time }
+        youtube:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, is_short, watch_url, embed_url]
+              properties:
+                id: { type: string, pattern: '^[A-Za-z0-9_-]{11}$' }
+                is_short: { type: boolean }
+                watch_url: { type: string }
+                embed_url: { type: string, description: "A youtube-nocookie address; load it only when the visitor presses play." }
+        upload:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [url, mime_type, width, height]
+              properties:
+                url: { type: string }
+                mime_type: { const: video/mp4 }
+                width: { type: [integer, 'null'] }
+                height: { type: [integer, 'null'] }
+        chapters:
+          type: array
+          items:
+            type: object
+            required: [start, time, title]
+            properties:
+              start: { type: integer, minimum: 0, description: "Seconds from the start; seek the player here." }
+              time: { type: string, example: '12:30' }
+              title: { type: string }
+        structured_data:
+          type: object
+          description: A schema.org VideoObject (with a Clip for each chapter), ready to put in a JSON-LD script.
+          required: ['@context', '@type', name, description, thumbnailUrl, uploadDate]
+          properties:
+            '@context': { const: 'https://schema.org' }
+            '@type': { const: VideoObject }
+    Playlist:
+      type: object
+      required: [id, name, slug, description, cover, section, season_number, videos_count, seo]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        cover: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
+        section:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [id, name, slug]
+              properties: { id: { type: integer }, name: { type: string }, slug: { type: string } }
+        season_number: { type: [integer, 'null'], description: "The podcast season this playlist is, if any." }
+        videos_count: { type: integer, minimum: 0 }
+        seo: { $ref: '#/components/schemas/Seo' }
+    PlaylistDetail:
+      allOf:
+        - $ref: '#/components/schemas/Playlist'
+        - type: object
+          required: [videos]
+          properties:
+            videos: { type: array, items: { $ref: '#/components/schemas/Video' } }
+    VideoSitemapEntry:
+      type: object
+      required: [page_path, video]
+      properties:
+        page_path: { type: string, description: "The page that shows the video." }
+        video:
+          type: object
+          required: [id, title, description, thumbnail_url, content_url, player_url, duration_seconds, publication_date]
+          properties:
+            id: { type: integer }
+            title: { type: string }
+            description: { type: string }
+            thumbnail_url: { type: [string, 'null'] }
+            content_url: { type: [string, 'null'], description: "The file itself (uploaded clips)." }
+            player_url: { type: [string, 'null'], description: "The embeddable player (YouTube videos)." }
+            duration_seconds: { type: [integer, 'null'] }
+            publication_date: { type: string, format: date-time }
     PostDetail:
       allOf:
         - $ref: '#/components/schemas/PostSummary'
         - type: object
-          required: [body_html, tags, gallery, guests, details, related, correction, seo, revision]
+          required: [body_html, video, tags, gallery, guests, details, related, correction, seo, revision]
           properties:
+            video:
+              description: The main video, null when there is none or it can no longer be played.
+              oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Video' }]
             body_html:
               type: string
               description: Cleaned HTML with every block (picture, gallery, awareness card, "read also") already built. Safe to inject.

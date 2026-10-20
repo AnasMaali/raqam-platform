@@ -7,6 +7,8 @@ use App\Content\PostPath;
 use App\Media\MediaStorage;
 use App\Models\MediaAsset;
 use App\Models\Post;
+use App\Models\Video;
+use App\Video\VideoView;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,7 +19,15 @@ final class Presenter
     /** @var array<int, array<string, mixed>> */
     private array $media = [];
 
-    public function __construct(private MediaStorage $storage, private BodyRenderer $renderer) {}
+    public function __construct(private MediaStorage $storage, private BodyRenderer $renderer, private VideoView $videos) {}
+
+    /** The main video of a post, if a visitor can play it. @return array<string, mixed>|null */
+    public function primaryVideo(Post $post): ?array
+    {
+        $video = $post->primary_video_id ? Video::query()->with(['youtube', 'upload', 'poster'])->find($post->primary_video_id) : null;
+
+        return $video !== null && $this->videos->playable($video) ? $this->videos->payload($video) : null;
+    }
 
     /** Loads pictures in two queries so a list of twelve does not ask twelve times. */
     public function preload(iterable $ids): void
@@ -124,6 +134,7 @@ final class Presenter
         return $summary + [
             'body_html' => $html,
             'tags' => $tags->map(fn ($t) => ['id' => (int) $t->id, 'name' => $t->name_ar, 'slug' => $t->slug, 'posts_count' => (int) ($counts[$t->id] ?? 0)])->all(),
+            'video' => $this->primaryVideo($post),
             'gallery' => $galleryIds->map(fn ($id) => $this->media((int) $id))->filter()->values()->all(),
             'guests' => $this->guests($post),
             'details' => $this->details($post),

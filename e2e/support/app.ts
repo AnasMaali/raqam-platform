@@ -91,6 +91,8 @@ function laravelEnv(db: string, prefix: string, storage: string, port: number, e
         SITE_WEBHOOK_URL: '',
         SITE_WEBHOOK_SECRET: '',
         API_SITE_TOKEN: 'e2e-site-token',
+        YOUTUBE_API_KEY: '',
+        YOUTUBE_FETCH_THUMBNAILS: 'false',
         R2_ACCESS_KEY_ID: '',
         R2_SECRET_ACCESS_KEY: '',
         R2_ENDPOINT: '',

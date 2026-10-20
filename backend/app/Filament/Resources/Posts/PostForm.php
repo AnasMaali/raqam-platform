@@ -7,6 +7,7 @@ use App\Content\Subtypes\SubtypeRegistry;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Forms\OrganizationSelect;
 use App\Filament\Forms\SeoSection;
+use App\Filament\Forms\VideoSelect;
 use App\Models\Category;
 use App\Models\GuestRole;
 use App\Models\Post;
@@ -60,7 +61,7 @@ final class PostForm
                     ->toolbarButtons([['bold', 'italic', 'underline', 'strike', 'link'], ['h2', 'h3'], ['blockquote', 'bulletList', 'orderedList', 'table'], ['customBlocks'], ['undo', 'redo']])
                     ->customBlocks(app(BlockRegistry::class)->forEditor())
                     ->extraInputAttributes(['style' => 'min-height: 24rem'])
-                    ->helperText('الصور والمعرض وبطاقة التوعية و«اقرأ أيضاً» من زر الإضافات في الشريط.'),
+                    ->helperText('الصور والمعرض والفيديو وبطاقة التوعية و«اقرأ أيضاً» من زر الإضافات في الشريط.'),
             ]),
             Section::make('معرض الصور')->collapsed()->schema([
                 Repeater::make('gallery')->hiddenLabel()->schema([MediaSelect::make('media_id')->hiddenLabel()->required()])
@@ -107,6 +108,7 @@ final class PostForm
                         ->mapWithKeys(fn (Category $c) => [$c->id => ($c->parent_id ? '↳ ' : '').$c->name_ar])->all())
                     ->helperText(fn (?Post $record) => DB::table('post_kinds')->where('code', $record?->kind_code)->value('requires_category') ? 'إجباري قبل النشر.' : 'اختياري لهذا النوع.'),
                 MediaSelect::make('cover_media_id')->label('الصورة الرئيسية')->helperText('إجبارية قبل النشر. تُرفع من مكتبة الوسائط.'),
+                VideoSelect::make('primary_video_id')->label('الفيديو الرئيسي')->helperText('اختياري. من مكتبة الفيديو؛ يظهر في أعلى المادة.'),
             ]),
             Section::make('الكتّاب والوسوم')->schema([
                 Select::make('authors')->label('الكتّاب')->multiple()->native(false)->searchable()

@@ -30,7 +30,7 @@ class Post extends Model
     public const TRASH_DAYS = 90;
 
     protected $fillable = [
-        'category_id', 'title', 'subtitle', 'slug', 'excerpt', 'body', 'cover_media_id', 'status', 'published_at',
+        'category_id', 'title', 'subtitle', 'slug', 'excerpt', 'body', 'cover_media_id', 'primary_video_id', 'status', 'published_at',
         'is_featured', 'breaking_until', 'sponsor_organization_id', 'correction_note', 'corrected_at',
     ];
 
