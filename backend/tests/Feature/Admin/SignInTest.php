@@ -179,6 +179,37 @@ test('a code cannot be used twice', function () {
     $this->assertGuest();
 });
 
+/** As if the server clock was stepped back by NTP after the codes were written: they now look written in the future. */
+function clockSteppedBackAfterCodes(): void
+{
+    DB::table('verification_codes')->update(['created_at' => DB::raw("now() + interval '2 seconds'")]);
+}
+
+test('a clock stepped back between the code and its use does not break the sign-in', function () {
+    $user = staffUser();
+    submitPassword();
+    clockSteppedBackAfterCodes();
+
+    submitCode(mailedCode())->assertHasNoFormErrors()->assertRedirect();
+
+    $this->assertAuthenticatedAs($user);
+    $row = DB::table('verification_codes')->first();
+    expect($row->consumed_at)->toBe($row->created_at);       // greatest(now(), created_at), never before it
+});
+
+test('a clock stepped back before a resend still lets the new code replace the old one', function () {
+    staffUser();
+    submitPassword();
+    $this->travel(61)->seconds();
+    clockSteppedBackAfterCodes();
+
+    expect(app(AdminSignIn::class)->resend())->toBe('sent');
+
+    Mail::assertSent(CodeMail::class, 2);
+    expect(DB::table('verification_codes')->whereNull('consumed_at')->count())->toBe(1)
+        ->and(DB::table('verification_codes')->count())->toBe(2);
+});
+
 test('a code only works in the session that entered the password', function () {
     staffUser();
     submitPassword();

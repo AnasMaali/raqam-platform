@@ -41,7 +41,8 @@ final class KnownDevices
         $known = $hash ? DB::table('user_devices')->where('user_id', $user->id)->where('device_hash', $hash) : null;
 
         if ($known && (clone $known)->where('last_seen_at', '>', DB::raw("now() - interval '".self::FORGET_AFTER."'"))->exists()) {
-            $known->update(['last_seen_at' => DB::raw('now()'), 'user_agent' => $this->userAgent()]);
+            // greatest(): a clock stepped back must not break the schema's last_seen_at >= first_seen_at.
+            $known->update(['last_seen_at' => DB::raw('greatest(now(), first_seen_at)'), 'user_agent' => $this->userAgent()]);
             $this->queueCookie(request()->cookie(self::COOKIE));
 
             return false;
