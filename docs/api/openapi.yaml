@@ -15,6 +15,9 @@ info:
     * Times are ISO 8601 in UTC; show them in Asia/Hebron.
     * A post's public address is `path`: `/{prefix}/{id}/{slug}`. The id identifies the post. A request with
       an old slug answers **301** to the current address; a deleted post answers **410**.
+    * A **hidden awareness character** takes its cards off the whole API while it stays hidden: the card's own
+      address is a 404, and it is left out of every list, count, linked-card list and text block. When the character
+      is hidden or shown again the site gets a webhook with `"type": "all"` and should refresh everything.
   license:
     name: Proprietary
 servers:
