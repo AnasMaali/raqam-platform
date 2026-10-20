@@ -21,6 +21,7 @@ final class MediaUploader
         private ImageProcessor $images,
         private SvgSanitizer $svg,
         private MediaStorage $storage,
+        private MediaProbe $probe,
     ) {}
 
     /**
@@ -44,7 +45,7 @@ final class MediaUploader
             throw new MediaRejected('النص البديل (Alt) إجباري للصور العامة.', 'alt_text');
         }
 
-        [$bytes, $mime, $width, $height] = $this->process($bytes, $mime);
+        [$bytes, $mime, $width, $height, $duration] = $this->process($bytes, $mime);
 
         $checksum = hash('sha256', $bytes);
         $existing = MediaAsset::query()->where('checksum_sha256', $checksum)->where('visibility', $visibility)->first();
@@ -66,6 +67,7 @@ final class MediaUploader
             'checksum_sha256' => $checksum,
             'width' => $width,
             'height' => $height,
+            'duration_seconds' => $duration,
             'alt_text' => $alt,
             'caption' => $this->clean($attributes['caption'] ?? null, 500),
             'credit' => $this->clean($attributes['credit'] ?? null, 200),
@@ -99,7 +101,7 @@ final class MediaUploader
             throw new MediaRejected('الملف فارغ أو غير موجود.');
         }
 
-        $largest = max(config('media.limits.image_upload'), config('media.limits.pdf'), config('media.limits.svg'));
+        $largest = max(config('media.limits.image_upload'), config('media.limits.pdf'), config('media.limits.svg'), config('media.limits.video'));
         if ($size > $largest) {
             throw new MediaRejected($this->tooBig($largest));
         }
@@ -118,6 +120,8 @@ final class MediaUploader
         $limit = match (true) {
             $mime === FileInspector::PDF => config('media.limits.pdf'),
             $mime === FileInspector::SVG => config('media.limits.svg'),
+            $mime === FileInspector::MP4 => config('media.limits.video'),
+            $mime === FileInspector::RIVE => config('media.limits.rive'),
             default => config('media.limits.image_upload'),
         };
 
@@ -132,18 +136,22 @@ final class MediaUploader
     }
 
     /**
-     * @return array{0: string, 1: string, 2: ?int, 3: ?int} the bytes to store, their type, width, height
+     * @return array{0: string, 1: string, 2: ?int, 3: ?int, 4: ?float} the bytes to store, their type, width, height, duration
      *
      * @throws MediaRejected
      */
     private function process(string $bytes, string $mime): array
     {
-        if ($mime === FileInspector::PDF) {
-            return [$bytes, $mime, null, null];
+        if ($mime === FileInspector::PDF || $mime === FileInspector::RIVE) {
+            return [$bytes, $mime, null, null, null];
         }
 
         if ($mime === FileInspector::SVG) {
-            return [$this->svg->clean($bytes), $mime, null, null];
+            return [$this->svg->clean($bytes), $mime, null, null, null];
+        }
+
+        if ($mime === FileInspector::MP4) {
+            return [$bytes, $mime, ...$this->measureVideo($bytes)];
         }
 
         // Decoding a big picture needs room (24 megapixels is about 100 MB in memory, and a resize holds a second copy).
@@ -162,7 +170,35 @@ final class MediaUploader
             'avif' => FileInspector::AVIF,
         };
 
-        return [$out, $stored, imagesx($image), imagesy($image)];
+        return [$out, $stored, imagesx($image), imagesy($image), null];
+    }
+
+    /**
+     * The video is measured from a private copy of the bytes we hold, so what is measured is what is stored.
+     *
+     * @return array{0: int, 1: int, 2: float} width, height, duration
+     *
+     * @throws MediaRejected
+     */
+    private function measureVideo(string $bytes): array
+    {
+        $copy = tempnam(sys_get_temp_dir(), 'raqam-video-');
+        try {
+            file_put_contents($copy, $bytes);
+            $info = $this->probe->video($copy);
+        } finally {
+            @unlink($copy);
+        }
+
+        $maxSeconds = (int) config('media.limits.video_seconds');
+        if ($info['duration'] > $maxSeconds) {
+            throw new MediaRejected('مدة الفيديو أطول من الحد المسموح ('.$maxSeconds.' ثانية). الفيديوهات الطويلة تُرفع على يوتيوب.');
+        }
+        if (3840 * 2160 < $info['width'] * $info['height']) {
+            throw new MediaRejected('أبعاد الفيديو كبيرة جداً (الحد 4K).');
+        }
+
+        return [$info['width'], $info['height'], $info['duration']];
     }
 
     private function memoryBytes(): int

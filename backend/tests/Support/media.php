@@ -82,3 +82,28 @@ function hasGps(string $jpeg): bool
 
     return is_array($exif) && (isset($exif['GPSLatitude']) || isset($exif['GPSLatitudeRef']) || isset($exif['GPS']));
 }
+
+/** A pretend ffprobe: a script that prints the given JSON, so video tests need no real ffmpeg install. */
+function fakeFfprobe(array $answer, int $exit = 0): void
+{
+    $dir = sys_get_temp_dir().'/raqam-fake-ffprobe-'.getmypid();
+    @mkdir($dir);
+    file_put_contents("$dir/answer.json", json_encode($answer));
+    file_put_contents("$dir/ffprobe", "#!/bin/sh\nif [ \"\$1\" = \"-version\" ]; then echo 'ffprobe version fake'; exit 0; fi\ncat '$dir/answer.json'\nexit $exit\n");
+    chmod("$dir/ffprobe", 0755);
+    config(['media.ffprobe' => "$dir/ffprobe"]);
+    register_shutdown_function(fn () => array_map('unlink', glob("$dir/*") ?: []) && @rmdir($dir));
+}
+
+/** What ffprobe prints for an ordinary phone clip. */
+function ffprobeAnswer(float $seconds = 30.0, int $width = 1280, int $height = 720, string $codec = 'h264', string $format = 'mov,mp4,m4a,3gp,3g2,mj2'): array
+{
+    return ['format' => ['format_name' => $format, 'duration' => (string) $seconds],
+        'streams' => [['codec_type' => 'video', 'codec_name' => $codec, 'width' => $width, 'height' => $height]]];
+}
+
+/** The first bytes of an MP4 (an ftyp box); the fake ffprobe does the rest of the "reading". */
+function mp4Bytes(int $extra = 2000): string
+{
+    return "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom".str_repeat("\x01", $extra);
+}

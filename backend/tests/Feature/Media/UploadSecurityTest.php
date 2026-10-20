@@ -70,11 +70,9 @@ test('a fake PDF is refused, a real one is accepted', function () {
     expect($upload->asset->mime_type)->toBe('application/pdf');
 });
 
-test('video and Rive files are not accepted yet, with a clear message', function () {
-    $mp4 = "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom";
-
-    expect(refusal($mp4, 'clip.mp4')->getMessage())->toContain('غير مدعوم')
-        ->and(refusal('RIVE'.str_repeat("\0", 20), 'a.riv')->getMessage())->toContain('غير مدعوم');
+test('text that only starts with the letters RIVE is not a Rive file', function () {
+    expect(refusal("RIVER of words, not an animation\n", 'a.riv')->getMessage())->toContain('نوع الملف غير مسموح')
+        ->and(refusal('RIVE'.str_repeat("\0", 20), 'a.riv')->getMessage())->toContain('نوع الملف غير مسموح');
 });
 
 test('a valid image with the wrong extension is stored under its real type with a random name', function () {

@@ -61,6 +61,8 @@ class MediaAssetResource extends Resource
         'image' => 'صور',
         'svg' => 'صور SVG',
         'pdf' => 'ملفات PDF',
+        'video' => 'مقاطع MP4',
+        'rive' => 'ملفات Rive',
     ];
 
     public static function form(Schema $schema): Schema
@@ -69,11 +71,11 @@ class MediaAssetResource extends Resource
             Section::make('الملف')->visible(fn (?MediaAsset $record) => $record === null)->schema([
                 FileUpload::make('file')
                     ->label('الملف')
-                    ->helperText('صور JPG وPNG وWebP وAVIF حتى 25 ميغابايت (تُضغط تلقائياً)، SVG حتى 2، وPDF حتى 20.')
+                    ->helperText('صور JPG وPNG وWebP وAVIF حتى 25 ميغابايت (تُضغط تلقائياً)، SVG حتى 2، PDF حتى 20، مقطع MP4 حتى 30 وبمدة 90 ثانية، وملف Rive حتى 5.')
                     ->required()
                     ->storeFiles(false)
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'application/pdf'])
-                    ->maxSize((int) (config('media.limits.image_upload') / 1024)),
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'application/pdf', 'video/mp4', 'application/mp4', 'application/octet-stream'])
+                    ->maxSize((int) (max(config('media.limits.image_upload'), config('media.limits.video')) / 1024)),
                 Select::make('visibility')
                     ->label('الظهور')
                     ->options(['public' => 'عام', 'private' => 'خاص (لا يُعرض للزوار)'])
@@ -83,6 +85,8 @@ class MediaAssetResource extends Resource
                 TextEntry::make('original_name')->label('الاسم الأصلي'),
                 TextEntry::make('mime_type')->label('النوع'),
                 TextEntry::make('size_bytes')->label('الحجم')->formatStateUsing(fn ($state) => Number::fileSize((int) $state)),
+                TextEntry::make('duration_seconds')->label('المدة')->visible(fn (MediaAsset $record) => $record->duration_seconds !== null)
+                    ->formatStateUsing(fn ($state) => round((float) $state).' ثانية'),
                 TextEntry::make('dimensions')->label('الأبعاد')
                     ->state(fn (MediaAsset $record) => $record->width ? "{$record->width} × {$record->height}" : '—'),
                 TextEntry::make('visibility')->label('الظهور')->formatStateUsing(fn ($state) => $state === 'public' ? 'عام' : 'خاص'),
@@ -132,6 +136,8 @@ class MediaAssetResource extends Resource
                     'image' => $query->whereIn('mime_type', ['image/jpeg', 'image/png', 'image/webp', 'image/avif']),
                     'svg' => $query->where('mime_type', 'image/svg+xml'),
                     'pdf' => $query->where('mime_type', 'application/pdf'),
+                    'video' => $query->where('mime_type', 'video/mp4'),
+                    'rive' => $query->where('mime_type', 'application/x-rive'),
                     default => $query,
                 }),
                 SelectFilter::make('visibility')->label('الظهور')->options(['public' => 'عام', 'private' => 'خاص']),

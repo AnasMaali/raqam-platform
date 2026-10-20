@@ -51,6 +51,17 @@ return [
         'site_limit' => 3000,
     ],
 
+    /*
+    | YouTube Data API v3 (decisions 8.3, 8.14). The key lives only in .env; without it videos are added by hand.
+    | The free quota is 10,000 units a day and resets at midnight Pacific time; one videos.list call costs 1 unit.
+    | We stop calling at `quota_budget` and warn at `quota_warn`.
+    */
+    'youtube' => [
+        'key' => env('YOUTUBE_API_KEY'),
+        'quota_budget' => 9000,
+        'quota_warn' => 7000,
+    ],
+
     'site_webhook' => [
         'url' => env('SITE_WEBHOOK_URL'),
         'secret' => env('SITE_WEBHOOK_SECRET'),

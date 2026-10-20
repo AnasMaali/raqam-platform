@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 require_once __DIR__.'/Support/media.php';
+require_once __DIR__.'/Support/api.php';
 
 /*
 |--------------------------------------------------------------------------

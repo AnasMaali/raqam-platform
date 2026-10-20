@@ -8,6 +8,7 @@ use App\Events\PostChanged;
 use App\Jobs\PublishScheduledPost;
 use App\Models\MediaAsset;
 use App\Models\Post;
+use App\Models\Video;
 use App\Support\ArabicSlug;
 use App\Taxonomy\TagService;
 use Illuminate\Database\QueryException;
@@ -92,6 +93,7 @@ final class PostSaver
                 $this->writeColumns($post, $data, $userId);
                 $this->writeRelations($post, $data);
                 $this->writeKindFacts($post, $data);
+                $this->addToSeasonPlaylist($post);
                 $this->references->sync($post->id, $post->body);
                 $this->snapshot($post, $userId);
 
@@ -216,6 +218,8 @@ final class PostSaver
         $values['body'] = $this->body((string) ($data['body'] ?? ''));
         $values['category_id'] = $this->categoryId($data['category_id'] ?? null);
         $values['cover_media_id'] = $this->coverId($data['cover_media_id'] ?? null);
+        // A caller that does not mention the video (bulk status change, restoring a revision) leaves it as it is.
+        $values['primary_video_id'] = array_key_exists('primary_video_id', $data) ? $this->videoId($data['primary_video_id']) : $post->primary_video_id;
         $values['is_featured'] = (bool) ($data['is_featured'] ?? false);
         $values['sponsor_organization_id'] = $this->organizationId($data['sponsor_organization_id'] ?? null);
         $values['slug'] = $this->slugFor($values['title'], $data['slug'] ?? null, $post);
@@ -382,6 +386,17 @@ final class PostSaver
         return $id;
     }
 
+    private function videoId(mixed $id): ?int
+    {
+        $id = $this->key($id);
+
+        if ($id !== null && ! Video::query()->whereKey($id)->exists()) {
+            throw new PostRuleViolation('الفيديو الرئيسي غير موجود في مكتبة الفيديو.', 'primary_video_id');
+        }
+
+        return $id;
+    }
+
     /** A positive whole number or nothing: whatever else was sent never reaches a query. */
     private function key(mixed $value): ?int
     {
@@ -390,6 +405,28 @@ final class PostSaver
         }
 
         return (is_int($value) || (is_string($value) && ctype_digit($value))) && (int) $value > 0 && (int) $value < PHP_INT_MAX / 2 ? (int) $value : -1;
+    }
+
+    /** An episode's video joins its season's playlist (5.1, 8.9), at the end, once. */
+    private function addToSeasonPlaylist(Post $post): void
+    {
+        if ($post->kind_code !== 'episode' || $post->primary_video_id === null) {
+            return;
+        }
+
+        $playlist = DB::table('podcast_episodes')->join('podcast_seasons', 'podcast_seasons.id', '=', 'podcast_episodes.season_id')
+            ->where('podcast_episodes.post_id', $post->id)->value('podcast_seasons.playlist_id');
+        if ($playlist === null) {
+            return;
+        }
+
+        DB::table('playlists')->where('id', $playlist)->lockForUpdate()->first();   // two editors saving at once must not take the same position
+        if (! DB::table('playlist_videos')->where('playlist_id', $playlist)->where('video_id', $post->primary_video_id)->exists()) {
+            DB::table('playlist_videos')->insert([
+                'playlist_id' => $playlist, 'video_id' => $post->primary_video_id,
+                'sort_order' => (int) DB::table('playlist_videos')->where('playlist_id', $playlist)->max('sort_order') + 1,
+            ]);
+        }
     }
 
     // ---- relations -------------------------------------------------------------------------------------
