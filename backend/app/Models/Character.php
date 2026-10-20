@@ -23,8 +23,17 @@ class Character extends Model
     /** Set while a screen saves the character, its poses and its SEO together, so that save announces itself once at the end. */
     public bool $holdWebhook = false;
 
+    /** As the column's default, so a character created without it is known to be visible. */
+    protected $attributes = ['is_active' => true];
+
     protected static function booted(): void
     {
+        static::created(function (self $character) {
+            if (! $character->holdWebhook) {
+                $character->announceCreated();
+            }
+        });
+
         static::updated(function (self $character) {
             if (! $character->holdWebhook) {
                 $character->announce(array_keys($character->getChanges()));
@@ -34,19 +43,27 @@ class Character extends Model
 
     /**
      * A character's cards sit on many pages at once (the awareness page, every item linking to them, lists, texts), so
-     * hiding or showing it, or any edit of a visible one or of its poses, asks the site to refresh everything rather
-     * than guessing the addresses. A hidden character's cards are not on the site, so editing it sends nothing.
+     * hiding or showing it, or any edit of a visible one, of its poses or of its SEO, asks the site to refresh everything
+     * rather than guessing the addresses. A hidden character's cards are not on the site, so editing it sends nothing.
      *
      * @param  list<string>  $changed  the columns the save wrote
      */
-    public function announce(array $changed, bool $posesChanged = false): void
+    public function announce(array $changed, bool $posesOrSeoChanged = false): void
     {
         $changed = array_diff($changed, ['created_at', 'updated_at', 'seo_meta_id']);
 
         if (in_array('is_active', $changed, true)) {
             SendSiteWebhook::notify(['type' => 'all', 'change' => $this->is_active ? 'character_shown' : 'character_hidden', 'id' => $this->id, 'paths' => []]);
-        } elseif ($this->is_active && ($changed !== [] || $posesChanged)) {
+        } elseif ($this->is_active && ($changed !== [] || $posesOrSeoChanged)) {
             SendSiteWebhook::notify(['type' => 'all', 'change' => 'character_updated', 'id' => $this->id, 'paths' => []]);
+        }
+    }
+
+    /** A new visible character joins the awareness page. A hidden one is not on the site yet, so nothing is sent. */
+    public function announceCreated(): void
+    {
+        if ($this->is_active) {
+            SendSiteWebhook::notify(['type' => 'all', 'change' => 'character_created', 'id' => $this->id, 'paths' => []]);
         }
     }
 

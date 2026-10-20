@@ -8,12 +8,12 @@ use App\Filament\Concerns\SavesSeoMeta;
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Support\UniqueSlug;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class CreateCharacter extends CreateRecord
 {
     use ReportsDatabaseRefusals, SavesCharacterPoses, SavesSeoMeta {
         SavesSeoMeta::mutateFormDataBeforeFill as private fillSeo;
-        SavesSeoMeta::afterCreate as private saveSeo;
     }
 
     protected static string $resource = CharacterResource::class;
@@ -29,9 +29,24 @@ class CreateCharacter extends CreateRecord
         return $data;
     }
 
+    protected function handleRecordCreation(array $data): Model
+    {
+        return $this->reportRefusals(function () use ($data) {
+            $record = new ($this->getModel())($data);
+            $record->holdWebhook = true;   // announced once in afterCreate, when the poses and SEO are saved too
+            $record->save();
+
+            return $record;
+        });
+    }
+
     protected function afterCreate(): void
     {
         $this->savePoses();
-        $this->saveSeo();
+        $this->syncSeo();
+
+        $record = $this->getRecord();
+        $record->holdWebhook = false;
+        $record->announceCreated();
     }
 }

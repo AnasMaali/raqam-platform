@@ -15,7 +15,6 @@ class EditCharacter extends EditRecord
 {
     use ReportsDatabaseRefusals, SavesCharacterPoses, SavesSeoMeta {
         SavesSeoMeta::mutateFormDataBeforeFill as private fillSeo;
-        SavesSeoMeta::afterSave as private saveSeo;
     }
 
     protected static string $resource = CharacterResource::class;
@@ -43,7 +42,7 @@ class EditCharacter extends EditRecord
     protected function handleRecordUpdate(Model $record, array $data): Model
     {
         $record->holdWebhook = true;
-        $record = parent::handleRecordUpdate($record, $data);
+        $record = $this->reportRefusals(fn () => parent::handleRecordUpdate($record, $data));
         $this->changedColumns = array_keys($record->getChanges());
 
         return $record;
@@ -52,10 +51,10 @@ class EditCharacter extends EditRecord
     protected function afterSave(): void
     {
         $posesChanged = $this->savePoses();
-        $this->saveSeo();
+        $seoChanged = $this->syncSeo();
 
         $record = $this->getRecord();
         $record->holdWebhook = false;
-        $record->announce($this->changedColumns, $posesChanged);   // one webhook for the whole save
+        $record->announce($this->changedColumns, $posesChanged || $seoChanged);   // one webhook for the whole save
     }
 }

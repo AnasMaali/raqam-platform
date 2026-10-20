@@ -45,11 +45,17 @@ trait SavesSeoMeta
 
     protected function afterSave(): void
     {
-        app(SeoMetaSaver::class)->sync($this->getRecord(), $this->seoData);
+        $this->syncSeo();
     }
 
     protected function afterCreate(): void
     {
-        app(SeoMetaSaver::class)->sync($this->getRecord(), $this->seoData);
+        $this->syncSeo();
+    }
+
+    /** @return bool whether the SEO values changed */
+    protected function syncSeo(): bool
+    {
+        return app(SeoMetaSaver::class)->sync($this->getRecord(), $this->seoData);
     }
 }

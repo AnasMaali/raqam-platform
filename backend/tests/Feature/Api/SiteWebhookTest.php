@@ -81,8 +81,8 @@ test('a changed page tells the site too', function () {
 
 test('hiding or showing a character asks the site to refresh everything', function () {
     Filament\Facades\Filament::setCurrentPanel('admin');
-    configureWebhook();
     $character = Character::create(['name_ar' => 'المستشار', 'slug' => 'advisor', 'role_ar' => 'ينصح', 'accent_color' => '#1F6F5B']);
+    configureWebhook();
     Bus::fake([SendSiteWebhook::class]);
     $everything = fn (string $change) => fn ($job) => $job->payload['type'] === 'all' && $job->payload['change'] === $change && $job->payload['id'] === $character->id && $job->payload['paths'] === [];
 
