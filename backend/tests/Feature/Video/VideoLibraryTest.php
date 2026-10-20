@@ -1,5 +1,7 @@
 <?php
 
+use App\Jobs\GenerateMediaVariants;
+use App\Models\MediaAsset;
 use App\Models\Video;
 use App\Video\VideoLibrary;
 use App\Video\VideoRejected;
@@ -8,9 +10,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
@@ -293,4 +297,101 @@ test('one video can sit in several playlists (8.5)', function () {
     $this->library->setPlaylistVideos($p2, [$v->id]);
 
     expect(DB::table('playlist_videos')->where('video_id', $v->id)->count())->toBe(2);
+});
+
+// ---- the picture is copied into our library (8.6) -------------------------------------------------
+
+function thumbnailAnswers(array $over = []): void
+{
+    httpFake($over + [
+        'www.googleapis.com/*' => Http::response(['items' => [youtubeItem()]]),
+        'i.ytimg.com/vi/*/maxresdefault.jpg' => Http::response(imageBytes(640, 360), 200, ['Content-Type' => 'image/jpeg']),
+        'i.ytimg.com/vi/*/hqdefault.jpg' => Http::response(imageBytes(480, 360), 200, ['Content-Type' => 'image/jpeg']),
+    ]);
+}
+
+test('adding a video stores its picture in the media library and uses it as the cover', function () {
+    config(['raqam.youtube.fetch_thumbnails' => true]);
+    Storage::fake('media_local_public');
+    Bus::fake([GenerateMediaVariants::class]);
+    thumbnailAnswers();
+
+    $video = $this->library->addYoutube('https://youtu.be/dQw4w9WgXcQ');
+
+    $asset = MediaAsset::findOrFail($video->refresh()->poster_media_id);
+    expect($asset->mime_type)->toBe('image/jpeg')->and($asset->visibility)->toBe('public')->and($asset->alt_text)->toBe('حلقة عن الاقتصاد')
+        ->and($asset->credit)->toBe('YouTube')->and($asset->width)->toBe(640)
+        ->and(Storage::disk('media_local_public')->exists($asset->path))->toBeTrue();
+    Http::assertSent(fn (Request $r) => $r->url() === 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg');
+});
+
+test('when the large picture is missing the smaller one is used', function () {
+    config(['raqam.youtube.fetch_thumbnails' => true]);
+    Storage::fake('media_local_public');
+    Bus::fake([GenerateMediaVariants::class]);
+    thumbnailAnswers(['i.ytimg.com/vi/*/maxresdefault.jpg' => Http::response('', 404)]);
+
+    $video = $this->library->addYoutube('https://youtu.be/dQw4w9WgXcQ');
+
+    expect(MediaAsset::find($video->refresh()->poster_media_id)->width)->toBe(480);
+});
+
+test('a failed download never stops the video from being added, and the next check tries again', function () {
+    config(['raqam.youtube.fetch_thumbnails' => true]);
+    Storage::fake('media_local_public');
+    Bus::fake([GenerateMediaVariants::class]);
+    thumbnailAnswers(['i.ytimg.com/*' => Http::response('', 500)]);
+
+    $video = $this->library->addYoutube('https://youtu.be/dQw4w9WgXcQ');
+    expect($video->refresh()->poster_media_id)->toBeNull();
+
+    thumbnailAnswers();
+    expect($this->library->fillMissingThumbnails())->toBe(1)->and($video->refresh()->poster_media_id)->not->toBeNull();
+    expect($this->library->fillMissingThumbnails())->toBe(0);
+});
+
+test('an answer that is not a small JPEG, or that redirects, is not stored', function (Closure $answer) {
+    config(['raqam.youtube.fetch_thumbnails' => true]);
+    Storage::fake('media_local_public');
+    Bus::fake([GenerateMediaVariants::class]);
+    thumbnailAnswers(['i.ytimg.com/*' => $answer()]);
+
+    $video = $this->library->addYoutube('https://youtu.be/dQw4w9WgXcQ');
+
+    expect($video->refresh()->poster_media_id)->toBeNull()->and(MediaAsset::count())->toBe(0);
+})->with([
+    'html' => [fn () => Http::response('<html><script>x</script></html>', 200, ['Content-Type' => 'image/jpeg'])],
+    'wrong type' => [fn () => Http::response(imageBytes(100, 80), 200, ['Content-Type' => 'text/html'])],
+    'a script saying it is a jpeg' => [fn () => Http::response("<?php echo 'x';", 200, ['Content-Type' => 'image/jpeg'])],
+    'a real but huge jpeg' => [function () {
+        $big = imageBytes(2400, 2400, 'jpeg', noise: true);
+        expect(strlen($big))->toBeGreaterThan(2 * 1024 * 1024);
+
+        return Http::response($big, 200, ['Content-Type' => 'image/jpeg']);
+    }],
+    'a redirect elsewhere' => [fn () => Http::response('', 302, ['Location' => 'http://169.254.169.254/latest', 'Content-Type' => 'image/jpeg'])],
+]);
+
+test('only YouTube picture addresses are ever requested, built from the id', function () {
+    config(['raqam.youtube.fetch_thumbnails' => true]);
+    Storage::fake('media_local_public');
+    Bus::fake([GenerateMediaVariants::class]);
+    thumbnailAnswers();
+
+    $this->library->addYoutube('https://youtu.be/dQw4w9WgXcQ');
+
+    Http::assertSent(fn (Request $r) => str_starts_with($r->url(), 'https://www.googleapis.com/') || preg_match('~^https://i\.ytimg\.com/vi/dQw4w9WgXcQ/(maxres|hq)default\.jpg$~', $r->url()) === 1);
+    Http::assertNotSent(fn (Request $r) => ! str_starts_with($r->url(), 'https://www.googleapis.com/') && ! str_starts_with($r->url(), 'https://i.ytimg.com/vi/dQw4w9WgXcQ/'));
+});
+
+test('a video that already has a cover keeps it and nothing is downloaded', function () {
+    config(['raqam.youtube.fetch_thumbnails' => true, 'raqam.youtube.key' => null]);
+    thumbnailAnswers();
+    $video = $this->library->addYoutube('https://youtu.be/dQw4w9WgXcQ', ['title' => 'x']);
+    $cover = insertMedia();
+    $video->forceFill(['poster_media_id' => $cover])->save();
+    httpFake();
+
+    expect($this->library->fetchThumbnail($video->refresh()))->toBeFalse();
+    Http::assertNothingSent();
 });

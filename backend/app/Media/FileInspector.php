@@ -48,7 +48,7 @@ final class FileInspector
         }
 
         // An animation file is binary; code smuggled inside it is not an animation.
-        if ($mime === self::RIVE && preg_match('/<\?(php|=)|<script|<html/i', $bytes) === 1) {
+        if ($mime === self::RIVE && preg_match('/<\?php\s|<script[\s>]|<html[\s>]/i', $bytes) === 1) {
             throw new MediaRejected('محتوى الملف لا يطابق نوعه.');
         }
 

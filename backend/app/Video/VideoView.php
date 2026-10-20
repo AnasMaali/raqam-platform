@@ -29,7 +29,14 @@ final class VideoView
             return $this->storage->url($poster);
         }
 
-        return $video->isYoutube() ? ($video->youtube->thumbnail_url ?: YouTubeUrl::thumbnail($video->youtube->youtube_id)) : null;
+        // Never YouTube's own address: a visitor's browser must not contact Google before they press play (8.6).
+        return null;
+    }
+
+    /** For search engines only: our picture, or failing that YouTube's, which a crawler may fetch but no visitor's page loads. */
+    private function crawlerThumbnail(Video $video): ?string
+    {
+        return $this->thumbnail($video) ?? ($video->isYoutube() ? ($video->youtube->thumbnail_url ?: YouTubeUrl::thumbnail($video->youtube->youtube_id)) : null);
     }
 
     /** The player for an article body. */
@@ -115,7 +122,7 @@ final class VideoView
         $data = [
             '@context' => 'https://schema.org', '@type' => 'VideoObject',
             'name' => $video->title(), 'description' => $video->description() ?: $video->title(),
-            'thumbnailUrl' => $thumb ? [$thumb] : [], 'uploadDate' => $this->iso($published),
+            'thumbnailUrl' => ($crawler = $this->crawlerThumbnail($video)) ? [$crawler] : [], 'uploadDate' => $this->iso($published),
         ];
         if ($video->duration_seconds) {
             $data['duration'] = self::isoDuration($video->duration_seconds);

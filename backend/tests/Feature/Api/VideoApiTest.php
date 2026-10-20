@@ -6,6 +6,7 @@ use App\Jobs\GenerateMediaVariants;
 use App\Jobs\PublishScheduledPost;
 use App\Media\MediaUploader;
 use App\Models\Category;
+use App\Models\MediaAsset;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -93,7 +94,8 @@ test('a video has what the site needs: the safe player address, the poster, the 
     $ld = $data['structured_data'];
     expect($ld['@type'])->toBe('VideoObject')->and($ld['name'])->toBe('عنواننا')->and($ld['duration'])->toBe('PT10M')
         ->and($ld['uploadDate'])->toBe('2026-08-30T08:00:00Z')->and($ld['embedUrl'])->toBe($data['youtube']['embed_url'])
-        ->and($ld['thumbnailUrl'])->toBe(['https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg']);
+        ->and($ld['thumbnailUrl'])->toBe(['https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg'])   // only for crawlers, and only until our own copy exists
+        ->and($data['thumbnail_url'])->toBeNull();
     expect(collect($ld['hasPart'])->map(fn ($c) => [$c['name'], $c['startOffset'], $c['endOffset']])->all())
         ->toBe([['المقدمة', 0, 120], ['الموضوع', 120, 300], ['الخاتمة', 300, 600]])
         ->and($ld['hasPart'][1]['url'])->toBe('https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=120s')
@@ -215,14 +217,15 @@ test('a post carries its main video, null when it cannot be played any more', fu
 });
 
 test('a video block in the text becomes the light player, and disappears when the video does (8.6)', function () {
-    $v = ytVideo('aaaaaaaaaaa', ['display_title' => 'فيديو "خطير" <b>x</b>']);
+    $poster = insertMedia();
+    $v = ytVideo('aaaaaaaaaaa', ['display_title' => 'فيديو "خطير" <b>x</b>', 'poster_media_id' => $poster]);
     DB::table('video_chapters')->insert(['video_id' => $v, 'starts_at_seconds' => 90, 'title' => 'محور <script>']);
     $post = videoPost(['body' => '<p>قبل</p><div data-type="customBlock" data-id="video" data-config="'.e(json_encode(['video_id' => $v])).'"></div><p>بعد</p>']);
 
     $html = api("/posts/$post")->json('data.body_html');
 
     expect($html)->toContain('class="rq-video"')->toContain('data-youtube-id="aaaaaaaaaaa"')
-        ->toContain('<img src="https://i.ytimg.com/vi/aaaaaaaaaaa/hqdefault.jpg"')->toContain('referrerpolicy="no-referrer"')
+        ->toContain('<img src="'.Storage::disk('media_local_public')->url(MediaAsset::find($poster)->path).'"')->not->toContain('ytimg')
         ->toContain('data-start="90"')->toContain('rel="noopener noreferrer"')
         ->not->toContain('<iframe')->not->toContain('<script')->not->toContain('<b>x</b>')
         ->and(DB::table('post_body_videos')->where('post_id', $post)->pluck('video_id')->all())->toBe([$v]);
@@ -239,5 +242,22 @@ test('no API answer ever carries the YouTube key', function () {
 
     foreach (['/videos', "/videos/$v", '/playlists', '/playlists/list', '/sitemaps/videos', "/posts/$post"] as $path) {
         expect(api($path)->assertOk()->getContent())->not->toContain('fake-secret-key');
+    }
+});
+
+test('the picture is our own copy: no YouTube address reaches a visitor (8.6)', function () {
+    $poster = insertMedia();
+    $v = ytVideo('aaaaaaaaaaa', ['poster_media_id' => $poster]);
+    $post = videoPost(['primary_video_id' => $v, 'body' => '<div data-type="customBlock" data-id="video" data-config=\'{"video_id":'.$v.'}\'></div>']);
+    playlistWith('list', [$v]);
+    $ours = Storage::disk('media_local_public')->url(MediaAsset::find($poster)->path);
+
+    $data = api("/videos/$v")->json('data');
+    expect($data['thumbnail_url'])->toBe($ours)->and($data['structured_data']['thumbnailUrl'])->toBe([$ours]);
+
+    foreach (['/videos', "/videos/$v", '/playlists/list', '/sitemaps/videos', "/posts/$post"] as $path) {
+        $json = api($path)->assertOk()->json();
+        // The only YouTube addresses are the ones for pressing play: watch and the no-cookie player.
+        expect(preg_replace('~https://(www\.youtube(-nocookie)?\.com)/[^"\\\\\s]*~', '', json_encode($json)))->not->toContain('ytimg')->not->toContain('google');
     }
 });

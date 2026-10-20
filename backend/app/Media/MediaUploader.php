@@ -22,6 +22,7 @@ final class MediaUploader
         private SvgSanitizer $svg,
         private MediaStorage $storage,
         private MediaProbe $probe,
+        private Mp4Cleaner $cleaner,
     ) {}
 
     /**
@@ -151,7 +152,7 @@ final class MediaUploader
         }
 
         if ($mime === FileInspector::MP4) {
-            return [$bytes, $mime, ...$this->measureVideo($bytes)];
+            return $this->cleanVideo($bytes, $mime);
         }
 
         // Decoding a big picture needs room (24 megapixels is about 100 MB in memory, and a resize holds a second copy).
@@ -174,22 +175,44 @@ final class MediaUploader
     }
 
     /**
-     * The video is measured from a private copy of the bytes we hold, so what is measured is what is stored.
+     * The clip is looked at with ffprobe, rewritten by ffmpeg without metadata (GPS, device, time), and the
+     * rewritten file is measured again: what is stored is exactly what was measured.
      *
-     * @return array{0: int, 1: int, 2: float} width, height, duration
+     * @return array{0: string, 1: string, 2: int, 3: int, 4: float} the bytes to store, their type, width, height, duration
      *
      * @throws MediaRejected
      */
-    private function measureVideo(string $bytes): array
+    private function cleanVideo(string $bytes, string $mime): array
     {
         $copy = tempnam(sys_get_temp_dir(), 'raqam-video-');
+        $cleanCopy = tempnam(sys_get_temp_dir(), 'raqam-video-');
         try {
             file_put_contents($copy, $bytes);
-            $info = $this->probe->video($copy);
+            $this->checkVideo($this->probe->video($copy));
+
+            $cleaned = $this->cleaner->clean($copy);
+            file_put_contents($cleanCopy, $cleaned);
+            $info = $this->probe->video($cleanCopy);
+            $this->checkVideo($info);
         } finally {
             @unlink($copy);
+            @unlink($cleanCopy);
         }
 
+        if (strlen($cleaned) > (int) config('media.limits.video')) {
+            throw new MediaRejected($this->tooBig((int) config('media.limits.video')));
+        }
+
+        return [$cleaned, $mime, $info['width'], $info['height'], $info['duration']];
+    }
+
+    /**
+     * @param  array{duration: float, width: int, height: int, codec: string}  $info
+     *
+     * @throws MediaRejected
+     */
+    private function checkVideo(array $info): void
+    {
         $maxSeconds = (int) config('media.limits.video_seconds');
         if ($info['duration'] > $maxSeconds) {
             throw new MediaRejected('مدة الفيديو أطول من الحد المسموح ('.$maxSeconds.' ثانية). الفيديوهات الطويلة تُرفع على يوتيوب.');
@@ -197,8 +220,6 @@ final class MediaUploader
         if (3840 * 2160 < $info['width'] * $info['height']) {
             throw new MediaRejected('أبعاد الفيديو كبيرة جداً (الحد 4K).');
         }
-
-        return [$info['width'], $info['height'], $info['duration']];
     }
 
     private function memoryBytes(): int

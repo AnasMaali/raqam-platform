@@ -60,6 +60,8 @@ return [
         'key' => env('YOUTUBE_API_KEY'),
         'quota_budget' => 9000,
         'quota_warn' => 7000,
+        // Copy each video's picture into the media library when it is added (decision 8.6).
+        'fetch_thumbnails' => (bool) env('YOUTUBE_FETCH_THUMBNAILS', true),
     ],
 
     'site_webhook' => [

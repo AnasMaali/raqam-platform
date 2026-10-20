@@ -18,6 +18,18 @@ class MediaProbe
         return (string) config('media.ffprobe', 'ffprobe');
     }
 
+    /**
+     * The command line. The file is untrusted: only plain files may be opened (`-protocol_whitelist file`, so
+     * a crafted playlist cannot make ffprobe read other files by URL or reach the network) and the format is
+     * fixed to MP4, so the file is never interpreted as a playlist, a concat script or anything else.
+     *
+     * @return list<string>
+     */
+    public function arguments(string $path): array
+    {
+        return [$this->binary(), '-v', 'error', '-protocol_whitelist', 'file', '-f', 'mov', '-print_format', 'json', '-show_format', '-show_streams', '-i', $path];
+    }
+
     public function available(): bool
     {
         $process = new Process([$this->binary(), '-version']);
@@ -41,7 +53,7 @@ class MediaProbe
             throw new MediaRejected('أداة ffprobe غير مثبّتة على السيرفر، لا يمكن فحص الفيديو. ثبّتها بالأمر: sudo apt install ffmpeg');
         }
 
-        $process = new Process([$this->binary(), '-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', $path]);
+        $process = new Process($this->arguments($path));
         $process->setTimeout(30)->run();
         $data = json_decode($process->getOutput(), true);
 

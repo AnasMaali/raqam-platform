@@ -1,5 +1,7 @@
 <?php
 
+use Symfony\Component\Process\Process;
+
 /** Helpers for the media tests: real image bytes made on the spot, so no binary fixtures live in the repository. */
 
 /** @return string bytes of a w x h picture in the given format (jpeg, png, webp, avif) */
@@ -91,7 +93,10 @@ function fakeFfprobe(array $answer, int $exit = 0): void
     file_put_contents("$dir/answer.json", json_encode($answer));
     file_put_contents("$dir/ffprobe", "#!/bin/sh\nif [ \"\$1\" = \"-version\" ]; then echo 'ffprobe version fake'; exit 0; fi\ncat '$dir/answer.json'\nexit $exit\n");
     chmod("$dir/ffprobe", 0755);
-    config(['media.ffprobe' => "$dir/ffprobe"]);
+    // A pretend ffmpeg that copies the input to the output, so the metadata step has something to run.
+    file_put_contents("$dir/ffmpeg", "#!/bin/sh\nif [ \"\$1\" = \"-version\" ]; then echo 'ffmpeg version fake'; exit 0; fi\nprev=''\nfor a in \"\$@\"; do if [ \"\$prev\" = '-i' ]; then in=\"\$a\"; fi; prev=\"\$a\"; out=\"\$a\"; done\ncp \"\$in\" \"\$out\"\n");
+    chmod("$dir/ffmpeg", 0755);
+    config(['media.ffprobe' => "$dir/ffprobe", 'media.ffmpeg' => "$dir/ffmpeg"]);
     register_shutdown_function(fn () => array_map('unlink', glob("$dir/*") ?: []) && @rmdir($dir));
 }
 
@@ -106,4 +111,33 @@ function ffprobeAnswer(float $seconds = 30.0, int $width = 1280, int $height = 7
 function mp4Bytes(int $extra = 2000): string
 {
     return "\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom".str_repeat("\x01", $extra);
+}
+
+/** Are the real ffmpeg and ffprobe installed? The tests that use them say so loudly when not, they are never silently green. */
+function realMediaToolsInstalled(): bool
+{
+    return trim((string) shell_exec('command -v ffmpeg')) !== '' && trim((string) shell_exec('command -v ffprobe')) !== '';
+}
+
+/**
+ * A real MP4 made by the real ffmpeg: a moving test picture, a sine tone, and the metadata a phone writes.
+ *
+ * @return string the file's bytes
+ */
+function realMp4(float $seconds = 2, bool $gps = true, string $size = '64x48'): string
+{
+    $path = tempnam(sys_get_temp_dir(), 'raqam-real-').'.mp4';
+    $meta = $gps ? ['-metadata', 'location=+32.2211+035.2544/', '-metadata', 'location-eng=+32.2211+035.2544/', '-metadata', 'com.apple.quicktime.location.ISO6709=+32.2211+035.2544/',
+        '-metadata', 'com.apple.quicktime.model=iPhone-Secret-Model', '-metadata:s:v', 'title=GPS+32.2211', '-metadata', 'creation_time=2026-01-02T03:04:05Z'] : [];
+    $command = array_merge(['ffmpeg', '-nostdin', '-v', 'error', '-f', 'lavfi', '-i', "testsrc=size=$size:rate=5", '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=8000',
+        '-t', (string) $seconds, '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac'], $meta, ['-y', $path]);
+    $process = new Process($command);
+    $process->setTimeout(120)->run();
+    if (! $process->isSuccessful()) {
+        throw new RuntimeException('ffmpeg could not make the test clip: '.$process->getErrorOutput());
+    }
+    $bytes = (string) file_get_contents($path);
+    @unlink($path);
+
+    return $bytes;
 }

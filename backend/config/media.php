@@ -51,6 +51,11 @@ return [
     */
     'ffprobe' => env('FFPROBE_BINARY', 'ffprobe'),
 
+    /*
+    | The ffmpeg program that strips the metadata of uploaded clips (decision 9.8).
+    */
+    'ffmpeg' => env('FFMPEG_BINARY', 'ffmpeg'),
+
     'formats' => ['avif', 'webp', 'jpeg'],
 
     'quality' => ['avif' => 50, 'webp' => 80, 'jpeg' => 82, 'master' => 90],
