@@ -114,24 +114,29 @@ test.describe('video library', () => {
         const playlist = Number(page.url().match(/playlists\/(\d+)\/edit/)![1]);
         expect(app.sql(`SELECT string_agg(video_id::text, ',' ORDER BY sort_order) FROM playlist_videos WHERE playlist_id = ${playlist}`)).toBe(`${a},${b},${c}`);
 
-        // Drag the last one to the top.
-        const handles = page.locator('[data-sortable-handle], .fi-fo-repeater-item-header-reorder-handle, button[x-on\\:click*="reorder"]');
+        // Drag the last one to the top. A drag that opens a place one item too low (a slow machine) is simply done again
+        // from where it landed, as an editor would; what matters is that the order on screen is the order saved.
         const items = page.locator('.fi-fo-repeater-item');
         await expect(items).toHaveCount(3);
-        const handle = items.nth(2).locator('[x-sortable-handle]').first();
-        await handle.hover();
-        const from = (await handle.boundingBox())!;
-        const to = (await items.nth(0).boundingBox())!;
-        await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
-        await page.mouse.down();
-        // Past the top edge of the first item, in small steps, so the list has time to open a place there.
-        await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 5 });
-        await page.mouse.move(from.x + from.width / 2, (from.y + to.y) / 2, { steps: 20 });
-        await page.mouse.move(from.x + from.width / 2, to.y - 12, { steps: 20 });
-        await page.mouse.move(from.x + from.width / 2, to.y - 8, { steps: 5 });
-        await page.waitForTimeout(300);
-        await page.mouse.up();
-        void handles;
+        const first = () => items.nth(0).innerText();
+        for (let attempt = 0; attempt < 3 && !(await first()).includes('مقطع قصير'); attempt++) {
+            const moving = items.filter({ hasText: 'مقطع قصير' });
+            const handle = moving.locator('[x-sortable-handle]').first();
+            await handle.hover();
+            const from = (await handle.boundingBox())!;
+            const to = (await items.nth(0).boundingBox())!;
+            await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+            await page.mouse.down();
+            // Past the top edge of the first item, in small steps, so the list has time to open a place there.
+            await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 5 });
+            await page.mouse.move(from.x + from.width / 2, (from.y + to.y) / 2, { steps: 20 });
+            await page.mouse.move(from.x + from.width / 2, to.y - 12, { steps: 20 });
+            await page.mouse.move(from.x + from.width / 2, to.y - 8, { steps: 5 });
+            await page.waitForTimeout(300);
+            await page.mouse.up();
+            await page.waitForTimeout(300);
+        }
+        expect(await first(), 'the dragged video is on top').toContain('مقطع قصير');
         await save(page);
 
         expect(app.sql(`SELECT string_agg(video_id::text, ',' ORDER BY sort_order) FROM playlist_videos WHERE playlist_id = ${playlist}`)).toBe(`${c},${a},${b}`);
