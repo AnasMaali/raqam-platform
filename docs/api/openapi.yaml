@@ -18,6 +18,9 @@ info:
     * A **hidden awareness character** takes its cards off the whole API while it stays hidden: the card's own
       address is a 404, and it is left out of every list, count, linked-card list and text block. When the character
       is hidden or shown again the site gets a webhook with `"type": "all"` and should refresh everything.
+      The same happens, once per save, for any edit of a visible character or of its poses (name, slug, role,
+      description, colour, Rive file, pose pictures, animation states), since its cards appear on many pages:
+      `{"type": "all", "change": "character_hidden" | "character_shown" | "character_updated", "id": …, "paths": []}`.
   license:
     name: Proprietary
 servers:

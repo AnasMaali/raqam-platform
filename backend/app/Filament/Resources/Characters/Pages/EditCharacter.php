@@ -9,6 +9,7 @@ use App\Filament\Concerns\SavesSeoMeta;
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Support\UniqueSlug;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class EditCharacter extends EditRecord
 {
@@ -36,9 +37,25 @@ class EditCharacter extends EditRecord
         return $data;
     }
 
+    /** @var list<string> the columns this save wrote, taken before the SEO step saves the record again */
+    private array $changedColumns = [];
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        $record->holdWebhook = true;
+        $record = parent::handleRecordUpdate($record, $data);
+        $this->changedColumns = array_keys($record->getChanges());
+
+        return $record;
+    }
+
     protected function afterSave(): void
     {
-        $this->savePoses();
+        $posesChanged = $this->savePoses();
         $this->saveSeo();
+
+        $record = $this->getRecord();
+        $record->holdWebhook = false;
+        $record->announce($this->changedColumns, $posesChanged);   // one webhook for the whole save
     }
 }

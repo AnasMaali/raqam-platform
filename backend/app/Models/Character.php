@@ -20,15 +20,34 @@ class Character extends Model
         return ['is_active' => 'boolean', 'sort_order' => 'integer'];
     }
 
+    /** Set while a screen saves the character, its poses and its SEO together, so that save announces itself once at the end. */
+    public bool $holdWebhook = false;
+
     protected static function booted(): void
     {
-        // Hiding or showing a character adds or removes its cards on many pages at once (the awareness page, every
-        // item linking to them, lists, texts), so the site refreshes everything rather than guessing the addresses.
         static::updated(function (self $character) {
-            if ($character->wasChanged('is_active')) {
-                SendSiteWebhook::notify(['type' => 'all', 'change' => $character->is_active ? 'character_shown' : 'character_hidden', 'id' => $character->id, 'paths' => []]);
+            if (! $character->holdWebhook) {
+                $character->announce(array_keys($character->getChanges()));
             }
         });
+    }
+
+    /**
+     * A character's cards sit on many pages at once (the awareness page, every item linking to them, lists, texts), so
+     * hiding or showing it, or any edit of a visible one or of its poses, asks the site to refresh everything rather
+     * than guessing the addresses. A hidden character's cards are not on the site, so editing it sends nothing.
+     *
+     * @param  list<string>  $changed  the columns the save wrote
+     */
+    public function announce(array $changed, bool $posesChanged = false): void
+    {
+        $changed = array_diff($changed, ['created_at', 'updated_at', 'seo_meta_id']);
+
+        if (in_array('is_active', $changed, true)) {
+            SendSiteWebhook::notify(['type' => 'all', 'change' => $this->is_active ? 'character_shown' : 'character_hidden', 'id' => $this->id, 'paths' => []]);
+        } elseif ($this->is_active && ($changed !== [] || $posesChanged)) {
+            SendSiteWebhook::notify(['type' => 'all', 'change' => 'character_updated', 'id' => $this->id, 'paths' => []]);
+        }
     }
 
     public function rive(): BelongsTo
