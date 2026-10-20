@@ -987,7 +987,7 @@ components:
               title: { type: string }
         structured_data:
           type: object
-          description: A schema.org VideoObject (with a Clip for each chapter), ready to put in a JSON-LD script.
+          description: "A schema.org VideoObject (with a Clip for each chapter) for a JSON-LD script. Titles and descriptions are free text: when embedding in HTML escape `<` as `\\u003c` (or serialise with a function that does), so text can never close the script tag."
           required: ['@context', '@type', name, description, thumbnailUrl, uploadDate]
           properties:
             '@context': { const: 'https://schema.org' }

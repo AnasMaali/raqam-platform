@@ -11,7 +11,7 @@ test('the secret preview link shows a draft without signing in, and stops workin
 
     // Ask for a 24-hour link: it appears in a notification.
     await page.getByRole('button', { name: 'معاينة' }).click();
-    await afterLivewire(page, () => page.getByRole('dialog').getByRole('button', { name: 'إنشاء الرابط' }).click());
+    await afterLivewire(page, () => page.getByRole('dialog').getByRole('button', { name: 'إنشاء الرابط' }).click(), 'callMountedAction');
     const link = (await page.locator('.fi-no-notification').filter({ hasText: 'رابط المعاينة' }).innerText()).match(/https?:\/\/\S+\/preview\/\d+\?\S+/)![0];
 
     // A stranger with the link (a browser that never signed in) sees the draft, marked private.

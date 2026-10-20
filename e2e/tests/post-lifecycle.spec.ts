@@ -14,7 +14,7 @@ test('breaking: one button, a time limit, and it shows in the breaking list', as
     await page.getByRole('button', { name: 'عاجل', exact: true }).click();
     const confirm = page.getByRole('button', { name: 'جعله عاجلاً' });
     await expect(confirm).toBeVisible();
-    await afterLivewire(page, () => confirm.click());
+    await afterLivewire(page, () => confirm.click(), 'callMountedAction');
 
     // About three hours ahead (the default of the dialog).
     const minutes = Number(app.sql(`SELECT round(extract(epoch FROM breaking_until - now()) / 60) FROM posts WHERE id = ${id}`));
@@ -43,7 +43,7 @@ test('revisions: an edit is kept, and an older text comes back (and can be undon
     const oldest = app.sql(`SELECT min(revision_no) FROM post_revisions WHERE post_id = ${id} AND body LIKE '%النص الأول الأصلي.%'`);
     await dialog.locator('[id="mountedActionSchema0.revision_no"], [id$="revision_no"]').first().click();
     await dialog.getByRole('option', { name: new RegExp(`^#${oldest} `) }).click();
-    await afterLivewire(page, () => dialog.getByRole('button', { name: 'استرجاع هذه النسخة' }).click());
+    await afterLivewire(page, () => dialog.getByRole('button', { name: 'استرجاع هذه النسخة' }).click(), 'callMountedAction');
     await expect(page.getByText('استُرجعت النسخة.')).toBeVisible();
 
     expect(app.sql(`SELECT body FROM posts WHERE id = ${id}`)).toContain('النص الأول الأصلي.');
@@ -88,15 +88,16 @@ test('slug change: the old address answers 301 to the new one', async ({ page, a
 });
 
 test('scheduling: it stays hidden until its time, then the publisher puts it live', async ({ page, app }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(300_000);
     const id = await createPost(page, 'خبر', 'خبر مجدول للاختبار');
     await fillRequired(page);
 
     await pick(page, 'status', 'مجدول');
-    // The editor says the time is Palestine time: a little under two minutes from now, there.
+    // The editor says the time is Palestine time. The picker has no seconds, so "now + 3 minutes" lands 2 to 3 minutes
+    // ahead: always past the one-minute minimum, even after the time it takes to fill in the form.
     const target = await page.evaluate(() => {
         const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Hebron', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-            .formatToParts(new Date(Date.now() + 100_000));
+            .formatToParts(new Date(Date.now() + 180_000));
         return Object.fromEntries(parts.map((x) => [x.type, x.value]));
     });
     const when = `${target.year}-${target.month}-${target.day} ${target.hour}:${target.minute}`;
@@ -125,6 +126,6 @@ test('scheduling: it stays hidden until its time, then the publisher puts it liv
     await expect.poll(() => {
         app.artisan(['posts:publish-due']);
         return app.sql(`SELECT status FROM posts WHERE id = ${id}`);
-    }, { timeout: 150_000, intervals: [5_000] }).toBe('published');
+    }, { timeout: 220_000, intervals: [5_000] }).toBe('published');
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(200);
 });

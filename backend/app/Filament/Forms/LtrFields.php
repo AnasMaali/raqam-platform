@@ -2,6 +2,7 @@
 
 namespace App\Filament\Forms;
 
+use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\TextInput;
 
 /**
@@ -15,12 +16,20 @@ final class LtrFields
 
     public static function register(): void
     {
+        self::registerColourPickers();
+
         TextInput::configureUsing(function (TextInput $input): void {
             $input->extraInputAttributes(
                 fn (TextInput $component): array => self::applies($component) ? ['dir' => 'ltr'] : [],
                 merge: true,
             );
         });
+    }
+
+    public static function registerColourPickers(): void
+    {
+        // A colour code (#0B5FA5) typed in a right-to-left box shows its # at the wrong end.
+        ColorPicker::configureUsing(fn (ColorPicker $picker) => $picker->extraInputAttributes(['dir' => 'ltr'], merge: true));
     }
 
     public static function applies(TextInput $input): bool

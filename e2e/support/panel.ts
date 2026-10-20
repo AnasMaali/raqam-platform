@@ -43,7 +43,11 @@ export async function writeBody(page: Page, text: string) {
     await editor.pressSequentially(text, { delay: 5 });
 }
 
-/** Runs something that sends one Livewire request (a button, a confirmation) and waits until the server has answered it. */
+/**
+ * Runs something that sends one Livewire request (a button, a confirmation) and waits until the server has answered it.
+ * Name the method when another request may still be on its way: opening a dialog sends one too, so a dialog's button
+ * waits for "callMountedAction", or the wait can end on the dialog's own answer before the action has been saved.
+ */
 export async function afterLivewire(page: Page, trigger: () => Promise<unknown>, method?: string) {
     const answered = page.waitForResponse((r) => r.url().includes('/livewire/update') && r.request().method() === 'POST' && (method === undefined || (r.request().postData() ?? '').includes(`"method":"${method}"`)));
     await trigger();

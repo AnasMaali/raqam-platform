@@ -80,7 +80,7 @@ class VideoResource extends Resource
                     ->helperText('حتى 90 ثانية و30 ميغابايت، بترميز H.264. الفيديوهات الطويلة تُرفع على يوتيوب.'),
                 TextInput::make('upload_title')->label('العنوان')->maxLength(255)
                     ->visible(fn (Get $get) => $get('source') === 'upload')->required(fn (Get $get) => $get('source') === 'upload'),
-                Textarea::make('upload_description')->label('الوصف')->rows(3)->visible(fn (Get $get) => $get('source') === 'upload'),
+                Textarea::make('upload_description')->label('الوصف')->rows(3)->maxLength(5000)->visible(fn (Get $get) => $get('source') === 'upload'),
                 MediaSelect::make('upload_poster_media_id')->label('صورة الغلاف')->visible(fn (Get $get) => $get('source') === 'upload'),
             ]),
 
@@ -98,7 +98,7 @@ class VideoResource extends Resource
                 TextInput::make('display_title')->label('العنوان المعروض')->maxLength(255)
                     ->helperText('اتركه فارغاً لاستعمال عنوان يوتيوب. تعديله لا يغيّر شيئاً على يوتيوب.')
                     ->required(fn (?Video $record) => $record?->source === 'upload'),
-                Textarea::make('display_description')->label('الوصف المعروض')->rows(4)->helperText('اتركه فارغاً لاستعمال وصف يوتيوب.'),
+                Textarea::make('display_description')->label('الوصف المعروض')->rows(4)->maxLength(5000)->helperText('اتركه فارغاً لاستعمال وصف يوتيوب.'),
                 MediaSelect::make('poster_media_id')->label('صورة الغلاف')->helperText('اختيارية؛ الافتراضي صورة يوتيوب المصغّرة.'),
             ]),
             Section::make('المحاور (أوقات داخل الفيديو)')->visible(fn (?Video $record) => $record !== null)->collapsed()->schema([

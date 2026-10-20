@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Http;
  */
 class YouTubeClient
 {
-    private const ENDPOINT = 'https://www.googleapis.com/youtube/v3/videos';
-
     public function __construct(private YouTubeQuota $quota) {}
 
     public function configured(): bool
@@ -42,7 +40,7 @@ class YouTubeClient
         try {
             $response = Http::withHeaders(['X-Goog-Api-Key' => (string) config('raqam.youtube.key')])
                 ->acceptJson()->timeout(10)->retry(2, 300, throw: false)
-                ->get(self::ENDPOINT, ['part' => 'snippet,contentDetails,status', 'id' => implode(',', $ids), 'maxResults' => 50]);
+                ->get(rtrim((string) (config('raqam.youtube.api_base') ?: 'https://www.googleapis.com/youtube/v3'), '/').'/videos', ['part' => 'snippet,contentDetails,status', 'id' => implode(',', $ids), 'maxResults' => 50]);
         } catch (ConnectionException) {
             ProviderHealth::failure('youtube', 'تعذّر الاتصال بيوتيوب.');
             throw new YouTubeUnavailable('تعذّر الاتصال بيوتيوب.');
