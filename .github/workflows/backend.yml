@@ -26,7 +26,7 @@ jobs:
   tests:
     name: Pest & schema parity
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -101,6 +101,9 @@ jobs:
 
       - name: Prepare environment
         run: cp .env.example .env && php artisan key:generate
+
+      - name: Meilisearch v1.54.3 for the search tests
+        run: ./scripts/ci-meilisearch.sh
 
       - name: Pest
         run: php artisan test

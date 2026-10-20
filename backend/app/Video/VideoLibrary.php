@@ -6,6 +6,7 @@ use App\Media\MediaRejected;
 use App\Media\MediaUploader;
 use App\Models\MediaAsset;
 use App\Models\Video;
+use App\Search\SearchSync;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -260,6 +261,8 @@ class VideoLibrary
         $ordered = array_values(array_filter(array_keys($ids), fn ($id) => $valid->has($id)));
 
         DB::transaction(function () use ($playlistId, $ordered) {
+            // A video that left or joined a playlist may have stopped or started being public.
+            SearchSync::queue('videos', [...$this->playlistVideoIds($playlistId), ...$ordered]);
             // The position is unique per playlist but checked at the end of the transaction, so rows can be rewritten freely.
             DB::table('playlist_videos')->where('playlist_id', $playlistId)->delete();
             $ordered !== [] && DB::table('playlist_videos')->insert(array_map(

@@ -54,6 +54,11 @@ final class ProductionChecks
             $failures[] = 'YOUTUBE_API_BASE and YOUTUBE_IMAGE_BASE are for browser tests only and must not be set.';
         }
 
+        // Search must run on the engine in production; PostgreSQL is only the fallback for when it is down (10.11).
+        if (blank(config('raqam.search.key')) || preg_match('/^[a-z0-9_]{2,40}$/', (string) config('raqam.search.prefix')) !== 1) {
+            $failures[] = 'MEILISEARCH_KEY (a scoped key from search:create-key) and MEILISEARCH_PREFIX must be set.';
+        }
+
         foreach ([
             'APP_KEY' => 'app.key',
             'ADMIN_CODE_KEY' => 'raqam.auth.code_key',

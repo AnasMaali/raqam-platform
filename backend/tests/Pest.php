@@ -8,6 +8,7 @@ use Tests\TestCase;
 
 require_once __DIR__.'/Support/media.php';
 require_once __DIR__.'/Support/api.php';
+require_once __DIR__.'/Support/search.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -260,6 +261,8 @@ function productionConfig(array $overrides = []): void
         'raqam.auth.code_key' => 'a-code-key',
         'raqam.tracking_key' => 'a-tracking-key',
         'raqam.admin_path' => 'some-path',
+        'raqam.search.key' => 'a-scoped-search-key',
+        'raqam.search.prefix' => 'raqam_',
         ...$overrides,
     ]);
 }
