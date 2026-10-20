@@ -27,6 +27,8 @@ class SynonymGroupResource extends Resource
 
     protected static ?string $model = SynonymGroup::class;
 
+    protected static ?string $slug = 'synonyms';
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowsRightLeft;
 
     protected static ?string $modelLabel = 'مجموعة مترادفات';
