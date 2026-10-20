@@ -8,6 +8,7 @@ use App\Media\MediaUploader;
 use App\Models\Character;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -68,4 +69,24 @@ test('a news item saves the cards picked for it from the editor (7.12)', functio
     // The card's own editor has no such section.
     Livewire::test(EditPost::class, ['record' => $card->id])->assertDontSee('بطاقات توعية مرتبطة');
     $reopened->assertSee('بطاقات توعية مرتبطة');
+});
+
+test('an older card of a hidden character opens with its character shown as hidden and saves', function () {
+    $card = app(PostSaver::class)->create('awareness', 'نصيحة قديمة', auth()->id());
+    $poseOfA = DB::table('character_poses')->where('character_id', $this->a->id)->value('id');
+    app(PostSaver::class)->save($card, ['title' => 'نصيحة قديمة', 'body' => '<p>x</p>', 'cover_media_id' => $this->cover->id, 'status' => 'published',
+        'awareness' => ['character_pose_id' => $poseOfA, 'awareness_type_code' => 'advice']], auth()->id());
+    $this->a->update(['is_active' => false]);
+
+    $characters = fn ($page) => $page->instance()->form->getComponent(fn ($c) => $c instanceof Select && $c->getName() === 'character_id', withHidden: true)->getOptions();
+
+    $page = Livewire::test(EditPost::class, ['record' => $card->id]);
+    expect($characters($page))->toBe([$this->a->id => 'المستشار (مخفية)', $this->b->id => 'انتبه!']);
+    $page->fillForm(['title' => 'نصيحة معدّلة'])->call('save')->assertHasNoFormErrors();
+
+    expect($card->refresh()->title)->toBe('نصيحة معدّلة')->and(DB::table('awareness_cards')->where('post_id', $card->id)->value('character_pose_id'))->toBe($poseOfA);
+
+    // A new card does not offer the hidden character at all.
+    $new = app(PostSaver::class)->create('awareness', 'بطاقة جديدة', auth()->id());
+    expect($characters(Livewire::test(EditPost::class, ['record' => $new->id])))->toBe([$this->b->id => 'انتبه!']);
 });

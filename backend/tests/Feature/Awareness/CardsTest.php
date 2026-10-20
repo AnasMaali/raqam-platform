@@ -166,6 +166,60 @@ test('a hidden character does not exist for visitors', function () {
     expect(api('/characters')->json('data'))->toBe([])->and(api('/awareness')->json('data.latest'))->toBe([]);
 });
 
+test('a hidden character takes its cards off the whole site, so nothing links to a missing page, and showing it brings them back', function () {
+    $video = DB::table('videos')->insertGetId(['source' => 'youtube', 'duration_seconds' => 60]);
+    DB::table('youtube_videos')->insert(['video_id' => $video, 'youtube_id' => 'dQw4w9WgXcQ', 'source_title' => 'مقطع', 'thumbnail_url' => 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg']);
+    $card = newCard(['tags' => ['ادخار'], 'primary_video_id' => $video]);
+    $blocks = '<p>x</p><div data-type="customBlock" data-id="awareness" data-config=\'{"post_id":'.$card.'}\'></div>'
+        .'<div data-type="customBlock" data-id="read-also" data-config=\'{"post_ids":['.$card.']}\'></div>';
+    $news = newNews(['awareness_cards' => [$card], 'body' => $blocks, 'tags' => ['ادخار']]);
+    $tag = DB::table('tags')->where('name_ar', 'ادخار')->value('slug');
+    $playlist = DB::table('playlists')->insertGetId(['name_ar' => 'قائمة', 'slug' => 'list']);
+    DB::table('playlist_videos')->insert(['playlist_id' => $playlist, 'video_id' => $video, 'sort_order' => 1]);
+    $cardPath = '/awareness/'.$card.'/';
+    $path = DB::table('posts')->where('id', $card)->value('slug');
+
+    $this->character->update(['is_active' => false]);
+
+    api("/posts/$card")->assertNotFound();
+    api("/posts/$card/".rawurlencode($path))->assertNotFound();
+    expect(api('/posts?kind=awareness')->json('data'))->toBe([])
+        ->and(collect(api('/posts')->json('data'))->pluck('id')->all())->toBe([$news])
+        ->and(api("/posts/$news")->json('data.awareness_cards'))->toBe([])
+        ->and(api("/posts/$news")->json('data.body_html'))->not->toContain('rq-awareness')->not->toContain('rq-read-also')->not->toContain("/$card/");
+    expect(api("/posts/$news")->json('data.tags.0.posts_count'))->toBe(1)
+        ->and(api('/tags/'.rawurlencode($tag))->json('data.posts_count'))->toBe(1)
+        ->and(api('/tags')->json('data.0.posts_count'))->toBe(1)
+        ->and(collect(api('/sitemaps/videos')->json('data'))->pluck('page_path')->all())->toBe(["/video/$video"]);
+    DB::table('playlist_videos')->delete();
+    api("/videos/$video")->assertNotFound();
+
+    $this->character->update(['is_active' => true]);
+
+    api("/posts/$card")->assertOk();
+    expect(api('/posts?kind=awareness')->json('data.0.id'))->toBe($card)
+        ->and(api("/posts/$news")->json('data.awareness_cards.0.id'))->toBe($card)
+        ->and(api("/posts/$news")->json('data.body_html'))->toContain('rq-awareness')->toContain('rq-read-also')
+        ->and(api('/tags/'.rawurlencode($tag))->json('data.posts_count'))->toBe(2);
+    api("/videos/$video")->assertOk();
+    expect(collect(api('/sitemaps/videos')->json('data'))->pluck('page_path')->contains(fn ($p) => str_starts_with($p, $cardPath)))->toBeTrue();
+});
+
+test('an older card of a character hidden since keeps its pose and can still be edited, but no new pick of a hidden pose', function () {
+    $card = newCard();
+    $warning = DB::table('character_poses')->where('character_id', $this->character->id)->where('pose_type_code', 'warning')->value('id');
+    $this->character->update(['is_active' => false]);
+    $form = fn (int $pose) => ['title' => 'عنوان جديد', 'body' => '<p>معلومة</p>', 'cover_media_id' => $this->cover->id, 'status' => 'published', 'awareness' => ['character_pose_id' => $pose, 'awareness_type_code' => 'warning']];
+
+    $this->saver->save(Post::find($card), $form($this->pose), $this->user->id);
+    expect(DB::table('posts')->where('id', $card)->value('title'))->toBe('عنوان جديد')
+        ->and(DB::table('awareness_cards')->where('post_id', $card)->value('awareness_type_code'))->toBe('warning');
+
+    expect(fn () => $this->saver->save(Post::find($card), $form($warning), $this->user->id))
+        ->toThrow(PostRuleViolation::class, 'مخفية');
+    expect(DB::table('awareness_cards')->where('post_id', $card)->value('character_pose_id'))->toBe($this->pose);
+});
+
 test('the character page lists all of its published cards, newest first, a page at a time', function () {
     $ids = collect(range(1, 14))->map(fn ($i) => newCard(['published_at' => now()->subMinutes(30 - $i)]))->all();
     newCard(publish: false);

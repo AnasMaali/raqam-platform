@@ -2,6 +2,7 @@
 
 namespace App\Content\Blocks;
 
+use App\Models\Post;
 use Illuminate\Support\Facades\DB;
 
 /** Looks up posts for the blocks that point at other posts. */
@@ -16,10 +17,10 @@ final class PostCardQuery
         return array_values(array_filter($ids, fn ($id) => in_array($id, $found, true)));
     }
 
-    /** @param  list<int>  $ids  @return \Illuminate\Support\Collection<int, object> published, live posts keyed by id */
+    /** @param  list<int>  $ids  @return \Illuminate\Support\Collection<int, object> published, live posts keyed by id (a hidden character's cards are not) */
     public static function published(array $ids)
     {
         return DB::table('posts')->whereIn('id', $ids)->where('status', 'published')->whereNull('deleted_at')
-            ->where('published_at', '<=', now())->get(['id', 'kind_code', 'title', 'slug', 'excerpt'])->keyBy('id');
+            ->where('published_at', '<=', now())->whereNotIn('id', Post::hiddenCharacterCards())->get(['id', 'kind_code', 'title', 'slug', 'excerpt'])->keyBy('id');
     }
 }

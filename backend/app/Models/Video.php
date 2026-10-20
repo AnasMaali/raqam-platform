@@ -67,7 +67,7 @@ class Video extends Model
                 ->whereExists(fn ($p) => $p->selectRaw('1')->from('playlist_videos')->join('playlists', 'playlists.id', '=', 'playlist_videos.playlist_id')
                     ->whereColumn('playlist_videos.video_id', 'videos.id')->where('playlists.is_visible', true))
                 ->orWhereExists(fn ($p) => $p->selectRaw('1')->from('video_usage')->join('posts', 'posts.id', '=', 'video_usage.post_id')
-                    ->whereColumn('video_usage.video_id', 'videos.id')->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')));
+                    ->whereColumn('video_usage.video_id', 'videos.id')->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->whereNotIn('posts.id', Post::hiddenCharacterCards())));
     }
 
     /** Used in a playlist of this section, or in an item of a kind that belongs to it. */

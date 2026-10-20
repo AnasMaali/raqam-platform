@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Api\Presenter;
 use App\Content\PostPath;
+use App\Models\Post;
 use App\Models\Video;
 use App\Video\VideoView;
 use Illuminate\Http\JsonResponse;
@@ -105,7 +106,7 @@ class VideoApiController extends ApiController
         }
 
         $uses = DB::table('video_usage')->join('posts', 'posts.id', '=', 'video_usage.post_id')->whereIn('video_usage.video_id', $videos->keys())
-            ->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')
+            ->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->whereNotIn('posts.id', Post::hiddenCharacterCards())
             ->distinct()->orderBy('posts.id')->get(['video_usage.video_id', 'posts.id', 'posts.kind_code', 'posts.slug']);
         foreach ($uses as $use) {
             $entries[] = ['page_path' => PostPath::for($use->kind_code, (int) $use->id, $use->slug), 'video' => $this->sitemapVideo($videos[$use->video_id])];

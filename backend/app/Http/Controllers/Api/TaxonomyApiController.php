@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ class TaxonomyApiController extends ApiController
     public function tags(Request $request): JsonResponse
     {
         $page = $this->page($request);
-        $live = DB::table('post_tags')->join('posts', 'posts.id', '=', 'post_tags.post_id')->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')
+        $live = DB::table('post_tags')->join('posts', 'posts.id', '=', 'post_tags.post_id')->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->whereNotIn('posts.id', Post::hiddenCharacterCards())
             ->groupBy('post_tags.tag_id')->selectRaw('post_tags.tag_id, count(*) as n');
         $tags = DB::table('tags')->joinSub($live, 'c', 'c.tag_id', '=', 'tags.id')->orderByDesc('c.n')->orderBy('tags.name_ar')
             ->select('tags.id', 'tags.name_ar', 'tags.slug', 'c.n')->paginate(self::PER_PAGE, page: $page);
@@ -53,7 +54,7 @@ class TaxonomyApiController extends ApiController
         if (! $t) {
             return $this->notFound();
         }
-        $n = DB::table('post_tags')->join('posts', 'posts.id', '=', 'post_tags.post_id')->where('tag_id', $t->id)->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->count();
+        $n = DB::table('post_tags')->join('posts', 'posts.id', '=', 'post_tags.post_id')->where('tag_id', $t->id)->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->whereNotIn('posts.id', Post::hiddenCharacterCards())->count();
 
         return $n === 0 ? $this->notFound() : response()->json(['data' => ['id' => (int) $t->id, 'name' => $t->name_ar, 'slug' => $t->slug, 'posts_count' => $n]]);
     }
