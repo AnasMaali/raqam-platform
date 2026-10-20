@@ -62,7 +62,10 @@ final class AwarenessSubtype extends Subtype
     {
         return [
             Select::make('character_id')->label('الشخصية')->native(false)->searchable()->live()
-                ->options(fn () => DB::table('characters')->where('is_active', true)->orderBy('sort_order')->pluck('name_ar', 'id')->all())
+                // The visible characters, plus the hidden one an older card already has (so the form still shows it).
+                ->options(fn (Get $get) => DB::table('characters')->where('is_active', true)
+                    ->when(ctype_digit((string) $get('character_id')), fn ($q) => $q->orWhere('id', (int) $get('character_id')))
+                    ->orderBy('sort_order')->orderBy('id')->get(['id', 'name_ar', 'is_active'])->mapWithKeys(fn ($c) => [$c->id => $c->is_active ? $c->name_ar : $c->name_ar.' (مخفية)'])->all())
                 ->afterStateUpdated(fn (Set $set) => $set('character_pose_id', null))
                 ->helperText(fn () => DB::table('characters')->where('is_active', true)->exists() ? null : 'لا شخصيات بعد. أضفها من «شخصيات التوعية» أو شغّل characters:install.'),
             Select::make('character_pose_id')->label('الوضعية')->native(false)
@@ -80,7 +83,12 @@ final class AwarenessSubtype extends Subtype
     {
         parent::validate($values, $postId);
 
-        // A pose of a hidden character cannot be picked for a card.
+        // A pose of a hidden character cannot be picked for a card. Only a new pick is checked: an older card of a
+        // character hidden since then keeps its pose and can still be edited (it stays off the site meanwhile).
+        $saved = DB::table('awareness_cards')->where('post_id', $postId)->value('character_pose_id');
+        if ($saved !== null && (int) $saved === (int) $values['character_pose_id']) {
+            return;
+        }
         $active = DB::table('character_poses')->join('characters', 'characters.id', '=', 'character_poses.character_id')
             ->where('character_poses.id', $values['character_pose_id'])->value('characters.is_active');
         if (! $active) {

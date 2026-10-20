@@ -118,7 +118,7 @@ final class Presenter
 
         $tags = DB::table('post_tags')->join('tags', 'tags.id', '=', 'post_tags.tag_id')->where('post_id', $post->id)->orderBy('tags.name_ar')->get(['tags.id', 'tags.name_ar', 'tags.slug']);
         $counts = DB::table('post_tags')->join('posts', 'posts.id', '=', 'post_tags.post_id')->whereIn('tag_id', $tags->pluck('id'))
-            ->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->groupBy('tag_id')->selectRaw('tag_id, count(*) as n')->pluck('n', 'tag_id');
+            ->where('posts.status', 'published')->where('posts.published_at', '<=', now())->whereNull('posts.deleted_at')->whereNotIn('posts.id', Post::hiddenCharacterCards())->groupBy('tag_id')->selectRaw('tag_id, count(*) as n')->pluck('n', 'tag_id');
 
         $galleryIds = DB::table('post_gallery_items')->where('post_id', $post->id)->orderBy('sort_order')->pluck('media_id');
         $this->preload($galleryIds);

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Audit\Audited;
+use App\Jobs\SendSiteWebhook;
 use App\Models\Concerns\HasSeoMeta;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,17 @@ class Character extends Model
     protected function casts(): array
     {
         return ['is_active' => 'boolean', 'sort_order' => 'integer'];
+    }
+
+    protected static function booted(): void
+    {
+        // Hiding or showing a character adds or removes its cards on many pages at once (the awareness page, every
+        // item linking to them, lists, texts), so the site refreshes everything rather than guessing the addresses.
+        static::updated(function (self $character) {
+            if ($character->wasChanged('is_active')) {
+                SendSiteWebhook::notify(['type' => 'all', 'change' => $character->is_active ? 'character_shown' : 'character_hidden', 'id' => $character->id, 'paths' => []]);
+            }
+        });
     }
 
     public function rive(): BelongsTo
