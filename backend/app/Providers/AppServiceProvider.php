@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Auth\AdminAudit;
 use App\Console\WipeDatabaseCommand;
 use App\Events\PostChanged;
+use App\Filament\Forms\LtrFields;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifySiteOfPostChange;
 use App\Support\ProductionChecks;
@@ -53,6 +54,8 @@ class AppServiceProvider extends ServiceProvider
 
         // The largest file the media library accepts (an image); the library itself checks each type's own limit.
         config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (config('media.limits.image_upload') / 1024)]]);
+
+        LtrFields::register();
 
         Event::listen(PostChanged::class, NotifySiteOfPostChange::class);
 
