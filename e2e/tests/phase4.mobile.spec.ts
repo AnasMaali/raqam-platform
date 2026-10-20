@@ -91,7 +91,7 @@ test('a short clip is uploaded from a phone, and a character card is published f
     const publish = page.getByRole('button', { name: 'نشر الآن' });
     await publish.scrollIntoViewIfNeeded();
     await publish.click();
-    await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+    await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
     expect(app.sql(`SELECT status FROM posts WHERE id = ${card}`)).toBe('published');

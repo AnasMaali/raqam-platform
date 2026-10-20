@@ -81,12 +81,12 @@ test.describe('awareness characters and cards', () => {
         await pick(page, 'awareness.character_id', 'المستشار');
         await pick(page, 'awareness.awareness_type_code', 'نصيحة');
         await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
         expect(app.sql(`SELECT status FROM posts WHERE id = ${card}`)).toBe('draft');
 
         await pick(page, 'awareness.character_pose_id', 'تشرح');
         await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
         expect(app.sql(`SELECT status FROM posts WHERE id = ${card}`)).toBe('published');
 
@@ -100,7 +100,7 @@ test.describe('awareness characters and cards', () => {
         await page.getByText('بطاقات توعية مرتبطة').click();
         await pick(page, 'awareness_cards', 'ادّخر قبل أن تنفق', 'ادّخر');
         await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
         const detail = await (await page.request.get(`${api(app)}/posts/${news}`)).json();
@@ -127,7 +127,7 @@ test.describe('video on an item', () => {
         await fillRequired(page, 'نص الخبر.');
         await pick(page, 'primary_video_id', 'حلقة الاقتصاد', 'حلقة');
         await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
         expect(app.sql(`SELECT primary_video_id FROM posts WHERE id = ${id}`)).toBe(String(video));

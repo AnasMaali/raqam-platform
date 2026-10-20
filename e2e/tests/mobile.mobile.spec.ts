@@ -49,7 +49,7 @@ test('an editor can write and publish an item from a phone', async ({ page, app,
     await publish.click();
     const confirm = page.getByRole('button', { name: 'تأكيد' });
     await expect(confirm).toBeVisible();
-    await afterLivewire(page, () => confirm.click());
+    await afterLivewire(page, () => confirm.click(), 'callMountedAction');
 
     expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('published');
     expect((await page.request.get(`${app.url}/api/v1/posts/${id}`)).status()).toBe(200);
