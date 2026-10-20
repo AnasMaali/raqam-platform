@@ -16,7 +16,7 @@ class VideoLibrary
 {
     public const MAX_CHAPTERS = 100;
 
-    public function __construct(private YouTubeClient $youtube, private MediaUploader $uploader) {}
+    public function __construct(private YouTubeClient $youtube, private MediaUploader $uploader, private YouTubeThumbnail $thumbnails) {}
 
     /**
      * Adds a YouTube video from a pasted address (8.2). A video already in the library is returned, not added
@@ -43,7 +43,7 @@ class VideoLibrary
 
         $facts = $this->facts($parsed['id'], $manual);
 
-        return DB::transaction(function () use ($parsed, $facts, $userId) {
+        $video = DB::transaction(function () use ($parsed, $facts, $userId) {
             $video = (new Video)->forceFill([
                 'source' => 'youtube', 'duration_seconds' => $facts['duration'], 'created_by' => $userId,
             ]);
@@ -58,6 +58,39 @@ class VideoLibrary
 
             return $video->load('youtube');
         });
+
+        $this->fetchThumbnail($video, $userId);
+
+        return $video;
+    }
+
+    /** Puts YouTube's picture of the video in our library as its cover, if it has none; a failure only leaves it without. */
+    public function fetchThumbnail(Video $video, ?int $userId = null): bool
+    {
+        if (! config('raqam.youtube.fetch_thumbnails') || $video->poster_media_id !== null || ! $video->isYoutube()) {
+            return false;
+        }
+
+        $media = $this->thumbnails->store($video->youtube->youtube_id, $video->title(), $userId);
+        if ($media === null) {
+            return false;
+        }
+        $video->forceFill(['poster_media_id' => $media])->save();
+
+        return true;
+    }
+
+    /** Tries again for the videos that have no picture of ours yet (a failed download, or videos added before this existed). */
+    public function fillMissingThumbnails(int $limit = 25): int
+    {
+        $done = 0;
+        Video::query()->with('youtube')->whereNull('poster_media_id')->where('source', 'youtube')
+            ->whereHas('youtube', fn ($q) => $q->where('availability', 'ok'))->orderBy('id')->limit($limit)->get()
+            ->each(function (Video $video) use (&$done) {
+                $done += $this->fetchThumbnail($video) ? 1 : 0;
+            });
+
+        return $done;
     }
 
     /** @return array{title: string, description: ?string, thumbnail: string, duration: ?int, published_at: ?string, from_api: bool} */
