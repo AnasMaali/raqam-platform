@@ -39,15 +39,17 @@ class CharacterLibrary
      * use cannot be removed, but its picture can be replaced.
      *
      * @param  array<string, array{static_media_id?: mixed, rive_state?: mixed}>  $poses
+     * @return bool whether any pose was added, removed, or got another picture or animation state
      *
      * @throws CharacterRejected
      */
-    public function savePoses(Character $character, array $poses): void
+    public function savePoses(Character $character, array $poses): bool
     {
         $kinds = DB::table('pose_types')->pluck('name_ar', 'code')->all();
         $clean = $this->clean($character->rive_media_id, $poses);
 
-        DB::transaction(function () use ($character, $clean, $kinds) {
+        return DB::transaction(function () use ($character, $clean, $kinds) {
+            $changed = false;
             foreach ($clean as $code => $values) {
                 $existing = DB::table('character_poses')->where('character_id', $character->id)->where('pose_type_code', $code)->first();
 
@@ -58,18 +60,23 @@ class CharacterLibrary
                             throw new CharacterRejected("وضعية «{$kinds[$code]}» مستعملة في {$used} بطاقة توعية، لا يمكن حذفها (بدّل صورتها بدلاً من ذلك).", "poses.{$code}.static_media_id");
                         }
                         DB::table('character_poses')->where('id', $existing->id)->delete();
+                        $changed = true;
                     }
 
                     continue;
                 }
 
                 // Explicit update or insert, as everywhere else in this code base: an upsert would hide a clash.
-                if ($existing !== null) {
-                    DB::table('character_poses')->where('id', $existing->id)->update($values);
-                } else {
+                if ($existing === null) {
                     DB::table('character_poses')->insert(['character_id' => $character->id, 'pose_type_code' => $code] + $values);
+                    $changed = true;
+                } elseif ((int) $existing->static_media_id !== $values['static_media_id'] || $existing->rive_state !== $values['rive_state']) {
+                    DB::table('character_poses')->where('id', $existing->id)->update($values);
+                    $changed = true;
                 }
             }
+
+            return $changed;
         });
     }
 

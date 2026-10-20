@@ -8,6 +8,7 @@ use App\Filament\Resources\Characters\Pages\CreateCharacter;
 use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Jobs\GenerateMediaVariants;
+use App\Jobs\SendSiteWebhook;
 use App\Media\MediaUploader;
 use App\Models\Character;
 use App\Models\User;
@@ -217,4 +218,148 @@ test('a Rive file is chosen from the library only', function () {
 
     Livewire::test(EditCharacter::class, ['record' => $c->id])->fillForm(['rive_media_id' => $notRive])->call('save')->assertHasFormErrors(['rive_media_id']);
     Livewire::test(EditCharacter::class, ['record' => $c->id])->fillForm(['rive_media_id' => riveFile()])->call('save')->assertHasNoFormErrors();
+});
+
+/** Switches the site webhook on, but faked, from here on. */
+function fakeSiteWebhook(): void
+{
+    config(['raqam.site_webhook.url' => 'https://site.example/hooks/raqam', 'raqam.site_webhook.secret' => 'test-secret-0123456789']);
+    Bus::fake([GenerateMediaVariants::class, SendSiteWebhook::class]);
+}
+
+/** A visible character with a Rive file and one animated pose; the webhook is switched on only after it is set up. */
+function webhookCharacter(array $over = []): Character
+{
+    $c = aCharacter($over + ['description' => 'وصف']);
+    $c->update(['rive_media_id' => riveFile()]);
+    app(CharacterLibrary::class)->savePoses($c, ['explaining' => ['static_media_id' => poseImage(), 'rive_state' => 'idle']]);
+    fakeSiteWebhook();
+
+    return $c->refresh();
+}
+
+function refreshAllSent(Character $c, string $change = 'character_updated'): Closure
+{
+    return fn ($job) => $job->payload['type'] === 'all' && $job->payload['change'] === $change && $job->payload['id'] === $c->id && $job->payload['paths'] === [];
+}
+
+test('any edit of a visible character or of its poses asks the site to refresh everything, once per save', function (Closure $change) {
+    $c = webhookCharacter();
+
+    Livewire::test(EditCharacter::class, ['record' => $c->id])->fillForm($change())->call('save')->assertHasNoFormErrors();
+
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+    Bus::assertDispatched(SendSiteWebhook::class, refreshAllSent($c));
+})->with([
+    'name' => [fn () => ['name_ar' => 'اسم جديد']],
+    'slug' => [fn () => ['slug' => 'new-slug']],
+    'role' => [fn () => ['role_ar' => 'دور جديد']],
+    'description' => [fn () => ['description' => 'وصف جديد']],
+    'colour' => [fn () => ['accent_color' => '#1F6F5B']],
+    'Rive file' => [fn () => ['rive_media_id' => riveFile()]],
+    'pose picture' => [fn () => ['poses.explaining.static_media_id' => poseImage()]],
+    'new pose' => [fn () => ['poses.warning.static_media_id' => poseImage()]],
+    'removed pose' => [fn () => ['poses.explaining.static_media_id' => null, 'poses.explaining.rive_state' => null]],
+    'animation state' => [fn () => ['poses.explaining.rive_state' => 'talk']],
+    'SEO text' => [fn () => ['seo' => ['meta_title' => 'عنوان بحث']]],
+]);
+
+test('changing, emptying or re-saving the SEO of a visible character: one webhook per real change', function () {
+    $c = webhookCharacter();
+    $edit = fn (array $seo) => Livewire::test(EditCharacter::class, ['record' => $c->id])->fillForm(['seo' => $seo])->call('save')->assertHasNoFormErrors();
+
+    $edit(['meta_title' => 'عنوان بحث']);                     // first values: a new seo_meta row
+    $edit(['meta_title' => 'عنوان بحث', 'meta_description' => 'وصف بحث']);   // the same row changes
+    $edit(['meta_title' => 'عنوان بحث', 'meta_description' => 'وصف بحث']);   // nothing changes
+    $edit(['meta_title' => '', 'meta_description' => '']);   // emptied: back to the automatic values
+
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 3);
+    Bus::assertNotDispatched(SendSiteWebhook::class, fn ($job) => $job->payload['change'] !== 'character_updated');
+});
+
+test('creating a visible character on the screen sends one webhook, after its poses and SEO are saved', function () {
+    $picture = poseImage();
+    fakeSiteWebhook();
+
+    Livewire::test(CreateCharacter::class)
+        ->fillForm(['name_ar' => 'شخصية جديدة', 'slug' => 'new-one', 'role_ar' => 'دور', 'accent_color' => '#1F6F5B',
+            'poses.explaining.static_media_id' => $picture, 'seo' => ['meta_title' => 'عنوان بحث']])
+        ->call('create')->assertHasNoFormErrors();
+
+    $c = Character::query()->where('slug', 'new-one')->firstOrFail();
+    expect($c->is_active)->toBeTrue()->and($c->seo_meta_id)->not->toBeNull()
+        ->and(app(CharacterLibrary::class)->missing($c))->not->toContain('تشرح');
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+    Bus::assertDispatched(SendSiteWebhook::class, refreshAllSent($c, 'character_created'));
+});
+
+test('creating a hidden character sends nothing; one created outside the screen sends its own webhook', function () {
+    fakeSiteWebhook();
+
+    Livewire::test(CreateCharacter::class)
+        ->fillForm(['name_ar' => 'مخفية', 'slug' => 'hidden-one', 'role_ar' => 'دور', 'accent_color' => '#1F6F5B', 'is_active' => false, 'seo' => ['meta_title' => 'عنوان']])
+        ->call('create')->assertHasNoFormErrors();
+    aCharacter(['is_active' => false]);
+    Bus::assertNotDispatched(SendSiteWebhook::class);
+
+    $c = aCharacter();
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+    Bus::assertDispatched(SendSiteWebhook::class, refreshAllSent($c, 'character_created'));
+});
+
+test('a save that changes the character, a pose and its SEO together sends one webhook; a save that changes nothing sends none', function () {
+    $c = webhookCharacter();
+
+    // The first SEO values save the character a second time (its seo_meta_id); the rename must still be seen.
+    Livewire::test(EditCharacter::class, ['record' => $c->id])
+        ->fillForm(['name_ar' => 'اسم جديد', 'seo' => ['meta_title' => 'عنوان بحث']])->call('save')->assertHasNoFormErrors();
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+
+    Livewire::test(EditCharacter::class, ['record' => $c->id])
+        ->fillForm(['name_ar' => 'اسم آخر', 'poses.warning.static_media_id' => poseImage(), 'seo' => ['meta_title' => 'عنوان آخر']])
+        ->call('save')->assertHasNoFormErrors();
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 2);
+
+    Livewire::test(EditCharacter::class, ['record' => $c->id])->call('save')->assertHasNoFormErrors();
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 2);
+});
+
+test('editing a hidden character sends nothing; hiding it in the same save sends only the hiding', function () {
+    $c = webhookCharacter(['is_active' => false]);
+
+    Livewire::test(EditCharacter::class, ['record' => $c->id])
+        ->fillForm(['name_ar' => 'اسم جديد', 'poses.warning.static_media_id' => poseImage()])->call('save')->assertHasNoFormErrors();
+    Bus::assertNotDispatched(SendSiteWebhook::class);
+
+    $c->update(['is_active' => true]);
+    Livewire::test(EditCharacter::class, ['record' => $c->id])->fillForm(['name_ar' => 'اسم آخر', 'is_active' => false])->call('save')->assertHasNoFormErrors();
+
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 2);
+    Bus::assertDispatched(SendSiteWebhook::class, refreshAllSent($c, 'character_shown'));
+    Bus::assertDispatched(SendSiteWebhook::class, refreshAllSent($c, 'character_hidden'));
+});
+
+test('a character updated outside the screen sends its own webhook; savePoses reports whether a pose really changed', function () {
+    $c = webhookCharacter();
+    $picture = DB::table('character_poses')->value('static_media_id');
+
+    $c->update(['accent_color' => '#1F6F5B']);
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+
+    expect($this->library->savePoses($c, ['explaining' => ['static_media_id' => $picture, 'rive_state' => 'idle']]))->toBeFalse()
+        ->and($this->library->savePoses($c, ['explaining' => ['static_media_id' => $picture, 'rive_state' => 'run']]))->toBeTrue()
+        ->and($this->library->savePoses($c, ['explaining' => ['static_media_id' => poseImage(), 'rive_state' => 'run']]))->toBeTrue()
+        ->and($this->library->savePoses($c, ['smiling' => ['static_media_id' => $picture]]))->toBeTrue()
+        ->and($this->library->savePoses($c, ['smiling' => ['static_media_id' => null]]))->toBeTrue()
+        ->and($this->library->savePoses($c, ['smiling' => ['static_media_id' => null]]))->toBeFalse();
+});
+
+test('a value only the database refuses, on the edit screen, is a sentence and not an error page, and sends nothing', function () {
+    $c = webhookCharacter();
+
+    Livewire::test(EditCharacter::class, ['record' => $c->id])->fillForm(['name_ar' => 'اسم جديد', 'sort_order' => 99999999999])->call('save')
+        ->assertHasNoErrors()->assertNotified('تعذّر الحفظ');
+
+    expect($c->refresh()->name_ar)->not->toBe('اسم جديد');
+    Bus::assertNotDispatched(SendSiteWebhook::class);
 });

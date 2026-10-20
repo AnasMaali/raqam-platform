@@ -9,12 +9,12 @@ use App\Filament\Concerns\SavesSeoMeta;
 use App\Filament\Resources\Characters\CharacterResource;
 use App\Support\UniqueSlug;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 
 class EditCharacter extends EditRecord
 {
     use ReportsDatabaseRefusals, SavesCharacterPoses, SavesSeoMeta {
         SavesSeoMeta::mutateFormDataBeforeFill as private fillSeo;
-        SavesSeoMeta::afterSave as private saveSeo;
     }
 
     protected static string $resource = CharacterResource::class;
@@ -36,9 +36,25 @@ class EditCharacter extends EditRecord
         return $data;
     }
 
+    /** @var list<string> the columns this save wrote, taken before the SEO step saves the record again */
+    private array $changedColumns = [];
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        $record->holdWebhook = true;
+        $record = $this->reportRefusals(fn () => parent::handleRecordUpdate($record, $data));
+        $this->changedColumns = array_keys($record->getChanges());
+
+        return $record;
+    }
+
     protected function afterSave(): void
     {
-        $this->savePoses();
-        $this->saveSeo();
+        $posesChanged = $this->savePoses();
+        $seoChanged = $this->syncSeo();
+
+        $record = $this->getRecord();
+        $record->holdWebhook = false;
+        $record->announce($this->changedColumns, $posesChanged || $seoChanged);   // one webhook for the whole save
     }
 }

@@ -121,6 +121,20 @@ test('the same browser is recognised: no alert, the cookie is renewed', function
         ->and(deviceCookie()->getValue())->toBe($value);
 });
 
+test('a clock stepped back since the device was first seen does not break its next sign-in', function () {
+    completeSignIn();
+    $value = deviceCookie()->getValue();
+    DB::table('user_devices')->update(['first_seen_at' => DB::raw("now() + interval '2 seconds'"), 'last_seen_at' => DB::raw("now() + interval '2 seconds'")]);
+    Mail::fake();
+
+    completeSignIn($value);
+
+    Mail::assertNotSent(NewDeviceSignIn::class);
+    $row = DB::table('user_devices')->first();
+    expect($row->last_seen_at)->toBe($row->first_seen_at)
+        ->and(DB::table('login_attempts')->where('succeeded', true)->count())->toBe(2);
+});
+
 test('a cookie nobody issued, or garbage, counts as a new device', function (string $cookie) {
     completeSignIn($cookie);
 

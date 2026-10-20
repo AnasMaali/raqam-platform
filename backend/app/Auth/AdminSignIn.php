@@ -185,7 +185,7 @@ final class AdminSignIn
 
             DB::transaction(function () use ($email, $binding, $code) {
                 DB::table('verification_codes')->where('purpose', 'admin_login')->where('email', $email)
-                    ->whereNull('consumed_at')->update(['consumed_at' => DB::raw('now()')]);   // a new code replaces the old ones
+                    ->whereNull('consumed_at')->update(['consumed_at' => DB::raw('greatest(now(), created_at)')]);   // a new code replaces the old ones
                 DB::table('verification_codes')->insert([
                     'purpose' => 'admin_login', 'email' => $email, 'code_hash' => $this->hash($email, $binding, $code),
                     'expires_at' => now()->addSeconds($this->codeSeconds()),
@@ -223,7 +223,8 @@ final class AdminSignIn
             return [null, LoginAttempts::BAD_CODE];
         }
 
-        DB::table('verification_codes')->where('id', $row->id)->update(['consumed_at' => DB::raw('now()')]);
+        // The schema requires consumed_at >= created_at; greatest() keeps a server clock that NTP stepped back from failing it.
+        DB::table('verification_codes')->where('id', $row->id)->update(['consumed_at' => DB::raw('greatest(now(), created_at)')]);
         $user = User::find($state['user_id']);
 
         return $user && $user->canAccessPanel(Filament::getCurrentOrDefaultPanel())

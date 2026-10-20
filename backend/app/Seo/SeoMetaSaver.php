@@ -29,35 +29,45 @@ final class SeoMetaSaver
 
     /**
      * @param  array<string, mixed>  $data
+     * @return bool whether the owner's SEO values changed
      *
      * @throws ValidationException
      */
-    public function sync(Model $owner, array $data): void
+    public function sync(Model $owner, array $data): bool
     {
         $values = $this->clean($data);
         $this->validate($values);
 
-        DB::transaction(function () use ($owner, $values) {
+        $changed = DB::transaction(function () use ($owner, $values) {
             $meta = $owner->seoMeta;
 
             if ($this->isEmpty($values)) {
-                if ($meta !== null) {
-                    $owner->forceFill(['seo_meta_id' => null])->save();
-                    $meta->delete();
+                if ($meta === null) {
+                    return false;
                 }
+                $owner->forceFill(['seo_meta_id' => null])->save();
+                $meta->delete();
 
-                return;
+                return true;
             }
 
             if ($meta === null) {
                 $meta = SeoMeta::query()->create($values);
                 $owner->forceFill(['seo_meta_id' => $meta->id])->save();
-            } else {
-                $meta->update($values);
+
+                return true;
             }
+
+            $meta->fill($values);
+            $dirty = $meta->isDirty();
+            $meta->save();
+
+            return $dirty;
         });
 
         $owner->unsetRelation('seoMeta');
+
+        return $changed;
     }
 
     /** @return array<string, mixed> */

@@ -28,10 +28,11 @@ trait SavesCharacterPoses
         return $data;
     }
 
-    protected function savePoses(): void
+    /** @return bool whether a pose changed */
+    protected function savePoses(): bool
     {
         try {
-            app(CharacterLibrary::class)->savePoses($this->getRecord(), $this->poseData);
+            return app(CharacterLibrary::class)->savePoses($this->getRecord(), $this->poseData);
         } catch (CharacterRejected $e) {
             throw ValidationException::withMessages(["data.{$e->field}" => $e->getMessage()]);
         }
