@@ -3,6 +3,7 @@
 use App\Console\AdminCreateCommand;
 use App\Console\AdminUnlockCommand;
 use App\Console\CheckVideosCommand;
+use App\Console\InstallCharactersCommand;
 use App\Console\InstallPagesCommand;
 use App\Console\PruneDevicesCommand;
 use App\Console\PublishDuePostsCommand;
@@ -23,7 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class])
+    ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })

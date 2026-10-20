@@ -77,6 +77,13 @@ final class PostForm
                         Select::make('role_code')->label('دوره')->native(false)->options(fn () => GuestRole::options())->required()->default('guest'),
                     ])->columns(2),
             ]),
+            Section::make('بطاقات توعية مرتبطة')->collapsed()->visible(fn (?Post $record) => $record?->kind_code !== 'awareness')->schema([
+                Select::make('awareness_cards')->hiddenLabel()->multiple()->native(false)->searchable()
+                    ->getSearchResultsUsing(fn (string $search) => DB::table('posts')->where('kind_code', 'awareness')->whereNull('deleted_at')
+                        ->where('title', 'ilike', '%'.addcslashes($search, '%_\\').'%')->orderByDesc('id')->limit(30)->pluck('title', 'id')->all())
+                    ->getOptionLabelsUsing(fn (array $values) => DB::table('posts')->where('kind_code', 'awareness')->whereIn('id', array_filter($values, fn ($v) => MediaSelect::isId($v)))->pluck('title', 'id')->all())
+                    ->helperText('تظهر داخل هذه المادة (7.12). البطاقات المضافة داخل النص بكتلة «بطاقة توعية» تُحسب هنا تلقائياً.'),
+            ]),
             Section::make('تصحيح')->collapsed()->schema([
                 Textarea::make('correction_note')->label('ملاحظة تصحيح')->rows(2)->maxLength(2000)
                     ->helperText('تظهر أسفل المادة بتاريخها (سياسة التصحيح).'),

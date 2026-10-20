@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AwarenessApiController;
 use App\Http\Controllers\Api\PageApiController;
 use App\Http\Controllers\Api\PeopleApiController;
 use App\Http\Controllers\Api\PostApiController;
@@ -30,6 +31,11 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
 
     Route::get('/pages', [PageApiController::class, 'index']);
     Route::get('/pages/{slug}', [PageApiController::class, 'show']);
+
+    Route::get('/awareness', [AwarenessApiController::class, 'overview']);
+    Route::get('/characters', [AwarenessApiController::class, 'characters']);
+    Route::get('/characters/{slug}', [AwarenessApiController::class, 'character']);
+    Route::get('/characters/{slug}/cards', [AwarenessApiController::class, 'cards']);
 
     Route::get('/videos', [VideoApiController::class, 'index']);
     Route::get('/videos/{id}', [VideoApiController::class, 'show'])->where('id', '[0-9]{1,18}');

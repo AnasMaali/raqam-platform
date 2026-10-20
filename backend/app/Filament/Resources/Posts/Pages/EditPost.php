@@ -60,6 +60,8 @@ class EditPost extends EditRecord
         $data['authors'] = $post->authors()->pluck('authors.id')->map(fn ($id) => (string) $id)->all();
         $data['tags'] = $post->tags()->orderBy('tags.name_ar')->pluck('name_ar')->all();
         $data['gallery'] = DB::table('post_gallery_items')->where('post_id', $post->id)->orderBy('sort_order')->pluck('media_id')->map(fn ($id) => ['media_id' => (string) $id])->all();
+        $data['awareness_cards'] = DB::table('post_related')->join('posts', 'posts.id', '=', 'post_related.related_post_id')->where('post_related.post_id', $post->id)
+            ->where('posts.kind_code', 'awareness')->orderBy('post_related.sort_order')->pluck('posts.id')->map(fn ($id) => (string) $id)->all();
         $data['guests'] = DB::table('post_guests')->where('post_id', $post->id)->orderBy('sort_order')->get(['guest_id', 'role_code'])->map(fn ($g) => ['guest_id' => (string) $g->guest_id, 'role_code' => $g->role_code])->all();
 
         if ($subtype = app(SubtypeRegistry::class)->for($post->kind_code)) {

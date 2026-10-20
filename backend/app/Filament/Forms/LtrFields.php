@@ -11,7 +11,7 @@ use Filament\Forms\Components\TextInput;
 final class LtrFields
 {
     /** A field name, or the last part of a dotted one (links.facebook), that holds such content. */
-    private const NAMES = '/(^|[._])(slug|code|email|phone|url|link|links|youtube_id|hex|color|accent_color|canonical_url|website|whatsapp)$/i';
+    private const NAMES = '/(^|[._])(slug|code|email|phone|url|link|links|youtube_id|rive_state|hex|color|accent_color|canonical_url|website|whatsapp)$/i';
 
     public static function register(): void
     {

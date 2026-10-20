@@ -24,6 +24,7 @@ tags:
   - name: Taxonomy
   - name: People
   - name: Videos
+  - name: Awareness
   - name: Pages
   - name: Redirects
 
@@ -333,9 +334,101 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: '#/components/schemas/Guest' }
+                  data: { $ref: '#/components/schemas/GuestPage' }
         '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /awareness:
+    get:
+      tags: [Awareness]
+      summary: The awareness page - the section, its characters and the newest cards
+      operationId: awarenessPage
+      responses:
+        '200':
+          description: The page.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [section, characters, latest]
+                    properties:
+                      section: { $ref: '#/components/schemas/Section' }
+                      characters: { type: array, items: { $ref: '#/components/schemas/Character' } }
+                      latest: { type: array, items: { $ref: '#/components/schemas/AwarenessCard' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /characters:
+    get:
+      tags: [Awareness]
+      summary: The visible characters, in order
+      operationId: listCharacters
+      responses:
+        '200':
+          description: The characters.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Character' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /characters/{slug}:
+    get:
+      tags: [Awareness]
+      summary: One character with its poses
+      operationId: showCharacter
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The character.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Character' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /characters/{slug}/cards:
+    get:
+      tags: [Awareness]
+      summary: Every published card the character has said, newest first
+      operationId: listCharacterCards
+      parameters:
+        - $ref: '#/components/parameters/Slug'
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: One page of cards.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta, links]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AwarenessCard' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+                  links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /videos:
@@ -802,6 +895,52 @@ components:
         body_html: { type: string, description: "Cleaned HTML, safe to inject." }
         updated_at: { type: string, format: date-time }
         seo: { $ref: '#/components/schemas/Seo' }
+    Character:
+      type: object
+      required: [id, name, slug, role, description, accent_color, rive, poses, cards_count, seo]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        role: { type: string }
+        description: { type: [string, 'null'] }
+        accent_color: { type: string, pattern: '^#[0-9A-Fa-f]{6}$', description: "Readable on the page background (contrast 4.5 to 1 at least)." }
+        rive: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }], description: The animation file; null means still pictures only. }
+        poses:
+          type: array
+          description: The poses that have a picture, in the order explaining, warning, smiling, pointing, thinking.
+          items:
+            type: object
+            required: [code, name, image, rive_state]
+            properties:
+              code: { type: string, enum: [explaining, warning, smiling, pointing, thinking] }
+              name: { type: string }
+              image: { $ref: '#/components/schemas/Media', description: "The still picture; also what weak devices and 'reduce motion' show." }
+              rive_state: { type: [string, 'null'], description: The state to play in the Rive file. }
+        cards_count: { type: integer, minimum: 0 }
+        seo: { $ref: '#/components/schemas/Seo' }
+    AwarenessCard:
+      allOf:
+        - $ref: '#/components/schemas/PostSummary'
+        - type: object
+          required: [awareness]
+          properties:
+            awareness: { $ref: '#/components/schemas/AwarenessDetails' }
+    GuestPage:
+      allOf:
+        - $ref: '#/components/schemas/Guest'
+        - type: object
+          required: [appearances]
+          properties:
+            appearances:
+              type: array
+              description: Every published item the guest appears in, newest first (the first 200).
+              items:
+                type: object
+                required: [role, post]
+                properties:
+                  role: { type: object, required: [code, name], properties: { code: { type: string, enum: [host, guest, panelist] }, name: { type: string } } }
+                  post: { $ref: '#/components/schemas/PostSummary' }
     Video:
       type: object
       required: [id, source, path, title, description, duration_seconds, thumbnail_url, published_at, youtube, upload, chapters, structured_data]
@@ -896,7 +1035,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/PostSummary'
         - type: object
-          required: [body_html, video, tags, gallery, guests, details, related, correction, seo, revision]
+          required: [body_html, video, awareness_cards, tags, gallery, guests, details, related, correction, seo, revision]
           properties:
             video:
               description: The main video, null when there is none or it can no longer be played.
@@ -904,6 +1043,10 @@ components:
             body_html:
               type: string
               description: Cleaned HTML with every block (picture, gallery, awareness card, "read also") already built. Safe to inject.
+            awareness_cards:
+              description: Published awareness cards linked to this item (the ones in the text and the ones picked for it).
+              type: array
+              items: { $ref: '#/components/schemas/AwarenessCard' }
             tags: { type: array, items: { $ref: '#/components/schemas/Tag' } }
             gallery: { type: array, items: { $ref: '#/components/schemas/Media' } }
             guests:
