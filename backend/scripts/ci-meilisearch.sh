@@ -2,6 +2,7 @@
 # CI only: installs the pinned Meilisearch (checked by SHA-256), starts it on 127.0.0.1:7700 with a master key
 # made up for this run, and hands the tests a key scoped to raqam_test_* (MEILISEARCH_TEST_KEY).
 # The binary path goes to MEILISEARCH_BIN, so browser tests can start engines of their own.
+# With --binary-only it only installs the binary and sets MEILISEARCH_BIN (the browser tests start their engines).
 set -euo pipefail
 
 VERSION=1.54.3
@@ -15,6 +16,11 @@ if [ ! -x "$BIN" ]; then
   echo "${SHA256}  $BIN.part" | sha256sum -c -
   mv "$BIN.part" "$BIN"
   chmod +x "$BIN"
+fi
+
+if [ "${1:-}" = "--binary-only" ]; then
+  echo "MEILISEARCH_BIN=$BIN" >> "${GITHUB_ENV:-/dev/null}"
+  exit 0
 fi
 
 MASTER=$(openssl rand -hex 32)

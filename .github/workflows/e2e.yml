@@ -90,6 +90,10 @@ jobs:
           cp .env.example .env
           php artisan key:generate
 
+      - name: Meilisearch v1.54.3 binary (the tests start their own engines)
+        working-directory: backend
+        run: ./scripts/ci-meilisearch.sh --binary-only
+
       - name: Install the browser tests
         working-directory: e2e
         run: |

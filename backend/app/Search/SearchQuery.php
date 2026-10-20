@@ -12,6 +12,9 @@ final class SearchQuery
 {
     public const PER_PAGE = 12;
 
+    /** Meilisearch reads the first ten words of a query; the database search does the same, so its work stays bounded. */
+    public const MAX_TERMS = 10;
+
     /** How many videos, writers, guests and tags come with the first page of items. */
     public const GROUP_LIMIT = 5;
 
@@ -32,7 +35,7 @@ final class SearchQuery
     ) {
         $form = SearchForm::of($text);
         $this->form = $form->text;
-        $this->terms = $form->words();
+        $this->terms = array_slice($form->words(), 0, self::MAX_TERMS);
     }
 
     public function filtered(): bool
