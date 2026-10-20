@@ -9,6 +9,7 @@ use App\Models\MediaAsset;
 use App\Models\Post;
 use App\Models\Video;
 use App\Video\VideoView;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -252,7 +253,7 @@ final class Presenter
     }
 
     /** Published cards of one character. */
-    public function characterCards(int $characterId): \Illuminate\Database\Eloquent\Builder
+    public function characterCards(int $characterId): Builder
     {
         return Post::query()->live()->where('kind_code', 'awareness')->whereIn('id', DB::table('awareness_cards')
             ->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')->where('character_poses.character_id', $characterId)->select('awareness_cards.post_id'));

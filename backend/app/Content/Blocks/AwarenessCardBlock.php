@@ -2,6 +2,8 @@
 
 namespace App\Content\Blocks;
 
+use App\Media\MediaHtml;
+use App\Models\MediaAsset;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Support\Icons\Heroicon;
@@ -55,7 +57,19 @@ final class AwarenessCardBlock extends ContentBlock
     public static function render(array $config): string
     {
         $card = PostCardQuery::published([(int) ($config['post_id'] ?? 0)])->first();
+        if ($card === null) {
+            return '';
+        }
 
-        return $card === null ? '' : '<aside class="rq-awareness" data-post-id="'.(int) $card->id.'"><strong>'.e($card->title).'</strong>'.($card->excerpt ? '<p>'.e($card->excerpt).'</p>' : '').'</aside>';
+        // The character speaks: its picture in the chosen pose, its name in its colour, then the information (7.11).
+        $who = DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
+            ->join('characters', 'characters.id', '=', 'character_poses.character_id')->where('awareness_cards.post_id', $card->id)->where('characters.is_active', true)
+            ->first(['characters.name_ar', 'characters.slug', 'characters.accent_color', 'character_poses.static_media_id']);
+        $picture = $who && ($asset = MediaAsset::query()->publicImages()->find($who->static_media_id)) ? app(MediaHtml::class)->picture($asset, '120px') : '';
+        $style = $who ? ' style="--rq-accent:'.e($who->accent_color).'" data-character="'.e($who->slug).'"' : '';
+
+        return '<aside class="rq-awareness" data-post-id="'.(int) $card->id.'"'.$style.'>'
+            .($picture !== '' ? '<div class="rq-awareness-character">'.$picture.'<span>'.e($who->name_ar).'</span></div>' : '')
+            .'<div class="rq-awareness-bubble"><strong>'.e($card->title).'</strong>'.($card->excerpt ? '<p>'.e($card->excerpt).'</p>' : '').'</div></aside>';
     }
 }

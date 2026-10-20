@@ -2,6 +2,7 @@
 
 namespace App\Content\Subtypes;
 
+use App\Content\PostRuleViolation;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
@@ -83,7 +84,7 @@ final class AwarenessSubtype extends Subtype
         $active = DB::table('character_poses')->join('characters', 'characters.id', '=', 'character_poses.character_id')
             ->where('character_poses.id', $values['character_pose_id'])->value('characters.is_active');
         if (! $active) {
-            throw new \App\Content\PostRuleViolation('هذه الشخصية مخفية، اختر شخصية ظاهرة.', 'awareness.character_pose_id');
+            throw new PostRuleViolation('هذه الشخصية مخفية، اختر شخصية ظاهرة.', 'awareness.character_pose_id');
         }
     }
 }
