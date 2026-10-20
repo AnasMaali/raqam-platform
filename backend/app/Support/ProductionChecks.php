@@ -50,6 +50,10 @@ final class ProductionChecks
             $failures[] = 'ADMIN_IDLE_SECONDS and ADMIN_WARN_SECONDS are for browser tests only and must not be set.';
         }
 
+        if (filled(config('raqam.youtube.api_base')) || filled(config('raqam.youtube.image_base'))) {
+            $failures[] = 'YOUTUBE_API_BASE and YOUTUBE_IMAGE_BASE are for browser tests only and must not be set.';
+        }
+
         foreach ([
             'APP_KEY' => 'app.key',
             'ADMIN_CODE_KEY' => 'raqam.auth.code_key',

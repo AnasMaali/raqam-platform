@@ -27,7 +27,7 @@ class YouTubeThumbnail
         }
 
         foreach (['maxresdefault', 'hqdefault'] as $name) {
-            $bytes = $this->download("https://i.ytimg.com/vi/{$youtubeId}/{$name}.jpg");
+            $bytes = $this->download(rtrim((string) (config('raqam.youtube.image_base') ?: 'https://i.ytimg.com/vi'), '/')."/{$youtubeId}/{$name}.jpg");
             if ($bytes === null) {
                 continue;
             }

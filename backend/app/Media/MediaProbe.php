@@ -21,13 +21,14 @@ class MediaProbe
     /**
      * The command line. The file is untrusted: only plain files may be opened (`-protocol_whitelist file`, so
      * a crafted playlist cannot make ffprobe read other files by URL or reach the network) and the format is
-     * fixed to MP4, so the file is never interpreted as a playlist, a concat script or anything else.
+     * fixed to MP4, so the file is never interpreted as a playlist, a concat script or anything else, and
+     * references inside the MP4 to other files (`dref`) are not followed.
      *
      * @return list<string>
      */
     public function arguments(string $path): array
     {
-        return [$this->binary(), '-v', 'error', '-protocol_whitelist', 'file', '-f', 'mov', '-print_format', 'json', '-show_format', '-show_streams', '-i', $path];
+        return [$this->binary(), '-v', 'error', '-protocol_whitelist', 'file', '-f', 'mov', '-enable_drefs', '0', '-print_format', 'json', '-show_format', '-show_streams', '-i', $path];
     }
 
     public function available(): bool

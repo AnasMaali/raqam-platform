@@ -21,7 +21,7 @@ class Mp4Cleaner
     public function arguments(string $in, string $out): array
     {
         return [
-            $this->binary(), '-nostdin', '-v', 'error', '-protocol_whitelist', 'file', '-f', 'mov', '-i', $in,
+            $this->binary(), '-nostdin', '-v', 'error', '-protocol_whitelist', 'file', '-f', 'mov', '-enable_drefs', '0', '-i', $in,
             '-map', '0:v:0', '-map', '0:a?', '-map_metadata', '-1', '-map_chapters', '-1', '-c', 'copy',
             '-fflags', '+bitexact', '-flags:v', '+bitexact', '-flags:a', '+bitexact', '-movflags', '+faststart', '-f', 'mp4', '-y', $out,
         ];

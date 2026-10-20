@@ -60,6 +60,9 @@ return [
         'key' => env('YOUTUBE_API_KEY'),
         'quota_budget' => 9000,
         'quota_warn' => 7000,
+        // Browser tests only: stand-in servers for the API and the pictures. Production refuses to start with them set.
+        'api_base' => env('YOUTUBE_API_BASE'),
+        'image_base' => env('YOUTUBE_IMAGE_BASE'),
         // Copy each video's picture into the media library when it is added (decision 8.6).
         'fetch_thumbnails' => (bool) env('YOUTUBE_FETCH_THUMBNAILS', true),
     ],

@@ -71,7 +71,7 @@ class CharacterResource extends Resource
                 TextInput::make('slug')->label('الرابط')->maxLength(200)->helperText('يُنشأ من الاسم تلقائياً ويمكن تعديله.'),
                 TextInput::make('role_ar')->label('الدور')->required()->maxLength(200)->columnSpanFull()
                     ->helperText('جملة قصيرة تصف ما تفعله الشخصية، مثل: ينبّه إلى خطر أو خطأ شائع.'),
-                ColorPicker::make('accent_color')->label('اللون')->required()->live()
+                ColorPicker::make('accent_color')->label('اللون')->required()->live(debounce: 500)
                     ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail) {
                         if (! ContrastCheck::isHex($value)) {
                             $fail('اللون غير صحيح.');
@@ -83,7 +83,7 @@ class CharacterResource extends Resource
                         ? 'التباين مع خلفية الصفحة: '.number_format(ContrastCheck::ratio($get('accent_color'), ContrastCheck::background()), 2).' (المطلوب '.ContrastCheck::MINIMUM.' على الأقل).'
                         : 'يُستعمل لاسم الشخصية وإطار فقاعة الكلام.'),
                 RiveSelect::make('rive_media_id')->label('ملف الحركة (Rive)'),
-                Textarea::make('description')->label('وصف')->rows(3)->columnSpanFull(),
+                Textarea::make('description')->label('وصف')->rows(3)->maxLength(2000)->columnSpanFull(),
                 TextInput::make('sort_order')->label('الترتيب')->numeric()->integer()->default(0),
                 Toggle::make('is_active')->label('ظاهرة في الموقع')->default(true),
             ]),

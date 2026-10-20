@@ -62,7 +62,7 @@ class PlaylistResource extends Resource
                     ->options(fn (?Playlist $record) => DB::table('podcast_seasons')->where(fn ($q) => $q->whereNull('playlist_id')->when($record, fn ($q) => $q->orWhere('playlist_id', $record->id)))
                         ->orderBy('season_number')->get()->mapWithKeys(fn ($s) => [$s->id => 'الموسم '.$s->season_number.($s->title_ar ? ' — '.$s->title_ar : '')])->all())
                     ->helperText('كل موسم بودكاست قائمة تشغيل واحدة.'),
-                Textarea::make('description')->label('الوصف')->rows(3)->columnSpanFull(),
+                Textarea::make('description')->label('الوصف')->rows(3)->maxLength(2000)->columnSpanFull(),
                 MediaSelect::make('cover_media_id')->label('الغلاف'),
                 TextInput::make('sort_order')->label('الترتيب')->numeric()->integer()->default(0),
                 Toggle::make('is_visible')->label('ظاهرة في الموقع')->default(true),

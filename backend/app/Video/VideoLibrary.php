@@ -16,6 +16,8 @@ class VideoLibrary
 {
     public const MAX_CHAPTERS = 100;
 
+    public const DESCRIPTION_MAX = 5000;
+
     public function __construct(private YouTubeClient $youtube, private MediaUploader $uploader, private YouTubeThumbnail $thumbnails) {}
 
     /**
@@ -181,6 +183,9 @@ class VideoLibrary
         $title = $this->text($title);
         if ($video->source === 'upload' && $title === null) {
             throw new VideoRejected('عنوان المقطع إجباري.', 'display_title');
+        }
+        if (mb_strlen((string) $description) > self::DESCRIPTION_MAX) {
+            throw new VideoRejected('الوصف أطول من المسموح ('.self::DESCRIPTION_MAX.' حرف).', 'display_description');
         }
         $this->assertPoster($posterMediaId);
 
