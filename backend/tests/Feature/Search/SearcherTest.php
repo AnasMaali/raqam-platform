@@ -83,6 +83,11 @@ test('filters: a main category takes its subcategories, and section, kind and pe
         ->and(ids(search('الذهب', ['to' => CarbonImmutable::parse('2026-09-30 23:59:59')])))->toBe([$p['gold']]);
 })->with('engines');
 
+test('an unknown category or section (0, a key that does not exist) matches nothing, it is not "no filter"', function (string $engine) {
+    expect(ids(search('الذهب', ['categoryId' => 0])))->toBe([])
+        ->and(ids(search('الذهب', ['sectionKey' => 'none'])))->toBe([]);
+})->with('engines');
+
 test('sorted by date, newest first, on request', function (string $engine) {
     expect(ids(search('الذهب', ['sort' => 'latest'])))->toBe([$this->posts['episode'], $this->posts['gold']]);
 })->with('engines');

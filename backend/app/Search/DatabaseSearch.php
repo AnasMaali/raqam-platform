@@ -83,10 +83,11 @@ final class DatabaseSearch
     private function filter(Builder $posts, SearchQuery $query): void
     {
         $posts
-            ->when($query->categoryId, fn ($b, $id) => $b->whereIn('category_id', DB::table('categories')->where('id', $id)->orWhere('parent_id', $id)->select('id')))
-            ->when($query->sectionKey, fn ($b, $key) => $b->whereIn('kind_code', DB::table('post_kinds')->join('sections', 'sections.id', '=', 'post_kinds.section_id')->where('sections.key', $key)->select('code')))
-            ->when($query->kind, fn ($b, $kind) => $b->where('kind_code', $kind))
-            ->when($query->from, fn ($b, $from) => $b->where('published_at', '>=', $from))
-            ->when($query->to, fn ($b, $to) => $b->where('published_at', '<=', $to));
+            // Compared with null, not by truth: an unknown category arrives as 0 and must match nothing.
+            ->when($query->categoryId !== null, fn ($b) => $b->whereIn('category_id', DB::table('categories')->where('id', $query->categoryId)->orWhere('parent_id', $query->categoryId)->select('id')))
+            ->when($query->sectionKey !== null, fn ($b) => $b->whereIn('kind_code', DB::table('post_kinds')->join('sections', 'sections.id', '=', 'post_kinds.section_id')->where('sections.key', $query->sectionKey)->select('code')))
+            ->when($query->kind !== null, fn ($b) => $b->where('kind_code', $query->kind))
+            ->when($query->from !== null, fn ($b) => $b->where('published_at', '>=', $query->from))
+            ->when($query->to !== null, fn ($b) => $b->where('published_at', '<=', $query->to));
     }
 }
