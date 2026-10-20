@@ -124,8 +124,12 @@ test.describe('video library', () => {
         const to = (await items.nth(0).boundingBox())!;
         await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
         await page.mouse.down();
-        await page.mouse.move(from.x + from.width / 2, (from.y + to.y) / 2, { steps: 10 });
-        await page.mouse.move(from.x + from.width / 2, to.y + 4, { steps: 10 });
+        // Past the top edge of the first item, in small steps, so the list has time to open a place there.
+        await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 5 });
+        await page.mouse.move(from.x + from.width / 2, (from.y + to.y) / 2, { steps: 20 });
+        await page.mouse.move(from.x + from.width / 2, to.y - 12, { steps: 20 });
+        await page.mouse.move(from.x + from.width / 2, to.y - 8, { steps: 5 });
+        await page.waitForTimeout(300);
         await page.mouse.up();
         void handles;
         await save(page);
