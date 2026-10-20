@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Jobs\SendSiteWebhook;
+use App\Panel\PanelAlerts;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
@@ -54,12 +55,18 @@ class Dashboard extends BaseDashboard
 
     public function content(Schema $schema): Schema
     {
+        $alerts = [];
+        foreach (PanelAlerts::all() as $alert) {
+            $alerts[] = Section::make('تنبيه')->icon('heroicon-o-exclamation-triangle')->iconColor('warning')->schema([Text::make($alert)]);
+        }
+
         $cards = [];
         foreach (self::CARDS as $title => $note) {
             $cards[] = Section::make($title)->schema([Text::make($note)->color('gray')]);
         }
 
         return $schema->components([
+            ...$alerts,
             Grid::make(['default' => 1, 'md' => 2, 'xl' => 3])->schema($cards),
         ]);
     }

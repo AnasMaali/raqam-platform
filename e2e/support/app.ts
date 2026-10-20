@@ -84,6 +84,7 @@ function laravelEnv(db: string, prefix: string, storage: string, port: number, e
         QUEUE_CONNECTION: 'sync',
         MAIL_MAILER: 'log',
         LOG_CHANNEL: 'single',
+        LOG_FILE: 'e2e.log',
         LOG_LEVEL: 'debug',
         MEDIA_DISK: 'local',
         // Nothing here may reach the outside world or a developer's real settings from backend/.env.
@@ -204,7 +205,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         await new Promise((r) => setTimeout(r, 100));
     }
 
-    const logFile = join(storage, 'logs/laravel.log');
+    const logFile = join(storage, 'logs/e2e.log');
     const log = () => (existsSync(logFile) ? readFileSync(logFile, 'utf8') : '');
 
     return {
