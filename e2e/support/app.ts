@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -41,6 +41,8 @@ export type App = {
     dump(): string;
     /** The text of the application log (every e-mail is written here: MAIL_MAILER=log). */
     log(): string;
+    /** What the PHP server itself wrote to stderr (a fatal error that never reached the application log). */
+    serverLog(): string;
     /** The newest six-digit sign-in code in the mail log (the mail is sent after the response, so this waits for it). */
     lastCode(after?: number): Promise<string>;
     /** How many sign-in code mails have been written so far. */
@@ -192,11 +194,14 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     psql('postgres', `CREATE DATABASE ${db} TEMPLATE ${TEMPLATE_DB}`);
     const docroot = newDocroot(storage);
 
+    const serverLogFile = join(storage, 'logs/php-server.log');
+    const serverErr = openSync(serverLogFile, 'a');
     const server: ChildProcess = spawn(
         'php',
         ['-d', 'variables_order=EGPCS', '-d', 'memory_limit=512M', '-d', 'upload_max_filesize=40M', '-d', 'post_max_size=48M', '-S', `127.0.0.1:${port}`, resolve(BACKEND, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')],
-        { cwd: docroot, env, stdio: 'ignore', detached: true },
+        { cwd: docroot, env, stdio: ['ignore', 'ignore', serverErr], detached: true },
     );
+    closeSync(serverErr);
 
     const url = `http://127.0.0.1:${port}`;
     for (let attempt = 0; ; attempt++) {
@@ -219,6 +224,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         artisan: (args) => php(['artisan', ...args], env),
         sql: (statement) => psql(db, statement),
         log,
+        serverLog: () => (existsSync(serverLogFile) ? readFileSync(serverLogFile, 'utf8') : ''),
         redisKeys() {
             const keys: string[] = [];
             for (const db of Object.values(REDIS)) {

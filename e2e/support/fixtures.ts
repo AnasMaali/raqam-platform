@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
 import { ADMIN_EMAIL, ADMIN_PATH, startApp, type App, type AppOptions } from './app';
 import { startFakeYoutube, type FakeYoutube } from './youtube';
@@ -34,9 +35,12 @@ export const test = base.extend<Fixtures>({
             await use(app);
         } finally {
             // A failed test says what the server logged, so a 500 is explained in the report and not lost with the storage directory.
+            // The whole application log and the PHP server's own output are kept with the test's results.
             if (testInfo.status !== testInfo.expectedStatus) {
                 const errors = app.log().split('\n').filter((line) => /\.(ERROR|CRITICAL|EMERGENCY)/.test(line)).slice(0, 5);
                 if (errors.length) console.log(`Server errors of "${testInfo.title}":\n${errors.join('\n')}`);
+                await testInfo.attach('e2e.log', { path: keep(testInfo.outputPath('e2e.log'), app.log()), contentType: 'text/plain' });
+                await testInfo.attach('php-server.log', { path: keep(testInfo.outputPath('php-server.log'), app.serverLog()), contentType: 'text/plain' });
             }
             await app.stop();
         }
@@ -46,6 +50,11 @@ export const test = base.extend<Fixtures>({
 });
 
 export { expect };
+
+function keep(path: string, text: string): string {
+    writeFileSync(path, text);
+    return path;
+}
 
 export const panel = (path = '') => `/${ADMIN_PATH}${path}`;
 
