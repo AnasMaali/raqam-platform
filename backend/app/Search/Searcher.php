@@ -11,7 +11,7 @@ use InvalidArgumentException;
  * A failure marks the engine down for a short while, so the next visitors go straight to the fallback instead
  * of each waiting for the timeout; the first search after that tries the engine again.
  */
-final class Searcher
+class Searcher
 {
     private const DOWN_KEY = 'search:engine-down';
 

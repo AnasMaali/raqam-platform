@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Posts;
 use App\Content\PostRuleViolation;
 use App\Content\PostSaver;
 use App\Filament\Concerns\HasNumericRecordKey;
+use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Resources\Posts\Pages\CreatePost;
 use App\Filament\Resources\Posts\Pages\EditPost;
 use App\Filament\Resources\Posts\Pages\ListPosts;
@@ -31,12 +32,13 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 /** All content (decision 3): the 11 kinds in one list, one editor. */
 class PostResource extends Resource
 {
-    use HasNumericRecordKey;
+    use HasNumericRecordKey, NormalizedGlobalSearch;
 
     protected static ?string $model = Post::class;
 
@@ -141,6 +143,16 @@ class PostResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
+    }
+
+    protected static function globalSearchText(): string
+    {
+        return 'posts.search_text';
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return ['الحالة' => Post::STATUSES[$record->status] ?? $record->status];
     }
 
     public static function getPages(): array

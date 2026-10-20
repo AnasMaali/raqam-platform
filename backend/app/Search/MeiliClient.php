@@ -106,11 +106,15 @@ final class MeiliClient
 
     public function deleteIndex(string $uid): void
     {
-        $response = $this->http()->delete("/indexes/{$uid}");
-        if ($response->status() === 404) {
-            return;
+        $task = (int) $this->call(fn () => $this->http()->delete("/indexes/{$uid}"))->json('taskUid');
+        try {
+            $this->wait($task);
+        } catch (SearchUnavailable $e) {
+            // Deleting an index that is not there is done already.
+            if (! str_contains($e->getMessage(), 'index_not_found')) {
+                throw $e;
+            }
         }
-        $this->wait((int) $this->check($response)->json('taskUid'));
     }
 
     /** @param  array<string, mixed>  $settings */

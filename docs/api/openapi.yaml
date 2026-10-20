@@ -11,6 +11,12 @@ info:
     * Every response has an `ETag`; send it back in `If-None-Match` to get `304 Not Modified`. Responses are
       cacheable by a shared cache for a short time (`Cache-Control`).
     * Requests are limited per client (`429` with `Retry-After`).
+    * **The site token never reaches a browser.** The website's own server sends `X-Raqam-Site-Token` (from its
+      environment) and gets a higher limit. A browser never calls this API directly and CORS stays off: instant
+      search goes from the browser to a route of the website on the same domain, and that route calls `/search`
+      with the token and the visitor's address in `X-Raqam-Visitor-Ip`. The address is believed only together
+      with a valid token, is used for the visitor's own limit, and is never stored: limit counters are keyed by
+      an HMAC of it.
     * Errors always look like `{"error": {"code": "...", "message": "..."}}`. Messages are in Arabic.
     * Times are ISO 8601 in UTC; show them in Asia/Hebron.
     * A post's public address is `path`: `/{prefix}/{id}/{slug}`. The id identifies the post. A request with
@@ -35,6 +41,7 @@ tags:
   - name: Awareness
   - name: Pages
   - name: Redirects
+  - name: Search
 
 paths:
   /posts:
@@ -619,6 +626,89 @@ paths:
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /search:
+    get:
+      tags: [Search]
+      summary: Search the published content (instant, filtered, highlighted)
+      description: |
+        Searches items of every kind, and on an unfiltered first page also videos, writers, guests and tags
+        (decision 10). Arabic is understood as the site writes it: hamza forms, ta marbuta, alef maqsura,
+        diacritics, Arabic digits and the definite article («ال», «وال», «بال», «فال», «كال», «لل») do not stop a
+        match; small typos are tolerated; the admin's synonyms are used. Only what a visitor may see is
+        returned (published and live, not trashed, not the card of a hidden character), each row checked again
+        against the database.
+
+        * **Instant search:** call this while the visitor types, 250 ms after the last key. Send `track=1` only
+          when the visitor settles on the query (Enter, or opening the results page), so statistics count
+          searches, not keystrokes. A query that looks like an e-mail address, a phone number or a number of six
+          digits or more is never recorded.
+        * `highlight` holds the title (and summary) as **HTML**: the original text escaped, with the matched
+          words in `<mark>`. Insert it as HTML; it contains no other tag.
+        * When nothing is found: `suggestions` (close words to offer as links), `latest` and `most_read`.
+        * `engine` is `meilisearch`, or `database` when the search engine is down and a simpler search on the
+          database answered (title, subtitle and summary only, no typo tolerance).
+        * The answer is never cached (`Cache-Control: no-store`) and carries `X-Robots-Tag: noindex`: the
+          search page must be `noindex` too (10.12).
+        * Limited to **60 requests a minute per visitor** (10.13). Call it from the site's server with
+          `X-Raqam-Site-Token` and `X-Raqam-Visitor-Ip` (see the API description); without the token the limit
+          counts the caller's own address.
+      operationId: search
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: What the visitor typed (trimmed by the server).
+          schema: { type: string, minLength: 2, maxLength: 120 }
+        - name: category
+          in: query
+          description: Slug of a category. A main category includes its sub-categories. An unknown slug finds nothing.
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: section
+          in: query
+          description: Slug of a special section (e.g. `podcast`).
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: kind
+          in: query
+          schema: { $ref: '#/components/schemas/KindCode' }
+        - name: from
+          in: query
+          description: Published on or after this day (Asia/Hebron).
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Published on or before this day (Asia/Hebron). Not before `from`.
+          schema: { type: string, format: date }
+        - name: sort
+          in: query
+          description: Most relevant first (default) or newest first.
+          schema: { type: string, enum: [relevance, latest], default: relevance }
+        - name: track
+          in: query
+          description: '`1` when the visitor settled on this query: it is counted in the search statistics.'
+          schema: { type: string, enum: ['1'] }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 1 }
+        - name: X-Raqam-Site-Token
+          in: header
+          description: The website's server only. Never sent from a browser.
+          schema: { type: string }
+        - name: X-Raqam-Visitor-Ip
+          in: header
+          description: The visitor's address as the website's server saw it. Ignored without a valid site token.
+          schema: { type: string }
+      responses:
+        '200':
+          description: The results.
+          headers:
+            X-Robots-Tag: { schema: { const: 'noindex, nofollow' } }
+            Cache-Control: { schema: { type: string, example: 'no-store, private' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SearchResponse' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
 components:
   parameters:
     Page:
@@ -683,6 +773,90 @@ components:
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
   schemas:
+    SearchResponse:
+      type: object
+      required: [data, meta, links]
+      properties:
+        data:
+          type: object
+          required: [query, engine, posts, videos, authors, guests, tags]
+          properties:
+            query: { type: string }
+            engine: { type: string, enum: [meilisearch, database] }
+            posts:
+              type: array
+              maxItems: 12
+              items: { $ref: '#/components/schemas/SearchPost' }
+            videos:
+              description: Up to 5, on an unfiltered first page only.
+              type: array
+              maxItems: 5
+              items: { $ref: '#/components/schemas/SearchVideo' }
+            authors: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/SearchPerson' } }
+            guests: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/SearchPerson' } }
+            tags: { type: array, maxItems: 5, items: { $ref: '#/components/schemas/SearchPerson' } }
+            suggestions:
+              description: Only when nothing was found. Close words that do lead to results.
+              type: array
+              maxItems: 5
+              items: { type: string }
+            latest:
+              description: Only when nothing was found.
+              type: array
+              items: { $ref: '#/components/schemas/PostSummary' }
+            most_read:
+              description: Only when nothing was found. Most read in the last seven days.
+              type: array
+              items: { $ref: '#/components/schemas/PostSummary' }
+        meta:
+          allOf: [{ $ref: '#/components/schemas/PageMeta' }]
+          properties:
+            last_page: { type: integer, minimum: 1, maximum: 50 }
+        links: { $ref: '#/components/schemas/PageLinks' }
+    Highlight:
+      type: string
+      description: The original text, HTML-escaped, with the matched words wrapped in `<mark>`. No other tag.
+      example: ارتفاع أسعار <mark>الذهب</mark>
+    SearchPost:
+      allOf: [{ $ref: '#/components/schemas/PostSummary' }]
+      type: object
+      required: [highlight]
+      properties:
+        highlight:
+          type: object
+          required: [title, excerpt]
+          properties:
+            title: { $ref: '#/components/schemas/Highlight' }
+            excerpt: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Highlight' }] }
+    SearchVideo:
+      type: object
+      required: [id, source, path, title, duration_seconds, thumbnail_url, highlight]
+      properties:
+        id: { type: integer }
+        source: { type: string, enum: [youtube, upload] }
+        path: { type: string, example: /video/12 }
+        title: { type: string }
+        duration_seconds: { type: [integer, 'null'] }
+        thumbnail_url: { type: [string, 'null'] }
+        highlight:
+          type: object
+          required: [title]
+          properties:
+            title: { $ref: '#/components/schemas/Highlight' }
+    SearchPerson:
+      description: A writer, a guest or a tag.
+      type: object
+      required: [id, name, slug, path, highlight]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        path: { type: string, example: /author/samer }
+        highlight:
+          type: object
+          required: [name]
+          properties:
+            name: { $ref: '#/components/schemas/Highlight' }
     Slug:
       type: string
       minLength: 1

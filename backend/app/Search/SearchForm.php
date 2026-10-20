@@ -32,6 +32,9 @@ final class SearchForm
         $original = mb_str_split((string) $original);
         [$characters, $origin] = self::normalise($original);
         [$characters, $origin] = self::stripArticles($characters, $origin);
+        if (config('raqam.search.feminine_plural')) {
+            [$characters, $origin] = self::foldFemininePlural($characters, $origin);
+        }
 
         return new self(implode('', $characters), $characters, $origin, $original);
     }
@@ -139,6 +142,37 @@ final class SearchForm
         }
 
         return [$characters, $origin];
+    }
+
+    /**
+     * Experiment (phase 5, off unless SEARCH_FEMININE_PLURAL is set): the sound feminine plural becomes its
+     * singular, «شركات» → «شركه», which is how «شركة» is already normalised. Only when three letters stay before
+     * «ات». The «ا» becomes the «ه» (so it still points at the original «ا») and the «ت» goes.
+     *
+     * @param  list<string>  $characters
+     * @param  list<int>  $origin
+     * @return array{0: list<string>, 1: list<int>}
+     */
+    private static function foldFemininePlural(array $characters, array $origin): array
+    {
+        $isLetter = fn (int $i) => isset($characters[$i]) && preg_match('/^[\p{L}\p{N}]$/u', $characters[$i]) === 1;
+        $drop = [];
+        for ($i = 0, $n = count($characters); $i < $n; $i++) {
+            if (! $isLetter($i)) {
+                continue;
+            }
+            $start = $i;
+            while ($isLetter($i + 1)) {
+                $i++;
+            }
+            if ($i - $start + 1 - 2 >= self::MIN_STEM && $characters[$i - 1] === 'ا' && $characters[$i] === 'ت') {
+                $characters[$i - 1] = 'ه';
+                $drop[$i] = true;
+            }
+        }
+        $kept = array_values(array_filter(array_keys($characters), fn (int $k) => ! isset($drop[$k])));
+
+        return [array_map(fn ($k) => $characters[$k], $kept), array_map(fn ($k) => $origin[$k], $kept)];
     }
 
     /**

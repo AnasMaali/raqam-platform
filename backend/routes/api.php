@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\PageApiController;
 use App\Http\Controllers\Api\PeopleApiController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\RedirectLookupController;
+use App\Http\Controllers\Api\SearchApiController;
 use App\Http\Controllers\Api\TaxonomyApiController;
 use App\Http\Controllers\Api\VideoApiController;
 use App\Http\Middleware\ApiResponseCache;
@@ -45,3 +46,6 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
 
     Route::get('/redirects/lookup', RedirectLookupController::class);
 });
+
+// Search (decision 10): its own limit, and no response cache (results are personal to a query and never cached).
+Route::middleware('throttle:api-search')->get('/search', [SearchApiController::class, 'index']);

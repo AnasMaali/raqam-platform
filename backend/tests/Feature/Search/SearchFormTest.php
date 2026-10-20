@@ -90,3 +90,29 @@ test('match positions outside the text are ignored instead of breaking the highl
     expect(Highlighter::mark('خبر', [['start' => 500, 'length' => 6]]))->toBe('خبر')
         ->and(Highlighter::mark(null, [['start' => 0, 'length' => 2]]))->toBe('');
 });
+
+// ---- experiment: the sound feminine plural (off by default) ------------------------------------------
+
+test('the feminine plural is not folded unless the experiment is switched on', function () {
+    expect(config('raqam.search.feminine_plural'))->toBeFalse()
+        ->and(SearchForm::text('الشركات'))->toBe('شركات');
+});
+
+test('switched on, «ات» after three letters becomes «ه», the singular\'s form, and the highlight still marks the word', function (string $word, string $form) {
+    config(['raqam.search.feminine_plural' => true]);
+
+    expect(SearchForm::text($word))->toBe($form);
+})->with([
+    ['الشركات', 'شركه'],
+    ['شركة', 'شركه'],
+    ['للجامعات', 'جامعه'],
+    ['نبات', 'نبات'],        // two letters before «ات»: left alone
+    ['ذات', 'ذات'],
+]);
+
+test('switched on, the plural is marked whole in the original text', function () {
+    config(['raqam.search.feminine_plural' => true]);
+    $text = 'الشركاتُ الكبرى';
+
+    expect(Highlighter::mark($text, SearchForm::of($text)->matchesOf(['شركه'])))->toBe('<mark>الشركاتُ</mark> الكبرى');
+});
