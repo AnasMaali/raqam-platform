@@ -5,7 +5,7 @@ namespace App\Console;
 use App\Markets\RateFetcher;
 use Illuminate\Console\Command;
 
-/** Fetches the official rates once (scheduled every 30 minutes, 12:00–16:00 Palestine time, on the bank's business days). */
+/** Fetches the official rates once (scheduled every 30 minutes, 12:00–17:30 Palestine time, on the bank's business days). */
 class CurrencyFetchCommand extends Command
 {
     protected $signature = 'currency:fetch';
