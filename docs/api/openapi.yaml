@@ -34,6 +34,9 @@ info:
       spread, the list) the site gets `{"type": "currencies", "change": "rates_published" | "manual_rate" | "board" |
       "source", "paths": ["/currencies"]}`. A manual rate that simply runs out sends nothing: the board answers are
       cached only until that moment, so refresh `/currencies` at least every few minutes.
+    * **Weather** sends no webhook (every city changes every hour): refresh weather pages every 10 minutes. Every
+      weather answer carries `meta.attribution` ("Weather data © OpenWeather"), which must be visible wherever
+      the weather is shown (the free plan's condition).
   license:
     name: Proprietary
 servers:
@@ -48,6 +51,7 @@ tags:
   - name: Redirects
   - name: Search
   - name: Markets
+  - name: Weather
 
 paths:
   /posts:
@@ -869,6 +873,107 @@ paths:
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /weather/cities:
+    get:
+      tags: [Weather]
+      summary: The weather cities, in the admin's order
+      description: |
+        With their coordinates, so the **browser** can pick the nearest city itself (12.5): ask the visitor for
+        their position with the browser's geolocation (only after they press a button), compute the distance to
+        each city there (haversine), and remember the choice in the browser. The visitor's position never leaves
+        the browser: no endpoint takes coordinates, and none must be added. `is_default` (Nablus) is the city
+        shown before any choice.
+      operationId: weatherCities
+      responses:
+        '200':
+          description: The cities.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/WeatherCity' } }
+                  meta: { $ref: '#/components/schemas/WeatherMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /weather/widget:
+    get:
+      tags: [Weather]
+      summary: Every city with its weather now, small enough for the header widget (12.9)
+      operationId: weatherWidget
+      responses:
+        '200':
+          description: The cities, each with `now` (null until its first fetch).
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - { $ref: '#/components/schemas/WeatherCity' }
+                        - type: object
+                          required: [now]
+                          properties:
+                            now:
+                              oneOf:
+                                - { $ref: '#/components/schemas/WeatherNowShort' }
+                                - { type: 'null' }
+                  meta: { $ref: '#/components/schemas/WeatherMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /weather/{slug}:
+    get:
+      tags: [Weather]
+      summary: One city's weather page ("طقس نابلس اليوم", indexable, 12.11)
+      description: |
+        The weather now (temperature, condition text and icon for day or night, today's low and high, humidity,
+        wind) and five days of forecast, today first (the free forecast covers the next 120 hours). Celsius and km/h. `now.stale` is true when the last observation is more than
+        three hours old (the source has not answered): say when it was measured. A hidden or unknown city is a 404.
+      operationId: weatherCity
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: The city's address (Arabic, URL-encoded).
+          schema: { type: string, maxLength: 120 }
+      responses:
+        '200':
+          description: The city's weather.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    allOf:
+                      - { $ref: '#/components/schemas/WeatherCity' }
+                      - type: object
+                        required: [now, forecast]
+                        properties:
+                          now:
+                            oneOf:
+                              - { $ref: '#/components/schemas/WeatherNow' }
+                              - { type: 'null' }
+                          forecast:
+                            type: array
+                            maxItems: 5
+                            items: { $ref: '#/components/schemas/WeatherDay' }
+                  meta: { $ref: '#/components/schemas/WeatherMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
 components:
   parameters:
     Page:
@@ -1527,3 +1632,62 @@ components:
       properties:
         rate: { enum: [buy, sell] }
         text: { type: string }
+    WeatherCity:
+      type: object
+      required: [slug, name, path, is_default, latitude, longitude]
+      properties:
+        slug: { type: string }
+        name: { type: string }
+        path: { type: string, description: 'The page on the site: /weather/{slug}.' }
+        is_default: { type: boolean }
+        latitude: { type: number, minimum: -90, maximum: 90 }
+        longitude: { type: number, minimum: -180, maximum: 180 }
+    WeatherCondition:
+      type: object
+      required: [code, text, icon]
+      properties:
+        code: { type: integer, description: "The source's condition code." }
+        text: { type: string, description: 'Arabic description.' }
+        icon: { type: string, pattern: '^[a-z-]+-(day|night)$', description: "Raqam's icon: its key, then -day or -night." }
+    WeatherNowShort:
+      type: object
+      required: [temperature, condition, is_day, observed_at, stale]
+      properties:
+        temperature: { type: number }
+        condition: { $ref: '#/components/schemas/WeatherCondition' }
+        is_day: { type: boolean }
+        observed_at: { type: string, format: date-time }
+        stale: { type: boolean }
+    WeatherNow:
+      allOf:
+        - { $ref: '#/components/schemas/WeatherNowShort' }
+        - type: object
+          required: [feels_like, today, humidity, wind_kmh, wind_deg]
+          properties:
+            feels_like: { type: [number, 'null'] }
+            today:
+              oneOf:
+                - { type: object, required: [min, max], properties: { min: { type: number }, max: { type: number } } }
+                - { type: 'null' }
+            humidity: { type: [integer, 'null'], minimum: 0, maximum: 100 }
+            wind_kmh: { type: [number, 'null'], minimum: 0 }
+            wind_deg: { type: [integer, 'null'], minimum: 0, maximum: 360 }
+    WeatherDay:
+      type: object
+      required: [date, min, max, condition]
+      properties:
+        date: { type: string, format: date }
+        min: { type: number }
+        max: { type: number }
+        condition: { $ref: '#/components/schemas/WeatherCondition' }
+    WeatherMeta:
+      type: object
+      required: [attribution, units]
+      properties:
+        attribution: { const: 'Weather data © OpenWeather' }
+        units:
+          type: object
+          required: [temperature, wind]
+          properties:
+            temperature: { const: C }
+            wind: { const: km/h }

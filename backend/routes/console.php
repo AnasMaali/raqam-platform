@@ -25,3 +25,6 @@ Schedule::command('search:reindex')->dailyAt('03:30')->withoutOverlapping();
 // The time zone comes first: between() reads it when the schedule is built, not when it runs.
 Schedule::command('currency:fetch')->timezone('Asia/Hebron')->weekdays()->everyThirtyMinutes()
     ->between(config('raqam.currency.window_from'), config('raqam.currency.window_to'))->withoutOverlapping();
+
+// Weather (decision 12.2): each visible city once an hour, spread over the minutes of the hour.
+Schedule::command('weather:fetch --due')->everyMinute()->withoutOverlapping();

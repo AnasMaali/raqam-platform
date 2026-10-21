@@ -107,6 +107,17 @@ return [
         'boi_base' => env('CURRENCY_BOI_BASE'),
     ],
 
+    /*
+    | Weather (decision 12): OpenWeatherMap's free plan, which allows commercial use with the visible credit
+    | "Weather data © OpenWeather". The key lives only in .env; empty = nothing is called and the last weather stays.
+    | It travels in the address (appid=), so an address to OpenWeather is never logged or stored.
+    */
+    'weather' => [
+        'key' => env('OPENWEATHER_API_KEY'),
+        // Browser tests only: a stand-in for https://api.openweathermap.org. Production refuses to start with it set.
+        'api_base' => env('OPENWEATHER_API_BASE'),
+    ],
+
     'site_webhook' => [
         'url' => env('SITE_WEBHOOK_URL'),
         'secret' => env('SITE_WEBHOOK_SECRET'),

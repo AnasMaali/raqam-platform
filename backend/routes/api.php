@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\RedirectLookupController;
 use App\Http\Controllers\Api\SearchApiController;
 use App\Http\Controllers\Api\TaxonomyApiController;
 use App\Http\Controllers\Api\VideoApiController;
+use App\Http\Controllers\Api\WeatherApiController;
 use App\Http\Middleware\ApiResponseCache;
 use Illuminate\Support\Facades\Route;
 
@@ -51,6 +52,10 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/currencies/ticker', [CurrencyApiController::class, 'ticker']);
     Route::get('/currencies/converter', [CurrencyApiController::class, 'converter']);
     Route::get('/currencies/{code}/history', [CurrencyApiController::class, 'history'])->where('code', '[A-Za-z]{3}');
+
+    Route::get('/weather/cities', [WeatherApiController::class, 'cities']);
+    Route::get('/weather/widget', [WeatherApiController::class, 'widget']);
+    Route::get('/weather/{slug}', [WeatherApiController::class, 'show']);
 });
 
 // Search (decision 10): its own limit, and no response cache (results are personal to a query and never cached).
