@@ -9,6 +9,7 @@ use Tests\TestCase;
 require_once __DIR__.'/Support/media.php';
 require_once __DIR__.'/Support/api.php';
 require_once __DIR__.'/Support/search.php';
+require_once __DIR__.'/Support/markets.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -263,6 +264,7 @@ function productionConfig(array $overrides = []): void
         'raqam.admin_path' => 'some-path',
         'raqam.search.key' => 'a-scoped-search-key',
         'raqam.search.prefix' => 'raqam_',
+        'raqam.currency.boi_base' => null,
         ...$overrides,
     ]);
 }
