@@ -52,6 +52,23 @@ return [
     ],
 
     /*
+    | Direct ads (decision 13). Views are counted when half an ad is on screen (the site reports them); clicks before the
+    | visitor leaves. Counting limits are per visitor (an HMAC of the address, never the address): a view or click
+    | repeated within `*_gap` seconds for the same campaign and slot is not counted again, nor beyond `*_per_hour`.
+    | AdSense is off in V1 (13.15): with a client id it is offered to the site as a filler, and nothing else changes.
+    */
+    'ads' => [
+        'impression_requests_per_minute' => 60,
+        'impressions_per_hour' => 240,
+        'impression_gap' => 10,
+        'clicks_per_hour' => 20,
+        'click_gap' => 30,
+        'max_items' => 8,
+        'ending_alert_days' => 3,
+        'adsense_client' => env('ADSENSE_CLIENT'),
+    ],
+
+    /*
     | YouTube Data API v3 (decisions 8.3, 8.14). The key lives only in .env; without it videos are added by hand.
     | The free quota is 10,000 units a day and resets at midnight Pacific time; one videos.list call costs 1 unit.
     | We stop calling at `quota_budget` and warn at `quota_warn`.

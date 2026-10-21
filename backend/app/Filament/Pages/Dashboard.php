@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Ads\AdAlerts;
 use App\Jobs\SendSiteWebhook;
 use App\Panel\ConnectionStatus;
 use App\Panel\PanelAlerts;
@@ -27,7 +28,6 @@ class Dashboard extends BaseDashboard
         'زيارات اليوم' => 'تظهر مع مرحلة الإحصائيات.',
         'الأكثر قراءة' => 'تظهر مع مرحلة الإحصائيات.',
         'رسائل جديدة' => 'تظهر مع نموذج «اتصل بنا».',
-        'حملات إعلانية فعّالة' => 'تظهر مع مرحلة الإعلانات.',
         'التنبيهات' => 'تظهر مع مرحلة التنبيهات.',
     ];
 
@@ -60,7 +60,11 @@ class Dashboard extends BaseDashboard
             $alerts[] = Section::make('تنبيه')->icon('heroicon-o-exclamation-triangle')->iconColor('warning')->schema([Text::make($alert)]);
         }
 
-        $cards = [];
+        // 21.4: the campaigns showing now, soonest to end first.
+        $running = AdAlerts::running();
+        $cards = [Section::make('حملات إعلانية فعّالة ('.count($running).')')->schema($running === []
+            ? [Text::make('لا توجد حملة تعمل الآن.')->color('gray')]
+            : array_map(fn (array $c) => Text::make($c['name'].' — '.$c['advertiser'].' — حتى '.$c['ends_at']), array_slice($running, 0, 8)))];
         foreach (self::CARDS as $title => $note) {
             $cards[] = Section::make($title)->schema([Text::make($note)->color('gray')]);
         }

@@ -53,8 +53,16 @@ test('every route of the API is in the contract and every path of the contract i
     $actual = collect(app('router')->getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with($r->uri(), 'api/v1'))->map(fn ($r) => '/'.$r->uri())->sort()->values()->all();
 
     expect($actual)->toBe($documented);
-    foreach ($spec['paths'] as $path) {
-        expect(array_keys($path))->toBe(['get']);   // read only
+    // Read only, except the counters of what visitors do (they write a count, never content).
+    $counters = ['/ads/impressions'];
+    foreach ($spec['paths'] as $template => $path) {
+        expect(array_keys($path))->toBe(in_array($template, $counters, true) ? ['post'] : ['get'], $template);
+    }
+    foreach (app('router')->getRoutes()->getRoutes() as $route) {
+        if (str_starts_with($route->uri(), 'api/v1')) {
+            $path = substr('/'.$route->uri(), 7);
+            expect($route->methods())->toBe(in_array($path, $counters, true) ? ['POST'] : ['GET', 'HEAD'], $path);
+        }
     }
 });
 
