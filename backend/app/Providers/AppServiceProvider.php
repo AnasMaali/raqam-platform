@@ -84,6 +84,7 @@ class AppServiceProvider extends ServiceProvider
         // below that, the counter itself decides what counts and the visitor always reaches the advertiser.
         RateLimiter::for('ads-impressions', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.impression_requests_per_minute'))
             ->by('ads-views|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('service-contact', fn (Request $request) => Limit::perMinute(30)->by('service-contact|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('ads-click', fn (Request $request) => Limit::perMinute(60)->by('ads-click|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
 
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what
