@@ -5,11 +5,11 @@ namespace App\Filament\Resources\Currencies;
 use App\Filament\Resources\Currencies\Pages\ManageCurrencies;
 use App\Integrations\DataProviders;
 use App\Integrations\ProviderAlerts;
+use App\Jobs\FetchCurrencyRates;
 use App\Markets\CurrencyBoard;
 use App\Markets\CurrencyCatalog;
 use App\Markets\CurrencySources;
 use App\Markets\RateBoard;
-use App\Markets\RateFetcher;
 use App\Markets\RateOverrides;
 use App\Markets\RateRejected;
 use App\Models\Currency;
@@ -27,6 +27,7 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
@@ -35,6 +36,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rules\Unique;
 
 /**
  * The currency board (decision 11): which currencies show and in what order, their buy/sell spreads, manual rates
@@ -113,7 +115,7 @@ class CurrencyResource extends Resource
                 'buy_percent' => CurrencyCatalog::percent($r->buy_spread_bp), 'sell_percent' => CurrencyCatalog::percent($r->sell_spread_bp),
                 'is_active' => $r->is_active,
             ])
-            ->schema(self::fields())
+            ->schema(fn (RateBoardCurrency $r) => self::fields($r))
             ->action(function (array $data, RateBoardCurrency $r) {
                 DB::transaction(function () use ($data, $r) {
                     $r->currency->update(['name_ar' => trim($data['name_ar']), 'symbol' => trim($data['symbol'])]);
@@ -129,7 +131,7 @@ class CurrencyResource extends Resource
     }
 
     /** @return list<Component|Field> */
-    private static function fields(): array
+    private static function fields(?RateBoardCurrency $record): array
     {
         $percent = fn (string $name, string $label) => TextInput::make($name)->label($label)->suffix('%')->required()
             ->rule('regex:/^\d{1,2}(\.\d{1,2})?$/')->rule(fn () => function ($attribute, $value, $fail) {
@@ -139,7 +141,10 @@ class CurrencyResource extends Resource
             })->validationMessages(['regex' => 'أدخل نسبة مثل 0.5']);
 
         return [
-            TextInput::make('name_ar')->label('الاسم')->required()->maxLength(60),
+            TextInput::make('name_ar')->label('الاسم')->required()->maxLength(60)
+                // Another currency's name only: a currency keeps its own (the one edited, or one added back to the board).
+                ->unique('currencies', 'name_ar', ignoreRecord: false, modifyRuleUsing: fn (Unique $rule, Get $get) => $rule->whereNot('code', $record?->currency_code ?? (string) $get('code')))
+                ->validationMessages(['unique' => 'توجد عملة بهذا الاسم.']),
             TextInput::make('symbol')->label('الرمز')->required()->maxLength(8),
             $percent('buy_percent', 'نسبة الشراء (تحت السعر الرسمي)')->helperText('سعر الشراء = السعر الرسمي × (1 − النسبة).'),
             $percent('sell_percent', 'نسبة البيع (فوق السعر الرسمي)')->helperText('سعر البيع = السعر الرسمي × (1 + النسبة).'),
@@ -185,7 +190,7 @@ class CurrencyResource extends Resource
                             $set('symbol', $existing?->symbol ?? CurrencyCatalog::symbol($state));
                         }
                     }),
-                ...self::fields(),
+                ...self::fields(null),
             ])
             ->fillForm(['buy_percent' => '0.5', 'sell_percent' => '0.5', 'display_decimals' => 3, 'is_active' => true])
             ->action(function (array $data, Action $action) {
@@ -205,17 +210,11 @@ class CurrencyResource extends Resource
     private static function fetchAction(): Action
     {
         return Action::make('fetch')->label('جلب الأسعار الآن')->icon(Heroicon::OutlinedArrowPath)->color('gray')
-            ->requiresConfirmation()->modalDescription('يسأل مصدر الأسعار الآن. لا يُسجَّل شيء إلا إذا نشر المصدر أسعاراً جديدة.')
+            ->requiresConfirmation()->modalDescription('يُسأل مصدر الأسعار في الخلفية. لا يُسجَّل شيء إلا إذا نشر المصدر أسعاراً جديدة.')
+            // In the background: a slow or silent source must not hold the page.
             ->action(function () {
-                $report = app(RateFetcher::class)->run();
-                self::$live = null;
-                $stored = $report['stored'] === [] ? 'لا أسعار جديدة.' : 'سُجّلت أسعار جديدة: '.implode('، ', $report['stored']).'.';
-                if ($report['problems'] === []) {
-                    Notification::make()->success()->title('تمّ الجلب')->body($stored)->send();
-                } else {
-                    Notification::make()->danger()->persistent()->title('مشكلة في الجلب')
-                        ->body($stored.' '.collect($report['problems'])->map(fn ($w, $c) => $c === '*' ? $w : "{$c}: {$w}")->implode(' '))->send();
-                }
+                FetchCurrencyRates::dispatch();
+                Notification::make()->success()->title('أُرسل الطلب.')->body('حدّث الصفحة بعد دقيقة؛ نتيجة آخر جلب في سطر المصدر أعلى الجدول.')->send();
             });
     }
 

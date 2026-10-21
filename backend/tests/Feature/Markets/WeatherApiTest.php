@@ -172,7 +172,8 @@ test('without a key the screen says so and offers no fetch; with one, fetch now 
 
     config(['raqam.weather.key' => 'ow-test-key']);
     fakeOpenWeather(fn () => Http::response('', 500));
-    Livewire::test(ManageCities::class)->callAction(TestAction::make('fetch')->table(WeatherLocation::find($this->jenin)))->assertNotified('مشكلة في جلب الطقس');
+    Livewire::test(ManageCities::class)->callAction(TestAction::make('fetch')->table(WeatherLocation::find($this->jenin)))->assertNotified('أُرسل الطلب.');
+    expect(DB::table('provider_health')->where('provider_code', 'openweathermap')->value('consecutive_failures'))->toBe(1);   // the job ran (test queue)
 });
 
 test('the screen is for signed-in staff only', function () {

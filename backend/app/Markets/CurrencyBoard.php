@@ -16,6 +16,9 @@ final class CurrencyBoard
         $pegged = DB::table('currency_pegs')->pluck('currency_code')->map(fn ($c) => trim($c))->all();
         $taken = DB::table('rate_board_currencies')->pluck('currency_code')->map(fn ($c) => trim($c))->all();
 
+        // A fetched currency needs bounds for its first rate (CurrencyCatalog::BOUNDS); a pegged one is never fetched.
+        $supported = array_filter($supported, fn (string $code) => CurrencyCatalog::bounds($code) !== null);
+
         return collect([...$supported, ...$pegged])->unique()->diff($taken)->sort()->values()
             ->mapWithKeys(fn (string $code) => [$code => $code.' — '.(DB::table('currencies')->where('code', $code)->value('name_ar') ?? CurrencyCatalog::name($code))])
             ->all();

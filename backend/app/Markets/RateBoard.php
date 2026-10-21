@@ -88,7 +88,7 @@ final class RateBoard
     public static function changed(string $change): void
     {
         // After the commit, or a reader could cache the old board again before the change is visible.
-        DB::afterCommit(fn () => Cache::forever('markets:version', (int) Cache::get('markets:version', 0) + 1));
+        DB::afterCommit(fn () => Cache::increment('markets:version'));   // atomic: two changes at once both count
         SendSiteWebhook::notify(['type' => 'currencies', 'change' => $change, 'paths' => ['/currencies']]);
     }
 

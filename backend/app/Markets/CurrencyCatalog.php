@@ -31,6 +31,30 @@ final class CurrencyCatalog
         'LBP' => ['ليرة لبنانية', 'ل.ل'],
     ];
 
+    /**
+     * Shekels for one unit: the range a currency's FIRST rate must fall in, since there is no earlier rate to compare it
+     * with (a unit or decimal-point slip at the source would otherwise become the board's rate). Later rates are checked
+     * against the last one instead (RateFetcher::MAX_RATIO). Pegged currencies are never fetched and need none.
+     *
+     * @var array<string, array{0: string, 1: string}> code => [lowest, highest]
+     */
+    public const BOUNDS = [
+        'USD' => ['2', '6'],
+        'JOD' => ['3', '8'],
+        'EUR' => ['2', '8'],
+        'GBP' => ['2.5', '9'],
+        'CHF' => ['2', '8'],
+        'CAD' => ['1.5', '5'],
+        'AUD' => ['1.2', '5'],
+        'SEK' => ['0.1', '1.5'],
+        'NOK' => ['0.1', '1.5'],
+        'DKK' => ['0.1', '1.5'],
+        'JPY' => ['0.01', '0.1'],
+        'EGP' => ['0.01', '0.5'],
+        'ZAR' => ['0.05', '0.6'],
+        'LBP' => ['0.000005', '0.01'],
+    ];
+
     /** The highest spread the screen accepts, in per cent. */
     public const MAX_SPREAD_PERCENT = 20;
 
@@ -42,6 +66,12 @@ final class CurrencyCatalog
     public static function symbol(string $code): string
     {
         return self::KNOWN[$code][1] ?? $code;
+    }
+
+    /** @return array{0: string, 1: string}|null */
+    public static function bounds(string $code): ?array
+    {
+        return self::BOUNDS[$code] ?? null;
     }
 
     /** "0.5" (per cent) → 50 basis points; null when it is not a percentage with at most two decimals within the limit. */

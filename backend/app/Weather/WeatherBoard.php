@@ -54,7 +54,7 @@ final class WeatherBoard
 
     public static function changed(): void
     {
-        DB::afterCommit(fn () => Cache::forever('weather:version', (int) Cache::get('weather:version', 0) + 1));
+        DB::afterCommit(fn () => Cache::increment('weather:version'));   // atomic: two changes at once both count
     }
 
     private function cityRows()

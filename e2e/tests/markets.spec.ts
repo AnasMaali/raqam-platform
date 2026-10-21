@@ -54,7 +54,8 @@ test('currencies: fetched from the bank, a currency added and dragged first, spr
 
     await page.getByRole('button', { name: 'جلب الأسعار الآن' }).click();
     await afterLivewire(page, () => dialog(page).getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
-    await expect(page.getByText('سُجّلت أسعار جديدة').first()).toBeVisible();
+    await expect(page.getByText('أُرسل الطلب.').first()).toBeVisible();     // a job (the test queue runs it at once)
+    await page.reload();
     await expect(row(page, 'دولار أمريكي')).toContainText('3.106');
     await expect(row(page, 'درهم إماراتي')).toContainText('من الدولار بالربط الثابت');
 
@@ -135,8 +136,9 @@ test('when the bank fails three times the last good rates stay, and the home say
     for (let i = 0; i < 3; i++) {
         await page.getByRole('button', { name: 'جلب الأسعار الآن' }).click();
         await afterLivewire(page, () => dialog(page).getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
-        await expect(page.getByText('مشكلة في الجلب').first()).toBeVisible();
+        await expect(page.getByText('أُرسل الطلب.').first()).toBeVisible();
         await page.reload();
+        await expect(page.getByText(`فشل متتالٍ: ${i + 1}`).first()).toBeVisible();
     }
 
     expect((await api(page, app, '/currencies')).data[0]).toMatchObject({ code: 'USD', mid: '3.106' });

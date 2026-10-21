@@ -88,7 +88,10 @@ class CityResource extends Resource
                     }),
                 Action::make('fetch')->label('جلب الطقس')->icon(Heroicon::OutlinedArrowPath)->color('gray')
                     ->visible(fn () => app(OpenWeatherSource::class)->configured())
-                    ->action(fn (WeatherLocation $r) => self::report([$r->city_id])),
+                    ->action(function (WeatherLocation $r) {
+                        FetchCityWeather::dispatch($r->city_id);
+                        Notification::make()->success()->title('أُرسل الطلب.')->body('يظهر الطقس خلال دقيقة؛ حدّث الصفحة.')->send();
+                    }),
             ])
             ->headerActions([
                 Action::make('add')->label('إضافة مدينة')->icon(Heroicon::OutlinedPlus)->modalSubmitActionLabel('إضافة')
@@ -113,7 +116,7 @@ class CityResource extends Resource
                     ->action(function () {
                         DB::table('weather_locations')->where('is_active', true)->orderBy('sort_order')->pluck('city_id')
                             ->each(fn ($id) => FetchCityWeather::dispatch((int) $id));
-                        Notification::make()->success()->title('طُلب جلب الطقس.')->body('يظهر خلال دقيقة؛ حدّث الصفحة.')->send();
+                        Notification::make()->success()->title('أُرسل الطلب.')->body('يظهر الطقس خلال دقيقة؛ حدّث الصفحة.')->send();
                     }),
             ]);
     }
@@ -137,17 +140,6 @@ class CityResource extends Resource
             Toggle::make('is_active')->label('ظاهرة على الموقع')
                 ->disabled($record?->is_default ?? false)->helperText($record?->is_default ? 'المدينة الافتراضية تبقى ظاهرة.' : null),
         ];
-    }
-
-    /** @param list<int> $ids */
-    private static function report(array $ids): void
-    {
-        $fetcher = app(WeatherFetcher::class);
-        $failures = collect($ids)->map(fn ($id) => $fetcher->city((int) $id))->reject(fn ($r) => in_array($r, ['stored', 'unchanged', 'skipped'], true));
-
-        $failures->isEmpty()
-            ? Notification::make()->success()->title('تمّ جلب الطقس.')->send()
-            : Notification::make()->danger()->persistent()->title('مشكلة في جلب الطقس')->body($failures->unique()->implode(' '))->send();
     }
 
     private static function status(): string

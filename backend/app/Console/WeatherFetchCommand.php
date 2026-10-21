@@ -39,7 +39,8 @@ class WeatherFetchCommand extends Command
             $result = $fetcher->city((int) $id);
             $ok = in_array($result, ['stored', 'unchanged', 'skipped'], true);
             $failed = $failed || ! $ok;
-            $inARow = $ok ? 0 : $inARow + 1;
+            // A city that could not be stored says nothing about the source.
+            $inARow = $ok || str_starts_with($result, WeatherFetcher::SAVE_FAILED) ? 0 : $inARow + 1;
             $this->line("{$id}: {$result}");
 
             // A source that failed two cities in a row is down: asking it for the rest only waits on more timeouts.
