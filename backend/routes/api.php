@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AwarenessApiController;
+use App\Http\Controllers\Api\CurrencyApiController;
 use App\Http\Controllers\Api\PageApiController;
 use App\Http\Controllers\Api\PeopleApiController;
 use App\Http\Controllers\Api\PostApiController;
@@ -45,6 +46,11 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/sitemaps/videos', [VideoApiController::class, 'sitemap']);
 
     Route::get('/redirects/lookup', RedirectLookupController::class);
+
+    Route::get('/currencies', [CurrencyApiController::class, 'board']);
+    Route::get('/currencies/ticker', [CurrencyApiController::class, 'ticker']);
+    Route::get('/currencies/converter', [CurrencyApiController::class, 'converter']);
+    Route::get('/currencies/{code}/history', [CurrencyApiController::class, 'history'])->where('code', '[A-Za-z]{3}');
 });
 
 // Search (decision 10): its own limit, and no response cache (results are personal to a query and never cached).

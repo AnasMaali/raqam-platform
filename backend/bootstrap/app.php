@@ -3,6 +3,7 @@
 use App\Console\AdminCreateCommand;
 use App\Console\AdminUnlockCommand;
 use App\Console\CheckVideosCommand;
+use App\Console\CurrencyFetchCommand;
 use App\Console\InstallCharactersCommand;
 use App\Console\InstallPagesCommand;
 use App\Console\InstallSynonymsCommand;
@@ -31,7 +32,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
-        SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class])
+        SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
+        CurrencyFetchCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })

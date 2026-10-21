@@ -2,6 +2,7 @@
 
 namespace App\Video;
 
+use App\Integrations\ProviderHealth;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 

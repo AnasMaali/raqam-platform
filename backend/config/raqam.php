@@ -96,6 +96,17 @@ return [
         'feminine_plural' => (bool) env('SEARCH_FEMININE_PLURAL', true),
     ],
 
+    /*
+    | Currency board (decision 11, revised 2026-10-12): the Bank of Israel's representative rates, free and without a key.
+    | Checked every 30 minutes between these times (Palestine) on Monday to Friday.
+    */
+    'currency' => [
+        'window_from' => '12:00',
+        'window_to' => '16:00',
+        // Browser tests only: a stand-in for https://boi.org.il. Production refuses to start with it set.
+        'boi_base' => env('CURRENCY_BOI_BASE'),
+    ],
+
     'site_webhook' => [
         'url' => env('SITE_WEBHOOK_URL'),
         'secret' => env('SITE_WEBHOOK_SECRET'),

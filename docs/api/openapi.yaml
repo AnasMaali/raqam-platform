@@ -29,6 +29,11 @@ info:
       file, pose pictures, animation states, SEO texts), since the awareness page lists the characters and their cards
       appear on many pages: `{"type": "all", "change": "character_created" | "character_hidden" | "character_shown" |
       "character_updated", "id": …, "paths": []}`.
+    * **Rates and money are decimal strings** (`"3.106"`), never JSON numbers: do the arithmetic with a decimal
+      library or show them as they come. When the currency board changes (a new publication, a manual rate, a
+      spread, the list) the site gets `{"type": "currencies", "change": "rates_published" | "manual_rate" | "board" |
+      "source", "paths": ["/currencies"]}`. A manual rate that simply runs out sends nothing: the board answers are
+      cached only until that moment, so refresh `/currencies` at least every few minutes.
   license:
     name: Proprietary
 servers:
@@ -42,6 +47,7 @@ tags:
   - name: Pages
   - name: Redirects
   - name: Search
+  - name: Markets
 
 paths:
   /posts:
@@ -710,6 +716,159 @@ paths:
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /currencies:
+    get:
+      tags: [Markets]
+      summary: The currency board, in the admin's order
+      description: |
+        Shekels per one unit of each currency (decision 11): the official representative rate of the Bank of Israel
+        (`mid`), and the buy and sell rates shown to visitors (the official rate minus/plus the currency's spread, or
+        a manual rate the admin set until a chosen time: `is_manual`). AED and SAR come from the dollar at their
+        fixed pegs (`is_pegged`). `change_pct` and `direction` compare with the previous publication day. Every rate
+        is a decimal string rounded to `decimals` places. Only currencies that have a rate are listed.
+        Read from the platform's own data: answering never waits for the bank. `meta.note` must be shown with the
+        rates (11.10), and `meta.published_at` / `meta.checked_at` as the publication date and "last update".
+      operationId: currencyBoard
+      responses:
+        '200':
+          description: The board.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/CurrencyRate' } }
+                  meta: { $ref: '#/components/schemas/RatesMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /currencies/ticker:
+    get:
+      tags: [Markets]
+      summary: The short currency strip (11.8)
+      operationId: currencyTicker
+      responses:
+        '200':
+          description: The strip, in the board's order.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [code, name, symbol, mid, change_pct, direction]
+                      properties:
+                        code: { $ref: '#/components/schemas/CurrencyCode' }
+                        name: { type: string }
+                        symbol: { type: string }
+                        mid: { $ref: '#/components/schemas/DecimalOrNull' }
+                        change_pct: { $ref: '#/components/schemas/DecimalOrNull' }
+                        direction: { $ref: '#/components/schemas/Direction' }
+                  meta: { $ref: '#/components/schemas/RatesMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /currencies/converter:
+    get:
+      tags: [Markets]
+      summary: What the converter needs (11.7)
+      description: |
+        From a currency to shekels: amount × `buy`. From shekels to a currency: amount ÷ `sell`. The converter shows
+        which of the two it used (`rules`). Compute in the browser with decimals, from these strings.
+      operationId: currencyConverter
+      responses:
+        '200':
+          description: Buy and sell rates per currency.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [base, currencies, rules]
+                    properties:
+                      base: { const: ILS }
+                      currencies:
+                        type: array
+                        items:
+                          type: object
+                          required: [code, name, symbol, decimals, buy, sell, is_manual]
+                          properties:
+                            code: { $ref: '#/components/schemas/CurrencyCode' }
+                            name: { type: string }
+                            symbol: { type: string }
+                            decimals: { type: integer, minimum: 0, maximum: 6 }
+                            buy: { $ref: '#/components/schemas/Decimal' }
+                            sell: { $ref: '#/components/schemas/Decimal' }
+                            is_manual: { type: boolean }
+                      rules:
+                        type: object
+                        required: [to_base, from_base]
+                        properties:
+                          to_base: { $ref: '#/components/schemas/ConverterRule' }
+                          from_base: { $ref: '#/components/schemas/ConverterRule' }
+                  meta: { $ref: '#/components/schemas/RatesMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /currencies/{code}/history:
+    get:
+      tags: [Markets]
+      summary: The official rate of one currency per publication day (11.9 chart)
+      description: One point per day the bank published (the day's last rate, Palestine dates), oldest first.
+      operationId: currencyHistory
+      parameters:
+        - name: code
+          in: path
+          required: true
+          description: ISO code of a currency shown on the board (case does not matter).
+          schema: { type: string, pattern: '^[A-Za-z]{3}$' }
+        - name: days
+          in: query
+          description: How many days back.
+          schema: { type: integer, minimum: 7, maximum: 365, default: 30 }
+      responses:
+        '200':
+          description: The points.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [code, name, symbol, decimals, points]
+                    properties:
+                      code: { $ref: '#/components/schemas/CurrencyCode' }
+                      name: { type: string }
+                      symbol: { type: string }
+                      decimals: { type: integer, minimum: 0, maximum: 6 }
+                      points:
+                        type: array
+                        items:
+                          type: object
+                          required: [date, mid]
+                          properties:
+                            date: { type: string, format: date }
+                            mid: { $ref: '#/components/schemas/Decimal' }
+                  meta: { $ref: '#/components/schemas/RatesMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
 components:
   parameters:
     Page:
@@ -1328,3 +1487,43 @@ components:
       properties:
         kind: { const: infographic }
         download: { $ref: '#/components/schemas/Media' }
+    CurrencyCode: { type: string, pattern: '^[A-Z]{3}$' }
+    Decimal: { type: string, pattern: '^-?[0-9]+(\.[0-9]+)?$', description: 'An exact decimal number, as text.' }
+    DecimalOrNull:
+      oneOf:
+        - { $ref: '#/components/schemas/Decimal' }
+        - { type: 'null' }
+    Direction: { enum: [up, down, same, null] }
+    CurrencyRate:
+      type: object
+      required: [code, name, symbol, decimals, mid, buy, sell, previous, change_pct, direction, is_manual, is_pegged, rate_date, published_at]
+      properties:
+        code: { $ref: '#/components/schemas/CurrencyCode' }
+        name: { type: string }
+        symbol: { type: string }
+        decimals: { type: integer, minimum: 0, maximum: 6 }
+        mid: { $ref: '#/components/schemas/DecimalOrNull' }
+        buy: { $ref: '#/components/schemas/Decimal' }
+        sell: { $ref: '#/components/schemas/Decimal' }
+        previous: { $ref: '#/components/schemas/DecimalOrNull' }
+        change_pct: { $ref: '#/components/schemas/DecimalOrNull' }
+        direction: { $ref: '#/components/schemas/Direction' }
+        is_manual: { type: boolean }
+        is_pegged: { type: boolean }
+        rate_date: { type: [string, 'null'], format: date }
+        published_at: { type: [string, 'null'], format: date-time }
+    RatesMeta:
+      type: object
+      required: [published_at, rate_date, checked_at, source, note]
+      properties:
+        published_at: { type: [string, 'null'], format: date-time, description: 'When the bank published the rates shown.' }
+        rate_date: { type: [string, 'null'], format: date, description: 'Their day (Asia/Hebron).' }
+        checked_at: { type: [string, 'null'], format: date-time, description: 'Last time the source answered ("last update").' }
+        source: { type: [string, 'null'] }
+        note: { type: string, description: 'Show it with the rates (11.10).' }
+    ConverterRule:
+      type: object
+      required: [rate, text]
+      properties:
+        rate: { enum: [buy, sell] }
+        text: { type: string }
