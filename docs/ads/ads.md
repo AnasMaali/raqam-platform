@@ -100,8 +100,9 @@ for it before; the same visitor did not count the same campaign and slot in the 
 visitor, campaign and slot, at most 20 an hour per visitor), then answers **302** to the address stored with the
 campaign. The link carries no destination, so it cannot be used to send anyone elsewhere; the signature (an HMAC under the
 application key) stops anyone from making links for other campaigns or slots. A link that was never issued, or for a
-draft, is a 404. A paused or ended campaign still sends the visitor on, without counting. 60 requests a minute per
-visitor, then 429.
+draft, is a 404. A paused or ended campaign still sends the visitor on, without counting. The link itself has **no
+request limit**: a person always reaches the advertiser (behind a proxy many people share one address); only the counting
+is limited. Floods of requests are for the edge (Cloudflare rate rules).
 
 ### Privacy
 

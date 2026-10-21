@@ -296,7 +296,7 @@ test('an ended or paused campaign still takes the visitor on, without counting; 
     expect(adStat($c->id, column: 'clicks'))->toBe(0);
 });
 
-test('clicks have an hourly ceiling per visitor, and a flood of requests is cut', function () {
+test('clicks have an hourly ceiling per visitor, and the visitor always goes on', function () {
     config(['raqam.ads.clicks_per_hour' => 2]);
     $a = adCampaign();
     $b = adCampaign();
@@ -306,10 +306,10 @@ test('clicks have an hourly ceiling per visitor, and a flood of requests is cut'
     }
     expect((int) DB::table('ad_stats_daily')->sum('clicks'))->toBe(2);
 
-    foreach (range(1, 57) as $i) {
-        $this->get(clickPath($a->id));
+    foreach (range(1, 80) as $i) {
+        $this->withHeaders(['User-Agent' => PERSON_AGENT])->get(clickPath($a->id))->assertStatus(302);
     }
-    $this->get(clickPath($a->id))->assertStatus(429);
+    expect((int) DB::table('ad_stats_daily')->sum('clicks'))->toBe(2);
 });
 
 // ---- privacy ---------------------------------------------------------------------------------------------
