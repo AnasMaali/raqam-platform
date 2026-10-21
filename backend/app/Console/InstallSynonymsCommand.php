@@ -52,8 +52,15 @@ class InstallSynonymsCommand extends Command
         $taken = DB::table('synonym_terms')->pluck('term')->map(fn (string $t) => SearchForm::text($t))->flip();
         $added = 0;
         $skipped = 0;
+        $covered = 0;
 
         foreach (self::STARTER as $group) {
+            // With the feminine-plural fold on, a pair such as شركة/شركات is already one word: nothing to add.
+            if (count(self::forms($group)) < 2) {
+                $covered++;
+
+                continue;
+            }
             // Never on top of the admin's own work: a group with a word already in use is left out whole.
             if (collect($group)->contains(fn (string $t) => $taken->has(SearchForm::text($t)))) {
                 $skipped++;
@@ -69,8 +76,25 @@ class InstallSynonymsCommand extends Command
             }
         }
 
-        $this->info("Added {$added} synonym group(s), skipped {$skipped}.");
+        $this->info("Added {$added} synonym group(s), skipped {$skipped}.".($covered > 0 ? " {$covered} already one word in search." : ''));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * The distinct search forms of a group's words.
+     *
+     * @param  list<string>  $group
+     * @return list<string>
+     */
+    public static function forms(array $group): array
+    {
+        return array_values(array_unique(array_map(fn (string $t) => SearchForm::text($t), $group)));
+    }
+
+    /** The starter groups that still join two or more different words under the current search form. */
+    public static function needed(): int
+    {
+        return count(array_filter(self::STARTER, fn (array $group) => count(self::forms($group)) >= 2));
     }
 }

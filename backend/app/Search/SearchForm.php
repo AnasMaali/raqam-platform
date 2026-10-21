@@ -145,7 +145,7 @@ final class SearchForm
     }
 
     /**
-     * Experiment (phase 5, off unless SEARCH_FEMININE_PLURAL is set): the sound feminine plural becomes its
+     * On by default since phase 6 (SEARCH_FEMININE_PLURAL=false switches it off): the sound feminine plural becomes its
      * singular, «شركات» → «شركه», which is how «شركة» is already normalised. Only when three letters stay before
      * «ات». The «ا» becomes the «ه» (so it still points at the original «ا») and the «ت» goes.
      *
