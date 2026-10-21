@@ -265,6 +265,7 @@ function productionConfig(array $overrides = []): void
         'raqam.search.key' => 'a-scoped-search-key',
         'raqam.search.prefix' => 'raqam_',
         'raqam.currency.boi_base' => null,
+        'raqam.weather.api_base' => null,
         ...$overrides,
     ]);
 }

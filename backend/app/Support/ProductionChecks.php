@@ -54,6 +54,10 @@ final class ProductionChecks
             $failures[] = 'YOUTUBE_API_BASE and YOUTUBE_IMAGE_BASE are for browser tests only and must not be set.';
         }
 
+        if (filled(config('raqam.weather.api_base'))) {
+            $failures[] = 'OPENWEATHER_API_BASE is for browser tests only and must not be set.';
+        }
+
         if (filled(config('raqam.currency.boi_base'))) {
             $failures[] = 'CURRENCY_BOI_BASE is for browser tests only and must not be set.';
         }

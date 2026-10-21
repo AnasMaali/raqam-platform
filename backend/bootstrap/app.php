@@ -5,6 +5,7 @@ use App\Console\AdminUnlockCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\CurrencyFetchCommand;
 use App\Console\InstallCharactersCommand;
+use App\Console\InstallCitiesCommand;
 use App\Console\InstallPagesCommand;
 use App\Console\InstallSynonymsCommand;
 use App\Console\PruneDevicesCommand;
@@ -15,6 +16,7 @@ use App\Console\SearchEvaluateCommand;
 use App\Console\SearchReindexCommand;
 use App\Console\SearchSetupCommand;
 use App\Console\SearchSyncDueCommand;
+use App\Console\WeatherFetchCommand;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -33,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
-        CurrencyFetchCommand::class])
+        CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })

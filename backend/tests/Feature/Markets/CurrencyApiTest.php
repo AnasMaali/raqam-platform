@@ -9,9 +9,6 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Opis\JsonSchema\Errors\ErrorFormatter;
-use Opis\JsonSchema\Validator;
-use Symfony\Component\Yaml\Yaml;
 
 uses(RefreshDatabase::class);
 
@@ -47,7 +44,7 @@ test('the board lists the active currencies in order, as decimal strings rounded
 test('every currency endpoint fits the contract', function () {
     foreach (['/currencies' => 'board', '/currencies/ticker' => 'ticker', '/currencies/converter' => 'converter', '/currencies/usd/history' => 'history'] as $path => $name) {
         $res = api($path)->assertOk()->assertHeader('ETag');
-        validateAgainstPath($res->json(), $path);
+        validateAgainstPath($res->json(), preg_replace('#/currencies/[a-z]{3}/history#', '/currencies/{code}/history', $path));
     }
 });
 
@@ -120,19 +117,3 @@ test('the site is told when the board changes', function () {
 
     Bus::assertDispatched(SendSiteWebhook::class, fn ($job) => $job->payload['type'] === 'currencies' && $job->payload['change'] === 'manual_rate' && $job->payload['paths'] === ['/currencies']);
 });
-
-/** Checks an answer against the 200 schema of a contract path (the path's own inline schema). */
-function validateAgainstPath(array $data, string $path): void
-{
-    static $spec = null;
-    $spec ??= json_decode(json_encode(Yaml::parseFile(base_path('../docs/api/openapi.yaml'))));
-    $template = preg_replace('#/currencies/[a-z]{3}/history#', '/currencies/{code}/history', $path);
-    $schema = $spec->paths->{$template}->get->responses->{'200'}->content->{'application/json'}->schema;
-
-    $validator = new Validator;
-    $validator->resolver()->registerRaw($spec, 'https://raqam.test/openapi');
-    $schema = json_decode(str_replace('"#/components', '"https://raqam.test/openapi#/components', json_encode($schema, JSON_UNESCAPED_SLASHES)));
-    $result = $validator->validate(json_decode(json_encode($data)), $schema);
-
-    expect($result->isValid())->toBeTrue($result->isValid() ? '' : json_encode((new ErrorFormatter)->format($result->error()), JSON_UNESCAPED_UNICODE));
-}

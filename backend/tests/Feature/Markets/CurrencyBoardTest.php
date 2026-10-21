@@ -111,6 +111,7 @@ test('only what the source publishes, or a pegged currency, can be added; never 
 });
 
 test('the order is dragged, and removing a currency keeps its past rates', function () {
+    api('/currencies');                                         // cached before the drag
     Livewire::test(ManageCurrencies::class)->call('reorderTable', ['EUR', 'USD', 'JOD', 'GBP', 'EGP', 'AED', 'SAR']);
     expect(array_slice(api('/currencies')->json('data.*.code'), 0, 3))->toBe(['EUR', 'USD', 'JOD']);
 

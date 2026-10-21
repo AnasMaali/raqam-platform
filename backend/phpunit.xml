@@ -23,6 +23,8 @@
         <env name="LOG_CHANNEL" value="single"/>
         <env name="LOG_FILE" value="testing.log"/>
         <env name="YOUTUBE_API_KEY" value=""/>
+        <env name="OPENWEATHER_API_KEY" value=""/>
+        <env name="OPENWEATHER_API_BASE" value=""/>
         <env name="MEILISEARCH_KEY" value=""/>
         <env name="MEILISEARCH_PREFIX" value="raqam_test_"/>
         <env name="YOUTUBE_FETCH_THUMBNAILS" value="false"/>

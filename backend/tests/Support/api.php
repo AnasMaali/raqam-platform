@@ -34,3 +34,18 @@ function api(string $path = '', array $headers = [])
 {
     return test()->withHeaders($headers)->getJson('/api/v1'.$path);
 }
+
+/** Checks an answer against the 200 schema of a contract path, given as written in the contract (e.g. /weather/{slug}). */
+function validateAgainstPath(array $data, string $template): void
+{
+    static $spec = null;
+    $spec ??= json_decode(json_encode(Yaml::parseFile(base_path('../docs/api/openapi.yaml'))));
+    $schema = $spec->paths->{$template}->get->responses->{'200'}->content->{'application/json'}->schema;
+
+    $validator = new Validator;
+    $validator->resolver()->registerRaw($spec, 'https://raqam.test/openapi');
+    $schema = json_decode(str_replace('"#/components', '"https://raqam.test/openapi#/components', json_encode($schema, JSON_UNESCAPED_SLASHES)));
+    $result = $validator->validate(json_decode(json_encode($data)), $schema);
+
+    expect($result->isValid())->toBeTrue($result->isValid() ? '' : json_encode((new ErrorFormatter)->format($result->error()), JSON_UNESCAPED_UNICODE));
+}
