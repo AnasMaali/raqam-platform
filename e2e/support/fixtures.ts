@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
 import { ADMIN_EMAIL, ADMIN_PATH, startApp, type App, type AppOptions } from './app';
+import { startFakeMarkets, type FakeMarkets } from './markets';
 import { startFakeYoutube, type FakeYoutube } from './youtube';
 
 type Fixtures = {
@@ -11,6 +12,8 @@ type Fixtures = {
     adminPassword: string;
     /** A stand-in for the YouTube API and its pictures; the application under test is pointed at it. */
     youtube: FakeYoutube;
+    /** A stand-in for the Bank of Israel and OpenWeather; the application under test is pointed at it. */
+    markets: FakeMarkets;
 };
 
 export const test = base.extend<Fixtures>({
@@ -23,11 +26,20 @@ export const test = base.extend<Fixtures>({
             await youtube.stop();
         }
     },
-    app: async ({ appOptions, youtube }, use, testInfo) => {
+    markets: async ({}, use) => {
+        const markets = await startFakeMarkets();
+        try {
+            await use(markets);
+        } finally {
+            await markets.stop();
+        }
+    },
+    app: async ({ appOptions, youtube, markets }, use, testInfo) => {
         const app = await startApp({
             ...appOptions,
             env: {
                 YOUTUBE_API_KEY: 'e2e-fake-youtube-key', YOUTUBE_API_BASE: youtube.apiBase, YOUTUBE_IMAGE_BASE: youtube.imageBase, YOUTUBE_FETCH_THUMBNAILS: 'true',
+                CURRENCY_BOI_BASE: markets.boiBase, OPENWEATHER_API_BASE: markets.owBase, OPENWEATHER_API_KEY: 'e2e-fake-openweather-key',
                 ...appOptions.env,
             },
         });

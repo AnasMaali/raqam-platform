@@ -58,6 +58,12 @@ final class RateBoard
      */
     public function history(string $code, int $days = self::HISTORY_DAYS): ?array
     {
+        // Only a currency on the board gets entries of its own in the cache: codes made up by a visitor leave nothing behind.
+        $shown = $this->remember('codes', fn () => DB::table('rate_board_currencies')->where('is_active', true)->pluck('currency_code')->map(fn ($c) => trim($c))->all());
+        if (! in_array($code, $shown, true)) {
+            return null;
+        }
+
         return $this->remember("history:{$code}:{$days}", function () use ($code, $days) {
             $decimals = DB::table('rate_board_currencies')->where('currency_code', $code)->where('is_active', true)->value('display_decimals');
             if ($decimals === null) {

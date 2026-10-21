@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Cities;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Cities\Pages\ManageCities;
 use App\Integrations\ProviderAlerts;
+use App\Jobs\FetchCityWeather;
 use App\Models\City;
 use App\Models\WeatherLocation;
 use App\Support\ArabicSlug;
@@ -75,7 +76,7 @@ class CityResource extends Resource
                 IconColumn::make('is_active')->label('ظاهرة')->boolean(),
             ])
             ->recordActions([
-                Action::make('edit')->label('تعديل')->icon(Heroicon::OutlinedPencilSquare)
+                Action::make('edit')->label('تعديل')->icon(Heroicon::OutlinedPencilSquare)->modalSubmitActionLabel('حفظ')
                     ->fillForm(fn (WeatherLocation $r) => ['name_ar' => $r->city->name_ar, 'latitude' => $r->city->latitude, 'longitude' => $r->city->longitude, 'is_active' => $r->is_active])
                     ->schema(fn (WeatherLocation $r) => self::fields($r))
                     ->action(function (array $data, WeatherLocation $r) {
@@ -90,7 +91,7 @@ class CityResource extends Resource
                     ->action(fn (WeatherLocation $r) => self::report([$r->city_id])),
             ])
             ->headerActions([
-                Action::make('add')->label('إضافة مدينة')->icon(Heroicon::OutlinedPlus)
+                Action::make('add')->label('إضافة مدينة')->icon(Heroicon::OutlinedPlus)->modalSubmitActionLabel('إضافة')
                     ->schema(self::fields(null))->fillForm(['is_active' => true])
                     ->action(function (array $data) {
                         DB::transaction(function () use ($data) {
@@ -107,8 +108,13 @@ class CityResource extends Resource
                     }),
                 Action::make('fetchAll')->label('جلب الطقس الآن')->icon(Heroicon::OutlinedArrowPath)->color('gray')
                     ->visible(fn () => app(OpenWeatherSource::class)->configured())
-                    ->requiresConfirmation()->modalDescription('يسأل OpenWeather الآن عن كل المدن الظاهرة (طلبان لكل مدينة).')
-                    ->action(fn () => self::report(DB::table('weather_locations')->where('is_active', true)->pluck('city_id')->all())),
+                    ->requiresConfirmation()->modalDescription('يُطلب طقس كل المدن الظاهرة من OpenWeather في الخلفية (طلبان لكل مدينة)، ويظهر خلال دقيقة.')
+                    // In the background: a slow or silent source must not hold the page (twelve cities, two calls each).
+                    ->action(function () {
+                        DB::table('weather_locations')->where('is_active', true)->orderBy('sort_order')->pluck('city_id')
+                            ->each(fn ($id) => FetchCityWeather::dispatch((int) $id));
+                        Notification::make()->success()->title('طُلب جلب الطقس.')->body('يظهر خلال دقيقة؛ حدّث الصفحة.')->send();
+                    }),
             ]);
     }
 

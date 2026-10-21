@@ -107,7 +107,7 @@ class CurrencyResource extends Resource
 
     private static function editAction(): Action
     {
-        return Action::make('edit')->label('تعديل')->icon(Heroicon::OutlinedPencilSquare)
+        return Action::make('edit')->label('تعديل')->icon(Heroicon::OutlinedPencilSquare)->modalSubmitActionLabel('حفظ')
             ->fillForm(fn (RateBoardCurrency $r) => [
                 'name_ar' => $r->currency?->name_ar, 'symbol' => $r->currency?->symbol, 'display_decimals' => $r->display_decimals,
                 'buy_percent' => CurrencyCatalog::percent($r->buy_spread_bp), 'sell_percent' => CurrencyCatalog::percent($r->sell_spread_bp),
@@ -150,7 +150,7 @@ class CurrencyResource extends Resource
 
     private static function manualAction(): Action
     {
-        return Action::make('manual')->label('سعر يدوي')->icon(Heroicon::OutlinedHandRaised)->color('warning')
+        return Action::make('manual')->label('سعر يدوي')->icon(Heroicon::OutlinedHandRaised)->color('warning')->modalSubmitActionLabel('حفظ السعر اليدوي')
             ->modalDescription('يحلّ محلّ سعري الشراء والبيع المحسوبين من الآن حتى الوقت المختار (أو حتى تلغيه)، ثم يرجع السعر الرسمي وحده.')
             ->fillForm(fn (RateBoardCurrency $r) => ['buy' => self::shown($r, 'buy_rate'), 'sell' => self::shown($r, 'sell_rate')])
             ->schema([
@@ -174,7 +174,7 @@ class CurrencyResource extends Resource
 
     private static function addAction(): Action
     {
-        return Action::make('add')->label('إضافة عملة')->icon(Heroicon::OutlinedPlus)
+        return Action::make('add')->label('إضافة عملة')->icon(Heroicon::OutlinedPlus)->modalSubmitActionLabel('إضافة')
             ->visible(fn () => CurrencyBoard::addable() !== [])
             ->schema([
                 Select::make('code')->label('العملة')->native(false)->required()->options(fn () => CurrencyBoard::addable())->live()
@@ -221,7 +221,7 @@ class CurrencyResource extends Resource
 
     private static function sourceAction(): Action
     {
-        return Action::make('source')->label('مصدر الأسعار')->icon(Heroicon::OutlinedBuildingLibrary)->color('gray')
+        return Action::make('source')->label('مصدر الأسعار')->icon(Heroicon::OutlinedBuildingLibrary)->color('gray')->modalSubmitActionLabel('حفظ')
             ->fillForm(fn () => ['provider' => DataProviders::active('currency')])
             ->schema([
                 Radio::make('provider')->label('المصدر')->required()

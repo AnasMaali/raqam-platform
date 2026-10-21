@@ -34,6 +34,11 @@ final class WeatherBoard
     /** @return array<string, mixed>|null */
     public function show(string $slug): ?array
     {
+        // Only a known city gets an entry of its own in the cache: addresses made up by a visitor leave nothing behind.
+        if (! in_array($slug, array_column($this->cities(), 'slug'), true)) {
+            return null;
+        }
+
         return $this->remember('city:'.md5($slug), function () use ($slug) {
             $city = $this->cityRows()->firstWhere('slug', $slug);
 
