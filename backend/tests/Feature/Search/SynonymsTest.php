@@ -181,11 +181,24 @@ test('synonyms:install adds the starter list once, and never touches a word the 
     $groups = DB::table('synonym_groups')->count();
     $this->artisan('synonyms:install')->expectsOutputToContain('Added 0')->assertSuccessful();
 
-    expect($groups)->toBe(count(InstallSynonymsCommand::STARTER))   // the shekel group is skipped, mine stays
+    expect($groups)->toBe(InstallSynonymsCommand::needed())          // the shekel group is skipped, mine stays
         ->and(termsOf($mine))->toBe(['شيكل', 'عملة إسرائيلية'])
         ->and(DB::table('synonym_groups')->count())->toBe($groups);
 });
 
 test('the starter list itself is valid: no word twice, every group saves', function () {
+    $this->artisan('synonyms:install')->expectsOutputToContain('Added '.InstallSynonymsCommand::needed().' synonym group(s), skipped 0')->assertSuccessful();
+});
+
+test('pairs the feminine-plural fold already joins are left out, and come back when the fold is off', function () {
+    expect(InstallSynonymsCommand::needed())->toBe(count(InstallSynonymsCommand::STARTER) - 3);   // شركة، عملة، صناعة
+
+    $this->artisan('synonyms:install')->expectsOutputToContain('3 already one word in search')->assertSuccessful();
+    expect(DB::table('synonym_terms')->where('term', 'شركات')->exists())->toBeFalse();
+
+    config(['raqam.search.feminine_plural' => false]);
+    DB::table('synonym_groups')->delete();
+
     $this->artisan('synonyms:install')->expectsOutputToContain('Added '.count(InstallSynonymsCommand::STARTER).' synonym group(s), skipped 0')->assertSuccessful();
+    expect(DB::table('synonym_terms')->where('term', 'شركات')->exists())->toBeTrue();
 });

@@ -91,8 +91,9 @@ return [
         'per_minute' => 60,
         // New words the search statistics take in a day (Palestine time); known words are always counted.
         'new_terms_per_day' => 2000,
-        // Experiment (phase 5): fold the sound feminine plural onto the singular (شركات → شركة). See docs/search.
-        'feminine_plural' => (bool) env('SEARCH_FEMININE_PLURAL', false),
+        // Fold the sound feminine plural onto the singular (شركات → شركة); on since phase 6. See docs/search.
+        // Changing it changes the indexed text: run search:reindex afterwards.
+        'feminine_plural' => (bool) env('SEARCH_FEMININE_PLURAL', true),
     ],
 
     'site_webhook' => [

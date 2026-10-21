@@ -32,12 +32,14 @@ Words that the form cannot bring together (broken plurals such as سعر/أسع�
 belongs to one group only, compared in its search form. `synonyms:install` adds a starter list of economic
 words.
 
-## Experiment: the sound feminine plural (شركة / شركات)
+## The sound feminine plural (شركة / شركات)
 
-Neither the normaliser nor the article layer brings «شركة» and «شركات» together. The experiment folds the
+Neither the normaliser nor the article layer brings «شركة» and «شركات» together. The fold brings the
 plural onto the singular in the search form: a word ending in «ات» with at least three letters before it ends
-in «ه» instead («شركات» → «شركه», which is how «شركة» is normalised). It is behind `SEARCH_FEMININE_PLURAL`
-(off). Turning it on changes the indexed text, so it needs `search:reindex` afterwards.
+in «ه» instead («شركات» → «شركه», which is how «شركة» is normalised). It is behind `SEARCH_FEMININE_PLURAL`,
+**on by default since phase 6** (decided after the measurements below). Switching it either way changes the
+indexed text, so it needs `search:reindex` afterwards; until then queries and indexed words disagree for
+feminine plurals only.
 
 42 documents (the 32 of spike B plus 10 written for this experiment, with traps) and 53 queries, top 10.
 Figures are recall / precision of the returned list / R-precision, in per cent. Indicative: one author wrote
@@ -70,3 +72,6 @@ is folded the same way.
 **Reading:** the fold lifts recall on feminine plurals from about 64 % to 100 % at a small cost in precision
 from pronoun collisions. With the starter synonyms already covering a few frequent pairs (شركة/شركات,
 عملة/عملات), the fold still adds 7 points of recall overall.
+
+**Decision (phase 6):** the fold is on. The accepted cost is the pronoun collision measured on the traps
+(«حسابات» also finds «حسابه»: both have the same search form, so ranking cannot tell them apart).

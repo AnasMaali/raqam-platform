@@ -27,7 +27,7 @@ test('the article comes off every word that keeps three letters: ال وال ب�
     expect(SearchForm::text($text))->toBe($form);
 })->with([
     ['الشركة', 'شركه'],
-    ['والشركات', 'شركات'],
+    ['والشركات', 'شركه'],     // the plural folds onto the singular too (on by default)
     ['بالأسواق', 'اسواق'],
     ['فالاقتصاد', 'اقتصاد'],
     ['كالذهب', 'ذهب'],
@@ -91,11 +91,15 @@ test('match positions outside the text are ignored instead of breaking the highl
         ->and(Highlighter::mark(null, [['start' => 0, 'length' => 2]]))->toBe('');
 });
 
-// ---- experiment: the sound feminine plural (off by default) ------------------------------------------
+// ---- the sound feminine plural (on by default since phase 6) -------------------------------------------
 
-test('the feminine plural is not folded unless the experiment is switched on', function () {
-    expect(config('raqam.search.feminine_plural'))->toBeFalse()
-        ->and(SearchForm::text('الشركات'))->toBe('شركات');
+test('the feminine plural is folded by default, and left alone when switched off', function () {
+    expect(config('raqam.search.feminine_plural'))->toBeTrue()
+        ->and(SearchForm::text('الشركات'))->toBe('شركه');
+
+    config(['raqam.search.feminine_plural' => false]);
+
+    expect(SearchForm::text('الشركات'))->toBe('شركات');
 });
 
 test('switched on, «ات» after three letters becomes «ه», the singular\'s form, and the highlight still marks the word', function (string $word, string $form) {
