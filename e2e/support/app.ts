@@ -4,6 +4,7 @@ import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, r
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { dropIndexes, sharedEngine } from './meili';
 
 /**
  * One throw-away copy of the back end per test: its own PostgreSQL database (cloned from a template that
@@ -25,12 +26,19 @@ const SHARED_VIEWS = join(tmpdir(), 'raqam-e2e-views');
 export type AppOptions = {
     /** Extra environment for the application, e.g. a short idle limit. */
     env?: Record<string, string>;
+    /**
+     * Search on Meilisearch: true = the shared engine of the run, or an engine of the test's own. Its indexes are
+     * created with search:setup under this test's prefix and dropped when the test ends. Off = PostgreSQL only.
+     */
+    search?: boolean | { url: string; key: string };
 };
 
 export type App = {
     url: string;
     db: string;
     storage: string;
+    /** The index prefix of this test (its Meilisearch indexes start with it). */
+    searchPrefix: string;
     /** Runs an artisan command against this test's own database and storage. */
     artisan(args: string[]): string;
     /** Runs one SQL statement on this test's database and returns the rows as text (psql -At). */
@@ -104,6 +112,10 @@ function laravelEnv(db: string, prefix: string, storage: string, port: number, e
         R2_PRIVATE_BUCKET: '',
         R2_PUBLIC_URL: '',
         PHP_CLI_SERVER_WORKERS: '4',
+        // The engine is off unless a test asks for it, so backend/.env's development key and indexes are never used.
+        MEILISEARCH_HOST: '',
+        MEILISEARCH_KEY: '',
+        MEILISEARCH_PREFIX: `${prefix}_`,
         ...extra,
     };
     if (process.env.PGPASSWORD) env.DB_PASSWORD = process.env.PGPASSWORD;
@@ -189,7 +201,11 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     const prefix = `e2e_${id}`;
     const storage = newStorage();
     const port = await freePort();
-    const env = laravelEnv(db, prefix, storage, port, options.env);
+    const engine = options.search === true ? sharedEngine() : options.search || null;
+    const env = laravelEnv(db, prefix, storage, port, {
+        ...(engine ? { MEILISEARCH_HOST: engine.url, MEILISEARCH_KEY: engine.key } : {}),
+        ...options.env,
+    });
 
     psql('postgres', `CREATE DATABASE ${db} TEMPLATE ${TEMPLATE_DB}`);
     const docroot = newDocroot(storage);
@@ -214,6 +230,8 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         await new Promise((r) => setTimeout(r, 100));
     }
 
+    if (engine) php(['artisan', 'search:setup'], env);
+
     const logFile = join(storage, 'logs/e2e.log');
     const log = () => (existsSync(logFile) ? readFileSync(logFile, 'utf8') : '');
 
@@ -221,6 +239,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         url,
         db,
         storage,
+        searchPrefix: `${prefix}_`,
         artisan: (args) => php(['artisan', ...args], env),
         sql: (statement) => psql(db, statement),
         log,
@@ -253,6 +272,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
                 // already gone
             }
             forgetRedisKeys(prefix);
+            if (engine) await dropIndexes(engine, `${prefix}_`);
             try {
                 psql('postgres', `DROP DATABASE IF EXISTS ${db} WITH (FORCE)`);
             } catch {

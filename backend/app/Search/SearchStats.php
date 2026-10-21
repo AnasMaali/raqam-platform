@@ -3,6 +3,7 @@
 namespace App\Search;
 
 use App\Support\ArabicNormalizer;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -26,8 +27,17 @@ final class SearchStats
         $day = now('Asia/Hebron')->toDateString();
 
         DB::transaction(function () use ($term, $day, $foundNothing) {
-            DB::table('search_terms')->insertOrIgnore(['normalized_term' => $term]);
             $id = DB::table('search_terms')->where('normalized_term', $term)->value('id');
+            if ($id === null) {
+                // A new word. Made-up queries sent in bulk would each add a row; past the day's allowance they are not recorded.
+                $budget = 'search:new-terms:'.$day;
+                Cache::add($budget, 0, now()->addDays(2));
+                if (Cache::increment($budget) > (int) config('raqam.search.new_terms_per_day')) {
+                    return;
+                }
+                DB::table('search_terms')->insertOrIgnore(['normalized_term' => $term]);
+                $id = DB::table('search_terms')->where('normalized_term', $term)->value('id');
+            }
 
             // One statement, so two visitors at the same moment both count.
             DB::statement(

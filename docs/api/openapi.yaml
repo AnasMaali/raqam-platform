@@ -644,6 +644,7 @@ paths:
           digits or more is never recorded.
         * `highlight` holds the title (and summary) as **HTML**: the original text escaped, with the matched
           words in `<mark>`. Insert it as HTML; it contains no other tag.
+        * Only the first 10 words of a query count (as in the engine).
         * When nothing is found: `suggestions` (close words to offer as links), `latest` and `most_read`.
         * `engine` is `meilisearch`, or `database` when the search engine is down and a simpler search on the
           database answered (title, subtitle and summary only, no typo tolerance).
