@@ -8,6 +8,7 @@ use App\Events\PostChanged;
 use App\Filament\Forms\LtrFields;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifySiteOfPostChange;
+use App\Search\SearchSync;
 use App\Support\ProductionChecks;
 use App\Support\TrackingHash;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
@@ -58,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
         LtrFields::register();
 
         Event::listen(PostChanged::class, NotifySiteOfPostChange::class);
+        SearchSync::register();
 
         // The public API: 120 a minute per client address; the website, holding the secret token, gets far more.
         RateLimiter::for('api-public', function (Request $request) {

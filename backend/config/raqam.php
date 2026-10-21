@@ -74,6 +74,21 @@ return [
         'background' => '#FFFFFF',
     ],
 
+    /*
+    | Meilisearch v1.54.3 (decision 10). The key is a scoped API key that reaches only the indexes starting with
+    | the prefix (search:create-key makes it); the master key never sits in the application. An empty key switches
+    | the engine off: nothing is indexed and every search runs on PostgreSQL (tests, CI, a machine without it).
+    | When a call fails the engine counts as down for `down_seconds`, so visitors do not each wait for a timeout.
+    */
+    'search' => [
+        'host' => env('MEILISEARCH_HOST', 'http://127.0.0.1:7700'),
+        'key' => env('MEILISEARCH_KEY'),
+        'prefix' => env('MEILISEARCH_PREFIX', 'raqam_'),
+        'timeout' => 1.0,
+        'index_timeout' => 10,
+        'down_seconds' => 30,
+    ],
+
     'site_webhook' => [
         'url' => env('SITE_WEBHOOK_URL'),
         'secret' => env('SITE_WEBHOOK_SECRET'),

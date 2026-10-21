@@ -2,6 +2,7 @@
 
 namespace App\Video;
 
+use App\Search\SearchSync;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -34,7 +35,10 @@ final class AvailabilityCheck
                         'availability' => $now, 'last_checked_at' => DB::raw('now()'),
                     ]);
                     $checked++;
-                    $changed += $now !== $row->availability ? 1 : 0;
+                    if ($now !== $row->availability) {
+                        $changed++;
+                        SearchSync::queue('videos', [$row->video_id]);   // a private or removed video leaves search
+                    }
                 }
             }, 'youtube_videos.video_id', 'video_id');
 
