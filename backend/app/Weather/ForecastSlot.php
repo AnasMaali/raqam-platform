@@ -2,6 +2,7 @@
 
 namespace App\Weather;
 
+use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 
 /** One 3-hour slot of the forecast. */
@@ -22,7 +23,8 @@ final readonly class ForecastSlot
         $min = Reading::celsius($main['temp_min'] ?? null);
         $max = Reading::celsius($main['temp_max'] ?? null);
         $condition = Reading::integer($item['weather'][0]['id'] ?? null, 100, 999);
-        if ($at === null || $min === null || $max === null || $condition === null) {
+        // A low above the high is nonsense, and the day's row could not be stored (CHECK temp_max_c >= temp_min_c).
+        if ($at === null || $min === null || $max === null || $condition === null || BigDecimal::of($min)->isGreaterThan($max)) {
             return null;
         }
 

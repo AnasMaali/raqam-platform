@@ -11,7 +11,8 @@ is visible wherever the weather is shown. Every weather answer of the API carrie
   the city's coordinates. 12 cities × 2 calls × 24 hours ≈ 17,300 calls a month (the free plan allows far more).
 * `weather:fetch --due` runs every minute; with n visible cities the i-th (by id) is due at minute ⌊i × 60 / n⌋,
   so each city is fetched once an hour and the calls are spread over the hour. `weather:fetch` (all) or
-  `weather:fetch {slug}` by hand; the cities screen has the same buttons.
+  `weather:fetch {slug}` by hand. The cities screen's buttons queue one job per city (`FetchCityWeather`) and return
+  at once. A run stops after two cities in a row fail at the source (it is down); the others keep their last weather.
 * Now: one `weather_observations` row per observation time (the same observation twice is kept once).
   Wind comes in m/s and is stored in km/h. Day or night comes from the source's icon (`01d` / `01n`).
 * Forecast: replaces the city's rows. Slots are grouped by Palestine date; the low and high are over the day's slots,
@@ -34,8 +35,10 @@ OpenWeather takes the key as `appid=` in the query string; there is no header al
 Temperatures outside −30…60 °C, a missing or out-of-range condition code (an unknown code inside a known group takes
 the group's general one, e.g. 899 → 804), a malformed icon, an observation more than 15 minutes ahead of our clock or
 more than a day old, more than 60 forecast slots. Humidity outside 0–100, negative wind, wind above 300 km/h or a
-direction outside 0–360 are dropped from the observation while the rest is kept. Any failure counts in
-`provider_health`; the third in a row alerts the admins (once an hour) and the panel's home.
+direction outside 0–360 are dropped from the observation while the rest is kept. A forecast slot whose low is above
+its high is dropped. Any failure counts in `provider_health`; the third in a row alerts the admins (once an hour) and
+the panel's home. A database error while storing one city is recorded the same way (its SQLSTATE only; the statement
+goes to the error log), does not count as the source being down, and the run goes on to the next city.
 
 ## The nearest city (12.5) — computed in the browser only
 

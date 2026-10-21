@@ -6,6 +6,7 @@ use App\Integrations\ProviderHealth;
 use App\Integrations\ProviderUnavailable;
 use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -16,6 +17,9 @@ use Illuminate\Support\Facades\DB;
 final class WeatherFetcher
 {
     public const PROVIDER = 'openweathermap';
+
+    /** The start of the failure when the source answered but the city's weather could not be stored. */
+    public const SAVE_FAILED = 'تعذّر حفظ طقس المدينة';
 
     /** A day of the forecast needs this many 3-hour slots to give a fair low and high; today is kept with fewer. */
     private const SLOTS_PER_DAY = 4;
@@ -40,23 +44,30 @@ final class WeatherFetcher
             $now = $this->source->current($city->latitude, $city->longitude);
             $slots = $this->source->forecast($city->latitude, $city->longitude);
             $condition = $this->condition($now->condition) ?? throw new ProviderUnavailable('رمز حالة طقس غير معروف ('.$now->condition.').');
+
+            $stored = DB::transaction(function () use ($city, $now, $condition, $slots) {
+                $inserted = DB::affectingStatement(
+                    'INSERT INTO weather_observations (city_id, provider_code, observed_at, temperature_c, feels_like_c, humidity_pct, wind_kmh, wind_deg, condition_code, is_day)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (city_id, observed_at) DO NOTHING',
+                    [$city->id, self::PROVIDER, $now->observedAt->format('Y-m-d H:i:sP'), $now->temperature, $now->feelsLike, $now->humidity,
+                        $now->windKmh, $now->windDeg, $condition, $now->isDay],
+                );
+                $this->replaceForecast($city->id, $slots);
+
+                return $inserted > 0;
+            });
         } catch (ProviderUnavailable $e) {
             ProviderHealth::failure(self::PROVIDER, $e->getMessage());
 
             return $e->getMessage();
+        } catch (QueryException $e) {
+            // One city's row must not stop the others. The statement and its values go to the error log only.
+            report($e);
+            $message = self::SAVE_FAILED.' (خطأ في قاعدة البيانات، الرمز '.$e->getCode().').';
+            ProviderHealth::failure(self::PROVIDER, $message);
+
+            return $message;
         }
-
-        $stored = DB::transaction(function () use ($city, $now, $condition, $slots) {
-            $inserted = DB::affectingStatement(
-                'INSERT INTO weather_observations (city_id, provider_code, observed_at, temperature_c, feels_like_c, humidity_pct, wind_kmh, wind_deg, condition_code, is_day)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (city_id, observed_at) DO NOTHING',
-                [$city->id, self::PROVIDER, $now->observedAt->format('Y-m-d H:i:sP'), $now->temperature, $now->feelsLike, $now->humidity,
-                    $now->windKmh, $now->windDeg, $condition, $now->isDay],
-            );
-            $this->replaceForecast($city->id, $slots);
-
-            return $inserted > 0;
-        });
 
         ProviderHealth::success(self::PROVIDER);
         WeatherBoard::changed();

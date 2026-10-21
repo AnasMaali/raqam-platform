@@ -41,6 +41,11 @@ export type App = {
     searchPrefix: string;
     /** Runs an artisan command against this test's own database and storage. */
     artisan(args: string[]): string;
+    /**
+     * The same without blocking this process: needed when the command calls a stand-in server that runs in the test
+     * itself (a blocking call would stop it from answering). Resolves with the output, rejects on a failing exit.
+     */
+    artisanAsync(args: string[]): Promise<string>;
     /** Runs one SQL statement on this test's database and returns the rows as text (psql -At). */
     sql(statement: string): string;
     /** The Redis keys this test's server wrote (its own prefix only). */
@@ -105,6 +110,10 @@ function laravelEnv(db: string, prefix: string, storage: string, port: number, e
         YOUTUBE_API_BASE: '',
         YOUTUBE_IMAGE_BASE: '',
         YOUTUBE_FETCH_THUMBNAILS: 'false',
+        // Never the real bank or OpenWeather: a port nothing listens on, unless the fixture points them at its stand-in.
+        CURRENCY_BOI_BASE: 'http://127.0.0.1:9',
+        OPENWEATHER_API_BASE: 'http://127.0.0.1:9',
+        OPENWEATHER_API_KEY: '',
         R2_ACCESS_KEY_ID: '',
         R2_SECRET_ACCESS_KEY: '',
         R2_ENDPOINT: '',
@@ -157,6 +166,20 @@ function php(args: string[], env: NodeJS.ProcessEnv): string {
     const result = spawnSync('php', ['-d', 'memory_limit=512M', ...args], { cwd: BACKEND, env, encoding: 'utf8', input: '', timeout: 120_000 });
     if (result.status !== 0) throw new Error(`php ${args.join(' ')} failed:\n${result.stdout}\n${result.stderr}`);
     return result.stdout;
+}
+
+function phpAsync(args: string[], env: NodeJS.ProcessEnv): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const child = spawn('php', ['-d', 'memory_limit=512M', ...args], { cwd: BACKEND, env, stdio: ['ignore', 'pipe', 'pipe'] });
+        let out = '';
+        child.stdout.on('data', (chunk) => (out += chunk));
+        child.stderr.on('data', (chunk) => (out += chunk));
+        const timer = setTimeout(() => child.kill('SIGKILL'), 120_000);
+        child.on('close', (code) => {
+            clearTimeout(timer);
+            code === 0 ? resolve(out) : reject(new Error(`php ${args.join(' ')} failed:\n${out}`));
+        });
+    });
 }
 
 /** Once per run: a migrated database with one admin, which every test clones. */
@@ -241,6 +264,7 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
         storage,
         searchPrefix: `${prefix}_`,
         artisan: (args) => php(['artisan', ...args], env),
+        artisanAsync: (args) => phpAsync(['artisan', ...args], env),
         sql: (statement) => psql(db, statement),
         log,
         serverLog: () => (existsSync(serverLogFile) ? readFileSync(serverLogFile, 'utf8') : ''),

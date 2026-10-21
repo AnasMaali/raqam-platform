@@ -106,7 +106,16 @@ final class RateFetcher
                 return false;
             }
 
-            if ($last !== null) {
+            if ($last === null) {
+                $bounds = CurrencyCatalog::bounds($rate->code);
+                if ($bounds === null) {
+                    return 'لا توجد حدود معقولة معروفة لأول سعر لهذه العملة.';
+                }
+                $mid = BigDecimal::of($rate->mid);
+                if ($mid->isLessThan($bounds[0]) || $mid->isGreaterThan($bounds[1])) {
+                    return "أول سعر خارج الحدود المعقولة ({$rate->mid}، المسموح {$bounds[0]}–{$bounds[1]}).";
+                }
+            } else {
                 $new = BigDecimal::of($rate->mid);
                 $old = BigDecimal::of($last->mid_rate);
                 if ($new->isGreaterThan($old->multipliedBy(self::MAX_RATIO)) || $new->multipliedBy(self::MAX_RATIO)->isLessThan($old)) {

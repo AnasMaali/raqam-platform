@@ -247,11 +247,14 @@ test('switching the source is a setting: the fetch uses the new one, and the swi
         ->and(DB::table('audit_log_changes')->where('field', 'provider.currency')->first())->old_value->toBe('bank_of_israel')->new_value->toBe('exchangerate_api');
 });
 
-test('fetch now asks the source and says what came back', function () {
-    Livewire::test(ManageCurrencies::class)->callAction(TestAction::make('fetch')->table())->assertNotified('تمّ الجلب');
+test('fetch now sends the request (a job; the test queue runs it at once) and the screen\'s status line shows the outcome', function () {
+    fakeBoi(boiBody(['USD' => '3.12', 'JOD' => '4.38', 'EUR' => '3.48', 'GBP' => '4.14', 'EGP' => '0.057'], now()->subMinute()->utc()->format('Y-m-d\TH:i:s\Z')));
+    Livewire::test(ManageCurrencies::class)->callAction(TestAction::make('fetch')->table())->assertNotified('أُرسل الطلب.');
+    expect(boardRow('USD')->mid_rate)->toStartWith('3.12');
 
     fakeBoi('down', 503);
-    Livewire::test(ManageCurrencies::class)->callAction(TestAction::make('fetch')->table())->assertNotified('مشكلة في الجلب');
+    Livewire::test(ManageCurrencies::class)->callAction(TestAction::make('fetch')->table())->assertNotified('أُرسل الطلب.');
+    $this->get(CurrencyResource::getUrl())->assertSee('فشل متتالٍ: 1');
 });
 
 test('the screen shows the board and is for signed-in staff only', function () {

@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Jobs\SendSiteWebhook;
+use App\Panel\ConnectionStatus;
 use App\Panel\PanelAlerts;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -27,7 +28,6 @@ class Dashboard extends BaseDashboard
         'الأكثر قراءة' => 'تظهر مع مرحلة الإحصائيات.',
         'رسائل جديدة' => 'تظهر مع نموذج «اتصل بنا».',
         'حملات إعلانية فعّالة' => 'تظهر مع مرحلة الإعلانات.',
-        'حالة مصادر العملات والطقس' => 'تظهر مع مرحلة العملات والطقس.',
         'التنبيهات' => 'تظهر مع مرحلة التنبيهات.',
     ];
 
@@ -65,8 +65,22 @@ class Dashboard extends BaseDashboard
             $cards[] = Section::make($title)->schema([Text::make($note)->color('gray')]);
         }
 
+        // 21.15: every outside connection, keys shown only as set or not set.
+        $connections = [];
+        foreach (ConnectionStatus::all() as $c) {
+            [$icon, $color, $label] = match ($c['state']) {
+                ConnectionStatus::OK => ['heroicon-o-check-circle', 'success', 'يعمل'],
+                ConnectionStatus::FAILING => ['heroicon-o-x-circle', 'danger', 'لا يستجيب'],
+                ConnectionStatus::OFF => ['heroicon-o-minus-circle', 'gray', 'غير مفعّل'],
+                default => ['heroicon-o-question-mark-circle', 'warning', 'غير معروف بعد'],
+            };
+            $connections[] = Section::make($c['name'].' — '.$label)->icon($icon)->iconColor($color)->compact()
+                ->schema([Text::make('المفتاح: '.$c['key'])->color('gray'), ...array_map(fn (string $line) => Text::make($line), $c['lines'])]);
+        }
+
         return $schema->components([
             ...$alerts,
+            Section::make('حالة الربط الخارجي')->schema([Grid::make(['default' => 1, 'md' => 2, 'xl' => 3])->schema($connections)]),
             Grid::make(['default' => 1, 'md' => 2, 'xl' => 3])->schema($cards),
         ]);
     }

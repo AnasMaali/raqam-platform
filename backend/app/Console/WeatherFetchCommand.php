@@ -17,6 +17,8 @@ class WeatherFetchCommand extends Command
 
     protected $description = 'Fetch the current weather and the forecast from OpenWeather';
 
+    private const STOP_AFTER = 2;
+
     public function handle(WeatherFetcher $fetcher): int
     {
         $ids = match (true) {
@@ -32,10 +34,20 @@ class WeatherFetchCommand extends Command
         }
 
         $failed = false;
+        $inARow = 0;
         foreach ($ids as $id) {
             $result = $fetcher->city((int) $id);
-            $failed = $failed || ! in_array($result, ['stored', 'unchanged', 'skipped'], true);
+            $ok = in_array($result, ['stored', 'unchanged', 'skipped'], true);
+            $failed = $failed || ! $ok;
+            // A city that could not be stored says nothing about the source.
+            $inARow = $ok || str_starts_with($result, WeatherFetcher::SAVE_FAILED) ? 0 : $inARow + 1;
             $this->line("{$id}: {$result}");
+
+            // A source that failed two cities in a row is down: asking it for the rest only waits on more timeouts.
+            if ($inARow >= self::STOP_AFTER) {
+                $this->warn('Source failing; stopped after '.self::STOP_AFTER.' cities in a row. The others keep their last weather.');
+                break;
+            }
         }
 
         return $failed ? self::FAILURE : self::SUCCESS;

@@ -28,7 +28,8 @@ The answer is read with every number kept as its exact text (`DecimalJson`), nev
 | rate | not a plain decimal of at most 10 integer digits, zero or below after dividing by the unit |
 | unit | not a whole number from 1 to 9,999,999 |
 | time | not ISO 8601, an impossible date, more than 15 minutes ahead of the database clock |
-| change | less than half or more than double the last stored rate of that currency |
+| first rate | outside fixed bounds for that currency (`CurrencyCatalog::BOUNDS`, e.g. USD 2–6 shekels), since there is no earlier rate to compare with; a currency without bounds cannot be added to the board |
+| change | less than half or more than double the last stored rate of that currency (every later rate) |
 | entry | a currency listed twice, a currency on the board missing from the answer |
 
 A refused entry is not stored; the good entries of the same answer are. Any problem counts as a failure in
@@ -44,6 +45,9 @@ stay on the board throughout.
   sell ≥ buy and lie between half and double the official rate. A new manual rate ends the current one at the same
   instant (the `EXCLUDE` constraint forbids overlaps). When its time passes, the board goes back by itself.
 * Every change (spreads, list, order, manual rates, the source) is in the audit log.
+
+The panel's "fetch now" button queues a job (`FetchCurrencyRates`) and returns at once; the outcome shows in the
+screen's source line after a refresh.
 
 ## API
 

@@ -34,6 +34,11 @@ final class WeatherBoard
     /** @return array<string, mixed>|null */
     public function show(string $slug): ?array
     {
+        // Only a known city gets an entry of its own in the cache: addresses made up by a visitor leave nothing behind.
+        if (! in_array($slug, array_column($this->cities(), 'slug'), true)) {
+            return null;
+        }
+
         return $this->remember('city:'.md5($slug), function () use ($slug) {
             $city = $this->cityRows()->firstWhere('slug', $slug);
 
@@ -49,7 +54,7 @@ final class WeatherBoard
 
     public static function changed(): void
     {
-        DB::afterCommit(fn () => Cache::forever('weather:version', (int) Cache::get('weather:version', 0) + 1));
+        DB::afterCommit(fn () => Cache::increment('weather:version'));   // atomic: two changes at once both count
     }
 
     private function cityRows()
