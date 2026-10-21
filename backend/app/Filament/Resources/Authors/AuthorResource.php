@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Authors;
 
 use App\Filament\Concerns\HasNumericRecordKey;
+use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Forms\SeoSection;
 use App\Filament\Resources\Authors\Pages\CreateAuthor;
@@ -38,11 +39,13 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
  */
 class AuthorResource extends Resource
 {
-    use HasNumericRecordKey;
+    use HasNumericRecordKey, NormalizedGlobalSearch;
 
     protected static ?string $model = Author::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPencilSquare;
+
+    protected static ?string $recordTitleAttribute = 'name';
 
     protected static ?string $modelLabel = 'كاتب';
 
@@ -103,6 +106,11 @@ class AuthorResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
+    }
+
+    protected static function globalSearchText(): string
+    {
+        return 'authors.search_name';
     }
 
     public static function getPages(): array

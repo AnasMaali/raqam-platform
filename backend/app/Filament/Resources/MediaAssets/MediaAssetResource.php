@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\MediaAssets;
 
 use App\Filament\Concerns\HasNumericRecordKey;
+use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Forms\Components\FocalPoint;
 use App\Filament\Resources\MediaAssets\Pages\CreateMediaAsset;
 use App\Filament\Resources\MediaAssets\Pages\EditMediaAsset;
@@ -41,11 +42,13 @@ use Illuminate\Support\Number;
 /** The media library (decisions 9.1 – 9.9): upload once, use anywhere, see where it is used. */
 class MediaAssetResource extends Resource
 {
-    use HasNumericRecordKey;
+    use HasNumericRecordKey, NormalizedGlobalSearch;
 
     protected static ?string $model = MediaAsset::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedPhoto;
+
+    protected static ?string $recordTitleAttribute = 'original_name';
 
     protected static ?string $modelLabel = 'ملف';
 
@@ -202,6 +205,11 @@ class MediaAssetResource extends Resource
     public static function canDeleteAny(): bool
     {
         return false;
+    }
+
+    protected static function globalSearchText(): string
+    {
+        return "normalize_ar(media_assets.original_name || ' ' || coalesce(media_assets.alt_text, '') || ' ' || coalesce(media_assets.caption, ''))";
     }
 
     public static function getPages(): array

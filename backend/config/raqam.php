@@ -87,6 +87,10 @@ return [
         'timeout' => 1.0,
         'index_timeout' => 10,
         'down_seconds' => 30,
+        // Requests per minute per visitor (10.13).
+        'per_minute' => 60,
+        // Experiment (phase 5): fold the sound feminine plural onto the singular (شركات → شركة). See docs/search.
+        'feminine_plural' => (bool) env('SEARCH_FEMININE_PLURAL', false),
     ],
 
     'site_webhook' => [

@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Api\SiteToken;
 use App\Auth\AdminAudit;
 use App\Console\WipeDatabaseCommand;
 use App\Events\PostChanged;
@@ -63,10 +64,19 @@ class AppServiceProvider extends ServiceProvider
 
         // The public API: 120 a minute per client address; the website, holding the secret token, gets far more.
         RateLimiter::for('api-public', function (Request $request) {
-            $token = (string) config('raqam.api.site_token');
-            $isSite = $token !== '' && hash_equals($token, (string) $request->header('X-Raqam-Site-Token'));
+            return SiteToken::valid($request) ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : Limit::perMinute((int) config('raqam.api.limit'))->by(TrackingHash::visitor($request->ip()));
+        });
 
-            return $isSite ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : Limit::perMinute((int) config('raqam.api.limit'))->by(TrackingHash::visitor($request->ip()));
+        // Search (10.13): 60 a minute per visitor. Instant search reaches us through the site's own route, so the
+        // visitor is the address the site names, believed only with the site's token; the key is an HMAC of it
+        // like every other counter. The site without a visitor address gets its own large budget.
+        RateLimiter::for('api-search', function (Request $request) {
+            $perVisitor = Limit::perMinute((int) config('raqam.search.per_minute'));
+            if (($visitor = SiteToken::visitor($request)) !== null) {
+                return $perVisitor->by(TrackingHash::visitor($visitor));
+            }
+
+            return SiteToken::valid($request) ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : $perVisitor->by(TrackingHash::visitor($request->ip()));
         });
 
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what

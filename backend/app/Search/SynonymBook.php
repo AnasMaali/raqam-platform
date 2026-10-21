@@ -13,8 +13,17 @@ final class SynonymBook
     /** @return array<string, list<string>> Meilisearch `synonyms` setting */
     public static function forEngine(): array
     {
+        return self::mapOf(self::groups());
+    }
+
+    /**
+     * @param  iterable<list<string>>  $groups  words as typed
+     * @return array<string, list<string>> each word's search form => the forms of the others in its group
+     */
+    public static function mapOf(iterable $groups): array
+    {
         $map = [];
-        foreach (self::groups() as $terms) {
+        foreach ($groups as $terms) {
             $forms = array_values(array_unique(array_filter(array_map(fn (string $t) => SearchForm::text($t), $terms))));
             foreach ($forms as $form) {
                 $others = array_values(array_diff($forms, [$form]));

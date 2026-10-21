@@ -1,0 +1,29 @@
+{
+ "note": "Phase 5 experiment: the sound feminine plural (ة ↔ ات). Documents f01-f10 are added to corpus.json; traps are words that end in ات or ه without being that pair.",
+ "documents": [
+  {"key": "f01", "category": "أعمال-وشركات", "title": "مبيعات السيارات الكهربائية ترتفع", "subtitle": null, "excerpt": "وكالات السيارات في نابلس تسجل طلباً أعلى.", "body": "<p>قال الوكلاء إن الأسعار ما زالت مرتفعة.</p>"},
+  {"key": "f02", "category": "أعمال-وشركات", "title": "سيارة هجينة جديدة في السوق المحلي", "subtitle": null, "excerpt": "طرازٌ اقتصادي في استهلاك الوقود.", "body": "<p>تصل الدفعة الأولى الشهر المقبل.</p>"},
+  {"key": "f03", "category": "تكنولوجيا", "title": "جامعة النجاح تطلق حاضنة أعمال", "subtitle": null, "excerpt": "برنامج لدعم الخريجين.", "body": "<p>تستقبل الحاضنة عشرة مشاريع في دورتها الأولى.</p>"},
+  {"key": "f04", "category": "تكنولوجيا", "title": "الجامعات الفلسطينية وسوق العمل", "subtitle": null, "excerpt": "دراسة عن التخصصات المطلوبة.", "body": "<p>توصي الدراسة بربط المناهج بالصناعة.</p>"},
+  {"key": "f05", "category": "أعمال-وشركات", "title": "مؤسسات الإقراض الصغير تتوسع", "subtitle": null, "excerpt": "قروض للنساء في الأرياف.", "body": "<p>ارتفع عدد المستفيدين هذا العام.</p>"},
+  {"key": "f06", "category": "أعمال-وشركات", "title": "مؤسسة تمويل تفتح فرعاً في جنين", "subtitle": null, "excerpt": "خدمات تمويل للمشاريع الصغيرة.", "body": "<p>يعمل الفرع ستة أيام في الأسبوع.</p>"},
+  {"key": "f07", "category": "أسواق-ومال", "title": "حساباتُ التوفير تجذب المودعين", "subtitle": null, "excerpt": "فائدة أعلى على الودائع الطويلة.", "body": "<p>البنوك تنافس على المدخرات.</p>"},
+  {"key": "f08", "category": "أسواق-ومال", "title": "تاجر يراجع حسابه مع المورّد", "subtitle": null, "excerpt": "قصة عن الديون بين التجار.", "body": "<p>اتفق الطرفان على جدولة المبلغ.</p>"},
+  {"key": "f09", "category": "أسواق-ومال", "title": "ساعات العمل في الأسواق خلال رمضان", "subtitle": null, "excerpt": "المحال تفتح حتى منتصف الليل.", "body": "<p>البلدية تنظم حركة السير.</p>"},
+  {"key": "f10", "category": "أسواق-ومال", "title": "إثبات الملكية شرط للقرض العقاري", "subtitle": null, "excerpt": "وثائق يطلبها البنك.", "body": "<p>تستغرق المعاملة أسبوعين.</p>"}
+ ],
+ "queries": [
+  {"group": "feminine", "q": "سيارة", "relevant": ["f01", "f02"], "note": "مفرد ← سيارات"},
+  {"group": "feminine", "q": "سيارات", "relevant": ["f01", "f02"], "note": "جمع ← سيارة"},
+  {"group": "feminine", "q": "جامعة", "relevant": ["f03", "f04"], "note": "مفرد ← الجامعات"},
+  {"group": "feminine", "q": "الجامعات", "relevant": ["f03", "f04"], "note": "ال + جمع ← جامعة"},
+  {"group": "feminine", "q": "مؤسسة", "relevant": ["f05", "f06"], "note": "مفرد ← مؤسسات"},
+  {"group": "feminine", "q": "مؤسسات", "relevant": ["f05", "f06"], "note": "جمع ← مؤسسة"},
+  {"group": "feminine", "q": "ساعة", "relevant": ["f09"], "note": "مفرد ← ساعات"},
+  {"group": "feminine-trap", "q": "حسابات", "relevant": ["f07"], "note": "«حسابه» (حسابُ + ـه) ليست جمعاً: لا يجب أن تظهر f08"},
+  {"group": "feminine-trap", "q": "حسابه", "relevant": ["f08"], "note": "لا يجب أن تظهر f07"},
+  {"group": "feminine-trap", "q": "اثبات", "relevant": ["f10"], "note": "مفرد ينتهي بـ ات"},
+  {"group": "feminine-trap", "q": "مبيعات", "relevant": ["f01"], "note": "جمع بلا مفرد مستعمل"},
+  {"group": "feminine-trap", "q": "وكالات", "relevant": ["f01"], "note": "جمع"}
+ ]
+}

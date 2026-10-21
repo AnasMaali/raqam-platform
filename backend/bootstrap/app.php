@@ -5,10 +5,12 @@ use App\Console\AdminUnlockCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\InstallCharactersCommand;
 use App\Console\InstallPagesCommand;
+use App\Console\InstallSynonymsCommand;
 use App\Console\PruneDevicesCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
 use App\Console\SearchCreateKeyCommand;
+use App\Console\SearchEvaluateCommand;
 use App\Console\SearchReindexCommand;
 use App\Console\SearchSetupCommand;
 use App\Console\SearchSyncDueCommand;
@@ -29,7 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
-        SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class])
+        SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })
