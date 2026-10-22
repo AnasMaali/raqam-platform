@@ -42,7 +42,7 @@ function insertInvoice(?int $taxRate = 1600): int
         'payment_id' => insertPayment(insertBooking()), 'billed_name' => 'سامي',
         'billed_email' => 'sami@example.com', 'currency_code' => 'USD', 'tax_rate_bp' => $taxRate,
     ]);
-    DB::table('invoice_lines')->insert(['invoice_id' => $invoice, 'line_no' => 1, 'description' => 'حلقة بودكاست', 'quantity' => 1, 'unit_amount' => 30000]);
+    DB::table('invoice_lines')->insert(['invoice_id' => $invoice, 'line_no' => 1, 'description' => 'حلقة بودكاست', 'quantity' => 1, 'unit_amount' => 12345]);
 
     return $invoice;
 }
@@ -113,12 +113,20 @@ describe('services', function () {
     });
 
     test('a sale price comes with its end date', function () {
-        expect(rejected(fn () => insertService(['sale_price_amount' => 25000])))
+        expect(rejected(fn () => insertService(['sale_price_amount' => 9999])))
             ->toThrow(QueryException::class, '"services_check2"');
     });
 
+    test('a price on request has no special offer: there is no price for it to undercut', function () {
+        expect(rejected(fn () => insertService(['price_mode' => 'on_request', 'price_amount' => null, 'currency_code' => null,
+            'sale_price_amount' => 9999, 'sale_ends_at' => now()->addWeek()])))
+            ->toThrow(QueryException::class, '"services_check3"');
+        // The same row with a stated price is fine.
+        expect(insertService(['sale_price_amount' => 9999, 'sale_ends_at' => now()->addWeek()]))->toBeInt();
+    });
+
     test('a sale price is lower than the price', function () {
-        expect(rejected(fn () => insertService(['sale_price_amount' => 32000, 'sale_ends_at' => now()->addWeek()])))
+        expect(rejected(fn () => insertService(['sale_price_amount' => 23456, 'sale_ends_at' => now()->addWeek()])))
             ->toThrow(QueryException::class, '"services_check3"');
     });
 });
@@ -230,16 +238,16 @@ describe('payments and refunds', function () {
 
     test('refunds can never exceed the payment', function () {
         $payment = insertPayment(insertBooking());
-        DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 10000, 'status' => 'succeeded']);
+        DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 2345, 'status' => 'succeeded']);
 
-        expect(rejected(fn () => DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 25000])))
-            ->toThrow(QueryException::class, 'Refunds (35000) would exceed the payment amount (30000)');
+        expect(rejected(fn () => DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 10001])))
+            ->toThrow(QueryException::class, 'Refunds (12346) would exceed the payment amount (12345)');
     });
 
     test('failed refunds do not count towards the limit', function () {
         $payment = insertPayment(insertBooking());
-        DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 25000, 'status' => 'failed']);
-        DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 30000, 'status' => 'succeeded']);
+        DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 10001, 'status' => 'failed']);
+        DB::table('refunds')->insert(['payment_id' => $payment, 'amount' => 12345, 'status' => 'succeeded']);
 
         expect(DB::table('refunds')->where('payment_id', $payment)->count())->toBe(2);
     });
@@ -269,8 +277,8 @@ describe('invoices', function () {
 
         expect("{$totals->subtotal}/{$totals->tax_amount}/{$totals->total_amount}")->toBe($expected);
     })->with([
-        '16 % VAT' => [1600, '30000/4800/34800'],
-        'no VAT' => [null, '30000/0/30000'],
+        '16 % VAT' => [1600, '12345/1975/14320'],
+        'no VAT' => [null, '12345/0/12345'],
     ]);
 
     test('billed data cannot change, not even while the PDF is attached', function () {

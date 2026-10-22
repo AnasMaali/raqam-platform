@@ -5,6 +5,8 @@ namespace App\Settings;
 use App\Models\MediaAsset;
 use App\Models\Setting;
 use App\Models\SiteSocialLink;
+use App\Services\ServiceBoard;
+use App\Services\ServiceContact;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -78,8 +80,15 @@ final class SettingsStore
 
         try {
             DB::transaction(function () use ($values, $social, $userId) {
+                $changed = [];
                 foreach ($values as $key => $value) {
-                    $this->put($key, $value, $userId);
+                    if ($this->put($key, $value, $userId)) {
+                        $changed[] = $key;
+                    }
+                }
+                // The contact buttons of every service and of the advertise page are made of these (14.8).
+                if (array_intersect($changed, ServiceContact::SETTINGS) !== []) {
+                    ServiceBoard::changed(null, everyPage: true);
                 }
                 foreach ($social as $code => $url) {
                     $this->putSocial($code, $url);
@@ -99,7 +108,8 @@ final class SettingsStore
         return str_replace('.', '__', $key);
     }
 
-    private function put(string $key, ?string $value, ?int $userId): void
+    /** @return bool whether the value changed */
+    private function put(string $key, ?string $value, ?int $userId): bool
     {
         $setting = Setting::query()->find($key);
 
@@ -111,12 +121,16 @@ final class SettingsStore
                 'updated_by' => $userId,
             ]);
 
-            return;
+            return true;
         }
 
         if ($setting->value !== $value) {
             $setting->update(['value' => $value, 'updated_by' => $userId]);
+
+            return true;
         }
+
+        return false;
     }
 
     private function putSocial(string $code, ?string $url): void

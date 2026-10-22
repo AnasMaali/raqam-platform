@@ -15,6 +15,7 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     Cache::flush();   // the array store of the tests: one test's board never leaks into the next
+    config(['raqam.api.site_token' => 'site-token-123']);
 });
 
 function adSlot(array $body, string $code): array
@@ -29,10 +30,14 @@ function adsNow(): array
     return api('/ads')->assertOk()->json();
 }
 
-function adViews(array $items, string $viewId = 'view-0001', array $headers = [], ?string $agent = PERSON_AGENT)
+/** A view report as the site's server sends it: its token, the visitor's address and browser; $site false = someone else. */
+function adViews(array $items, string $viewId = 'view-0001', array $headers = [], ?string $agent = PERSON_AGENT, bool $site = true)
 {
+    $sent = $site ? $headers + ['X-Raqam-Site-Token' => 'site-token-123', 'X-Raqam-Visitor-Ip' => '203.0.113.1', 'X-Raqam-Visitor-Ua' => $agent, 'User-Agent' => 'node']
+        : $headers + ['User-Agent' => $agent];
+
     // withHeaders() stays on the test case: each report starts from no headers so one request never carries another's.
-    return test()->flushHeaders()->withHeaders(['User-Agent' => $agent] + $headers)->postJson('/api/v1/ads/impressions', ['view_id' => $viewId, 'items' => $items]);
+    return test()->flushHeaders()->withHeaders(array_filter($sent, fn ($v) => $v !== null))->postJson('/api/v1/ads/impressions', ['view_id' => $viewId, 'items' => $items]);
 }
 
 function adStat(int $campaign, string $placement = 'header_leaderboard', string $column = 'impressions'): int
@@ -224,22 +229,52 @@ test('a flood of view reports is cut: per request a minute, per visitor an hour'
     adViews([['campaign_id' => $c->id, 'placement' => 'header_leaderboard']], 'one-too-many')->assertStatus(429);
 });
 
-test('through the site the visitor is the address it names with its token; without the token that header is ignored', function () {
-    config(['raqam.api.site_token' => 'site-token-123']);
+test('through the site the visitor is the address it names with its token, and the visitor\'s own browser decides', function () {
     $c = adCampaign();
     $item = [['campaign_id' => $c->id, 'placement' => 'header_leaderboard']];
 
     // Two visitors behind the same site server are two people.
-    adViews($item, 'site-view-1', ['X-Raqam-Site-Token' => 'site-token-123', 'X-Raqam-Visitor-Ip' => '203.0.113.5', 'X-Raqam-Visitor-Ua' => PERSON_AGENT], 'node')->assertNoContent();
-    adViews($item, 'site-view-2', ['X-Raqam-Site-Token' => 'site-token-123', 'X-Raqam-Visitor-Ip' => '203.0.113.6', 'X-Raqam-Visitor-Ua' => PERSON_AGENT], 'node')->assertNoContent();
+    adViews($item, 'site-view-1', ['X-Raqam-Visitor-Ip' => '203.0.113.5'])->assertNoContent();
+    adViews($item, 'site-view-2', ['X-Raqam-Visitor-Ip' => '203.0.113.6'])->assertNoContent();
     expect(adStat($c->id))->toBe(2);
 
     // The visitor's own agent decides, not the site server's: a robot behind the site is not counted.
-    adViews($item, 'site-view-3', ['X-Raqam-Site-Token' => 'site-token-123', 'X-Raqam-Visitor-Ip' => '203.0.113.7', 'X-Raqam-Visitor-Ua' => 'Googlebot/2.1'], PERSON_AGENT)->assertNoContent();
-    // A caller without the token cannot pose as many visitors.
+    adViews($item, 'site-view-3', ['X-Raqam-Visitor-Ip' => '203.0.113.7', 'User-Agent' => PERSON_AGENT], 'Googlebot/2.1')->assertNoContent();
+    expect(adStat($c->id))->toBe(2);
+});
+
+test('only the site, with its token and the visitor\'s address, is counted; anyone else gets the same 204 and counts nothing', function () {
+    $c = adCampaign();
+    $item = [['campaign_id' => $c->id, 'placement' => 'header_leaderboard']];
     $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.9']);
-    adViews($item, 'fake-view-1', ['X-Raqam-Visitor-Ip' => '203.0.113.8'])->assertNoContent();
-    adViews($item, 'fake-view-2', ['X-Raqam-Visitor-Ip' => '203.0.113.9'])->assertNoContent();
+
+    adViews($item, 'bare-view-1', [], PERSON_AGENT, site: false)->assertNoContent();
+    adViews($item, 'fake-view-1', ['X-Raqam-Visitor-Ip' => '203.0.113.8'], PERSON_AGENT, site: false)->assertNoContent();
+    adViews($item, 'fake-view-2', ['X-Raqam-Site-Token' => 'not-the-token'])->assertNoContent();
+    adViews($item, 'fake-view-3', ['X-Raqam-Visitor-Ip' => null])->assertNoContent();             // the token without a visitor
+    adViews($item, 'fake-view-4', ['X-Raqam-Visitor-Ip' => 'not-an-address'])->assertNoContent();
+    expect(adStat($c->id))->toBe(0);
+
+    adViews($item, 'real-view-1')->assertNoContent();
+    expect(adStat($c->id))->toBe(1);
+});
+
+test('an IPv6 visitor is one visitor across the whole /64: new addresses from the same line neither repeat views nor escape the limit', function () {
+    config(['raqam.ads.impressions_per_hour' => 2, 'raqam.ads.impression_gap' => 1]);
+    $c = adCampaign();
+    $item = [['campaign_id' => $c->id, 'placement' => 'header_leaderboard']];
+
+    adViews($item, 'six-view-1', ['X-Raqam-Visitor-Ip' => '2001:db8:aa:1::1'])->assertNoContent();
+    adViews($item, 'six-view-2', ['X-Raqam-Visitor-Ip' => '2001:db8:aa:1:ffff::2'])->assertNoContent();   // same /64, within the gap
+    expect(adStat($c->id))->toBe(1);
+
+    $this->travel(2)->seconds();
+    adViews($item, 'six-view-3', ['X-Raqam-Visitor-Ip' => '2001:db8:aa:1:1234:5678:9abc:def0'])->assertNoContent();
+    $this->travel(2)->seconds();
+    adViews($item, 'six-view-4', ['X-Raqam-Visitor-Ip' => '2001:db8:aa:1::99'])->assertNoContent();     // over the hourly ceiling of the /64
+    expect(adStat($c->id))->toBe(2);
+
+    adViews($item, 'six-view-5', ['X-Raqam-Visitor-Ip' => '2001:db8:aa:2::1'])->assertNoContent();     // the next /64 is someone else
     expect(adStat($c->id))->toBe(3);
 });
 
@@ -296,7 +331,7 @@ test('an ended or paused campaign still takes the visitor on, without counting; 
     expect(adStat($c->id, column: 'clicks'))->toBe(0);
 });
 
-test('clicks have an hourly ceiling per visitor, and a flood of requests is cut', function () {
+test('clicks have an hourly ceiling per visitor, and the visitor always goes on', function () {
     config(['raqam.ads.clicks_per_hour' => 2]);
     $a = adCampaign();
     $b = adCampaign();
@@ -306,10 +341,10 @@ test('clicks have an hourly ceiling per visitor, and a flood of requests is cut'
     }
     expect((int) DB::table('ad_stats_daily')->sum('clicks'))->toBe(2);
 
-    foreach (range(1, 57) as $i) {
-        $this->get(clickPath($a->id));
+    foreach (range(1, 80) as $i) {
+        $this->withHeaders(['User-Agent' => PERSON_AGENT])->get(clickPath($a->id))->assertStatus(302);
     }
-    $this->get(clickPath($a->id))->assertStatus(429);
+    expect((int) DB::table('ad_stats_daily')->sum('clicks'))->toBe(2);
 });
 
 // ---- privacy ---------------------------------------------------------------------------------------------
@@ -324,9 +359,8 @@ test('the counters in Redis hold no raw address and no view id', function () {
     try {
         $c = adCampaign();
         $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.23']);
-        adViews([['campaign_id' => $c->id, 'placement' => 'header_leaderboard']], 'secret-view-77')->assertNoContent();
-        adViews([['campaign_id' => $c->id, 'placement' => 'header_leaderboard']], 'secret-view-88',
-            ['X-Raqam-Site-Token' => 'site-token-123', 'X-Raqam-Visitor-Ip' => '203.0.113.77', 'X-Raqam-Visitor-Ua' => PERSON_AGENT])->assertNoContent();
+        adViews([['campaign_id' => $c->id, 'placement' => 'header_leaderboard']], 'secret-view-77', ['X-Raqam-Visitor-Ip' => '198.51.100.23'])->assertNoContent();
+        adViews([['campaign_id' => $c->id, 'placement' => 'header_leaderboard']], 'secret-view-88', ['X-Raqam-Visitor-Ip' => '203.0.113.77'])->assertNoContent();
         $this->withHeaders(['User-Agent' => PERSON_AGENT])->get(clickPath($c->id))->assertStatus(302);
         expect(adStat($c->id))->toBe(2);
 

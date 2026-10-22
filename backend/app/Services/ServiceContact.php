@@ -12,10 +12,13 @@ final class ServiceContact
 {
     public const CHANNELS = ['whatsapp', 'phone', 'email'];
 
+    /** The settings the buttons are made of: a change to any of them changes every service page and the advertise page. */
+    public const SETTINGS = ['contact.whatsapp', 'contact.whatsapp_message', 'contact.phone', 'contact.email', 'contact.email_subject'];
+
     /** @return array{whatsapp: ?string, phone: ?string, email: ?string} */
     public static function links(string $topic): array
     {
-        $s = DB::table('settings')->whereIn('key', ['contact.whatsapp', 'contact.whatsapp_message', 'contact.phone', 'contact.email', 'contact.email_subject'])->pluck('value', 'key');
+        $s = DB::table('settings')->whereIn('key', self::SETTINGS)->pluck('value', 'key');
         $whatsapp = $s['contact.whatsapp'] ?? null;
         $phone = $s['contact.phone'] ?? null;
         $email = $s['contact.email'] ?? null;

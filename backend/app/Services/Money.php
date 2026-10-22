@@ -28,7 +28,7 @@ final class Money
             throw new PriceRejected('المبلغ لا يكون سالباً.');
         }
         if (! preg_match('/^\d{1,9}(\.\d+)?$/', $text)) {
-            throw new PriceRejected('اكتب المبلغ بالأرقام فقط، مثل 150 أو 16.12 (بدون فواصل أو رموز).');
+            throw new PriceRejected('اكتب المبلغ بالأرقام فقط، مثل 123 أو 16.12 (بدون فواصل أو رموز).');
         }
         if (str_contains($text, '.') && strlen(explode('.', $text)[1]) > $decimals) {
             throw new PriceRejected('المبلغ بمنزلتين عشريتين على الأكثر (مثل 16.12).');
@@ -54,7 +54,7 @@ final class Money
         return (string) BigDecimal::ofUnscaledValue($minor, $decimals);
     }
 
-    /** 150000 → "1,500.00": for the page, with Western digits (1.3). */
+    /** 123456 → "1,234.56": for the page, with Western digits (1.3). */
     public static function display(int $minor, int $decimals = 2): string
     {
         [$whole, $fraction] = array_pad(explode('.', self::fromMinor($minor, $decimals)), 2, '');

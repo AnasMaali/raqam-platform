@@ -11,6 +11,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Log\Events\MessageLogged;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
@@ -95,17 +96,58 @@ test('the forecast becomes one row a day (Palestine dates): low and high over th
     expect(DB::table('weather_forecasts')->where('city_id', $this->nablus)->max('forecast_date'))->toBeLessThan(now('Asia/Hebron')->addDays(9)->toDateString());
 });
 
-test('today\'s low and high gather over the day, and stay when no slot of today is left', function () {
-    $this->travelTo(now('Asia/Hebron')->setTime(9, 0));
-    fakeOpenWeather(owCurrent(), owForecast(fn ($s, $i, $hour) => $i === 0 ? array_replace_recursive($s, ['main' => ['temp_min' => 3, 'temp_max' => 40]]) : $s));
-    app(WeatherFetcher::class)->city($this->nablus);
+/** Today's slots of a forecast (Palestine date) get this low and high. */
+function todaySlots(float $min, float $max): Closure
+{
+    return fn ($s, $i, $hour) => Carbon::createFromTimestamp($s['dt'])->timezone('Asia/Hebron')->isSameDay(now('Asia/Hebron'))
+        ? array_replace_recursive($s, ['main' => ['temp_min' => $min, 'temp_max' => $max]]) : $s;
+}
+
+function fetchAt(int $city, int $hour, float $temperature, ?Closure $slots = null): void
+{
+    test()->travelTo(now('Asia/Hebron')->setTime($hour, 0));
+    fakeOpenWeather(owCurrent(['main' => ['temp' => $temperature], 'dt' => now()->subMinutes(5)->timestamp]), owForecast($slots));
+    app(WeatherFetcher::class)->city($city);
+}
+
+test('at 20:00 today\'s low and high are the readings since midnight and the rest of today\'s forecast, not what was once forecast', function () {
+    // Last night's 23:00 reading is yesterday's, however cold; 01:00 is today's (Palestine midnight, not UTC's).
+    foreach ([[now('Asia/Hebron')->subDay()->setTime(23, 0), 2], [now('Asia/Hebron')->setTime(1, 0), 8]] as [$at, $temperature]) {
+        DB::table('weather_observations')->insert(['city_id' => $this->nablus, 'provider_code' => 'openweathermap', 'observed_at' => $at->format('Y-m-d H:i:sP'),
+            'temperature_c' => $temperature, 'condition_code' => 800, 'is_day' => false]);
+    }
+    fetchAt($this->nablus, 5, 11, todaySlots(9, 35));        // the morning forecast promised 9 to 35 for today
+    fetchAt($this->nablus, 14, 31);                         // the afternoon measured 31
+    fetchAt($this->nablus, 20, 22, todaySlots(19, 21));      // at 20:00: 22 now, 19 to 21 forecast for the rest of today
+
+    $today = DB::table('weather_forecasts')->where('city_id', $this->nablus)->where('forecast_date', now('Asia/Hebron')->toDateString())->first();
+    expect($today)->temp_min_c->toBe('8.0')->temp_max_c->toBe('31.0');
+
+    Cache::increment('weather:version');
+    $data = api('/weather/'.rawurlencode('نابلس'))->json('data');
+    expect($data['now']['today'])->toEqual(['min' => 8, 'max' => 31])
+        ->and($data['forecast'][0])->toMatchArray(['date' => now('Asia/Hebron')->toDateString(), 'min' => 8, 'max' => 31]);
+});
+
+test('the rest of today\'s forecast still counts: a colder night ahead lowers today\'s low', function () {
+    fetchAt($this->nablus, 14, 31);
+    fetchAt($this->nablus, 20, 22, todaySlots(17, 18));
+
+    $today = DB::table('weather_forecasts')->where('city_id', $this->nablus)->where('forecast_date', now('Asia/Hebron')->toDateString())->first();
+    expect($today)->temp_min_c->toBe('17.0')->temp_max_c->toBe('31.0');
+});
+
+test('when no slot of today is left, the readings alone make today, and its picture stays', function () {
+    fetchAt($this->nablus, 9, 24, todaySlots(3, 40));
+    $picture = DB::table('weather_forecasts')->where('city_id', $this->nablus)->where('forecast_date', now('Asia/Hebron')->toDateString())->value('condition_code');
 
     $this->travelTo(now('Asia/Hebron')->setTime(23, 30));
-    fakeOpenWeather(owCurrent(), owForecast());                 // starts after midnight: nothing of today
+    fakeOpenWeather(owCurrent(['main' => ['temp' => 16]]), owForecast());     // starts after midnight: nothing of today
     app(WeatherFetcher::class)->city($this->nablus);
 
     $today = DB::table('weather_forecasts')->where('city_id', $this->nablus)->where('forecast_date', now('Asia/Hebron')->toDateString())->first();
-    expect($today)->not->toBeNull()->temp_min_c->toBe('3.0')->temp_max_c->toBe('40.0');
+    expect($today)->not->toBeNull()->temp_min_c->toBe('16.0')->temp_max_c->toBe('24.0')
+        ->and($today->condition_code)->toBe($picture);
 });
 
 test('a day at the far end with too few slots is left out instead of showing a night-only low and high', function () {

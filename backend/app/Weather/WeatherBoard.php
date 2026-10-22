@@ -97,8 +97,8 @@ final class WeatherBoard
 
         return $now + [
             'feels_like' => $o->feels_like_c === null ? null : (float) $o->feels_like_c,
-            // Today's low and high: the forecast's, stretched to include what was just measured.
-            'today' => $today === null ? null : ['min' => min((float) $today->temp_min_c, $temperature), 'max' => max((float) $today->temp_max_c, $temperature)],
+            // Today's low and high: the readings since midnight and the rest of today's forecast (kept so by each fetch).
+            'today' => $today === null ? null : ['min' => (float) $today->temp_min_c, 'max' => (float) $today->temp_max_c],
             'humidity' => $o->humidity_pct === null ? null : (int) $o->humidity_pct,
             'wind_kmh' => $o->wind_kmh === null ? null : (float) $o->wind_kmh,
             'wind_deg' => $o->wind_deg === null ? null : (int) $o->wind_deg,

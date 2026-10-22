@@ -17,6 +17,9 @@ info:
       with the token and the visitor's address in `X-Raqam-Visitor-Ip`. The address is believed only together
       with a valid token, is used for the visitor's own limit, and is never stored: limit counters are keyed by
       an HMAC of it.
+    * **A visitor, for every limit and counter, is an IPv4 address or an IPv6 /64.** One line gets a whole IPv6
+      /64 and can change its address inside it at will, so all of its addresses are one visitor (`::ffff:a.b.c.d`
+      is the IPv4 address `a.b.c.d`).
     * Errors always look like `{"error": {"code": "...", "message": "..."}}`. Messages are in Arabic.
     * Times are ISO 8601 in UTC; show them in Asia/Hebron.
     * A post's public address is `path`: `/{prefix}/{id}/{slug}`. The id identifies the post. A request with
@@ -1038,7 +1041,7 @@ paths:
         per visitor, campaign and slot), then the browser is sent with **302** to the address stored with the campaign
         and nowhere else: the link carries no destination, so it cannot send anyone to another site. A link that was
         not issued by `/ads` (wrong signature) is a 404. A campaign that has since ended or been paused still sends the
-        visitor on, without counting. Never cached.
+        visitor on, without counting. Never cached, and never refused for too many requests: a visitor always goes on.
       operationId: adClick
       parameters:
         - { name: campaign, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -1049,17 +1052,18 @@ paths:
           description: On to the advertiser.
           headers: { Location: { schema: { type: string, format: uri } } }
         '404': { $ref: '#/components/responses/NotFound' }
-        '429': { $ref: '#/components/responses/TooManyRequests' }
   /ads/impressions:
     post:
       tags: [Ads]
       summary: Report the ads a visitor saw (13.6)
       description: |
         Send the ads that were at least half on screen in one page view, once. `view_id` is a random id the page makes
-        for that page view (8–64 of `A-Z a-z 0-9 _ -`); the same view of the same ad is counted once. Send it from the
-        website's server with the site token, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua`; the visitor's limit and
-        identity are an HMAC of that address, never the address. Robots are not counted. JSON only. The answer is 204
-        whether or not anything was counted.
+        for that page view (8–64 of `A-Z a-z 0-9 _ -`); the same view of the same ad is counted once. **Only reports
+        from the website's server are counted:** send it through a route of the site on the same domain (like instant
+        search), which adds the site token, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua`. A report without a valid
+        token or without a valid visitor address is answered 204 like any other and counts nothing. The visitor's
+        limit and identity are an HMAC of that address (an IPv6 address by its /64), never the address. Robots are not
+        counted. JSON only. The answer is 204 whether or not anything was counted.
       operationId: reportAdImpressions
       requestBody:
         required: true
@@ -1097,7 +1101,9 @@ paths:
         admin's order, each with its price ready to show (`price.text`), a special offer while it lasts (`price.offer`:
         the offer is the price, `was` the regular one; it ends by itself at `ends_at`), contact links that name the
         service, and the booking button (`booking.enabled` is false while booking is off: show no booking button).
-        Cached briefly, never past the end of an offer.
+        Cached briefly, never past the end of an offer: `Cache-Control` is cut so that no cache keeps the answer, or
+        serves it stale, after the next special offer ends (the same for `/services/{slug}` and `/advertise`). Switching
+        booking or changing a contact setting drops the cached answers at once.
       operationId: listServices
       responses:
         '200':
@@ -1336,7 +1342,7 @@ components:
         currency: { type: [string, 'null'], enum: [ILS, USD, null] }
         symbol: { type: [string, 'null'] }
         note: { type: [string, 'null'], description: 'e.g. «للحلقة».' }
-        text: { type: string, description: 'Ready to show: "150.00 ₪ للحلقة", "يبدأ من 1,500.00 ₪", "السعر عند التواصل".' }
+        text: { type: string, description: 'Ready to show, e.g. (made-up amounts): "123.45 ₪ للحلقة", "يبدأ من 1,234.56 ₪", "السعر عند التواصل".' }
         offer:
           oneOf:
             - type: 'null'
@@ -2054,6 +2060,7 @@ components:
           properties:
             feels_like: { type: [number, 'null'] }
             today:
+              description: Today's low and high (Palestine day) from the readings since midnight and the forecast for the rest of today.
               oneOf:
                 - { type: object, required: [min, max], properties: { min: { type: number }, max: { type: number } } }
                 - { type: 'null' }

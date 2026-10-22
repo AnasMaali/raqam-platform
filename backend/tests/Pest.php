@@ -188,7 +188,7 @@ function insertService(array $overrides = []): int
     return DB::table('services')->insertGetId([
         'group_id' => DB::table('service_groups')->where('name_ar', 'تغطيات إعلامية')->value('id'),
         'name_ar' => 'حلقة بودكاست', 'slug' => 'service-'.uniqid(), 'summary' => 'استضافة في حلقة',
-        'price_mode' => 'fixed', 'price_amount' => 30000, 'currency_code' => 'USD', ...$overrides,
+        'price_mode' => 'fixed', 'price_amount' => 12345, 'currency_code' => 'USD', ...$overrides,   // made-up amounts throughout
     ]);
 }
 
@@ -228,7 +228,7 @@ function insertBooking(array $overrides = []): int
 
     return DB::table('bookings')->insertGetId([
         'service_id' => insertService(), 'customer_id' => $customer, 'preferred_contact' => 'whatsapp',
-        'details' => 'تفاصيل', 'price_amount' => 30000, 'currency_code' => 'USD',
+        'details' => 'تفاصيل', 'price_amount' => 12345, 'currency_code' => 'USD',
         'access_token_hash' => hash('sha256', "booking-{$n}"), 'consent_at' => now(), ...$overrides,
     ]);
 }
@@ -241,7 +241,7 @@ function insertPayment(int $booking, array $overrides = []): int
 
     return DB::table('payments')->insertGetId([
         'booking_id' => $booking, 'gateway_code' => 'fake', 'attempt_no' => $n, 'gateway_order_id' => "ORD-{$n}",
-        'amount' => 30000, 'currency_code' => 'USD', 'status' => 'captured', 'idempotency_key' => "key-{$n}",
+        'amount' => 12345, 'currency_code' => 'USD', 'status' => 'captured', 'idempotency_key' => "key-{$n}",
         'paid_at' => now(), ...$overrides,
     ]);
 }

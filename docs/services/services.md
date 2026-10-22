@@ -23,9 +23,11 @@ touches a service that exists (same name or address) and never writes a price.
 * **Currency**: shekel or dollar only. **Note**: up to 80 characters («للحلقة», «للشهر»).
 * **Special offer** (14.4): a lower price until a date and time (Palestine), at most a year ahead. While it lasts it is
   the price and the regular one is shown as "was"; at its end the regular price comes back by itself (answers are never
-  cached past that moment). An offer that has ended shows empty in the form, with a note.
+  cached past that moment, here or anywhere: the `Cache-Control` of `/services`, `/services/{slug}` and `/advertise` is
+  cut so that `max-age`, `s-maxage` and `s-maxage + stale-while-revalidate` all end by the next offer's end). An offer
+  that has ended shows empty in the form, with a note.
 * **Audit** (14.12): every price change is in the audit log with who and when, as the raw columns and as one readable
-  line from → to, e.g. `150.00 ILS (سعر ثابت) للحلقة → 175.50 ILS (سعر ثابت) للحلقة`.
+  line from → to, e.g. `123.45 ILS (سعر ثابت) للحلقة → 135.70 ILS (سعر ثابت) للحلقة` (made-up amounts).
 
 ## Contact buttons (14.8, 14.9)
 
@@ -39,7 +41,9 @@ shown in the list for the last 30 days.
 ## Booking (14.10)
 
 `booking.enabled` is false while the `booking` switch is off: show no booking button. When it is switched on, every
-service gets `booking.path` (`/services/{slug}/book`) by itself.
+service gets `booking.path` (`/services/{slug}/book`) by itself, at once: the switch drops the cached services and tells
+the site (webhook `change: every_page` with the path of every visible service and `/advertise`). Saving any contact
+setting (WhatsApp number or message, phone, e-mail, e-mail subject) does the same.
 
 ## API
 

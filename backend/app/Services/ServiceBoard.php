@@ -107,13 +107,26 @@ final class ServiceBoard
         ];
     }
 
-    /** Something about services changed: drop the cached answers after the commit and tell the site (once per save). */
-    public static function changed(?string $slug): void
+    /**
+     * Something about services changed: drop the cached answers after the commit and tell the site (once per save).
+     * $everyPage: what changed is on every service's page (the contact buttons, the booking switch), not on one.
+     */
+    public static function changed(?string $slug, bool $everyPage = false): void
     {
-        DB::afterCommit(function () use ($slug) {
+        DB::afterCommit(function () use ($slug, $everyPage) {
             Cache::increment('services:version');
-            SendSiteWebhook::notify(['type' => 'services', 'change' => 'service', 'paths' => array_values(array_filter(['/services', $slug ? '/services/'.$slug : null, '/advertise']))]);
+            $pages = $everyPage ? Service::query()->where('is_active', true)->orderBy('id')->pluck('slug')->all() : array_filter([$slug]);
+            SendSiteWebhook::notify(['type' => 'services', 'change' => $everyPage ? 'every_page' : 'service',
+                'paths' => ['/services', ...array_map(fn ($s) => '/services/'.$s, array_values($pages)), '/advertise']]);
         });
+    }
+
+    /** Seconds until the next special offer ends (when the prices shown change by themselves), or null when none is running. */
+    public static function nextChange(): ?int
+    {
+        $next = DB::selectOne('SELECT extract(epoch FROM min(sale_ends_at) - now()) AS s FROM services WHERE sale_ends_at > now() AND deleted_at IS NULL')->s;
+
+        return $next === null ? null : max(1, (int) ceil((float) $next));
     }
 
     /** @return array<string, mixed> */
@@ -178,8 +191,6 @@ final class ServiceBoard
     /** Seconds until an answer changes by itself: the next end of an offer, at most TTL. */
     private function ttl(): int
     {
-        $next = DB::selectOne('SELECT extract(epoch FROM min(sale_ends_at) - now()) AS s FROM services WHERE sale_ends_at > now() AND deleted_at IS NULL')->s;
-
-        return $next === null ? self::TTL : max(1, min(self::TTL, (int) ceil((float) $next)));
+        return min(self::TTL, self::nextChange() ?? self::TTL);
     }
 }

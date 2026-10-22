@@ -46,7 +46,7 @@ test('a city page shows the weather now with today\'s low and high, and the next
     expect($data)->toMatchArray(['slug' => 'نابلس', 'name' => 'نابلس', 'path' => '/weather/نابلس', 'is_default' => true])
         ->and($data['now'])->toMatchArray(['temperature' => 30, 'humidity' => 40, 'wind_kmh' => 13, 'is_day' => false, 'stale' => false])
         ->and($data['now']['condition'])->toBe(['code' => 800, 'text' => 'صافٍ', 'icon' => 'clear-night'])
-        ->and($data['now']['today']['max'])->toEqual(30)             // the forecast's high stretched to what was measured
+        ->and($data['now']['today']['max'])->toEqual(30)             // what was measured today counts
         ->and($data['forecast'])->toHaveCount(5)
         ->and($data['forecast'][0]['date'])->toBe(now('Asia/Hebron')->toDateString())
         ->and($data['forecast'][1]['date'])->toBe(now('Asia/Hebron')->addDay()->toDateString())

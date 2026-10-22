@@ -33,7 +33,11 @@ beforeEach(function () {
 
 function poseImage(): int
 {
-    return app(MediaUploader::class)->store(uploadFile(imageBytes(200 + random_int(1, 90), 150)), 'p.jpg', ['alt_text' => 'وضعية'], null)->asset->id;
+    // Each picture its own width: the library keeps identical files once, so two pictures that happened to be equal
+    // would be one, and "a new pose picture" would change nothing (a random width did that 1 time in 90).
+    static $n = 0;
+
+    return app(MediaUploader::class)->store(uploadFile(imageBytes(200 + ++$n, 150)), 'p.jpg', ['alt_text' => 'وضعية'], null)->asset->id;
 }
 
 function riveFile(): int
@@ -43,7 +47,10 @@ function riveFile(): int
 
 function aCharacter(array $over = []): Character
 {
-    return Character::query()->create($over + ['name_ar' => 'شخصية '.random_int(1, 99999), 'slug' => 'c-'.random_int(1, 99999), 'role_ar' => 'دور', 'accent_color' => '#0B5FA5']);
+    static $n = 0;   // names and addresses are unique: counted, never drawn at random
+    $n++;
+
+    return Character::query()->create($over + ['name_ar' => 'شخصية '.$n, 'slug' => 'c-'.$n, 'role_ar' => 'دور', 'accent_color' => '#0B5FA5']);
 }
 
 test('the installer adds the eight characters with their first names, readable colours, and never overwrites (7.1 - 7.8)', function () {
