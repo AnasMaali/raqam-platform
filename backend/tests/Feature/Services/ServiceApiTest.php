@@ -170,15 +170,17 @@ test('no cache keeps the services pages, or serves them stale, past the end of t
         expect(api($path)->headers->get('Cache-Control'))->toBe('max-age=30, public, s-maxage=120, stale-while-revalidate=300');
     }
 
-    $this->freezeTime();
-    apiService(['name_ar' => 'عرض قريب', 'offer' => true, 'sale_price' => '99.99', 'sale_ends_at' => now()->addSeconds(50)->format('Y-m-d H:i:s')]);
+    // The end is set by the database's clock, which is what the cut is measured with (PHP's may differ by a second).
+    apiService(['name_ar' => 'عرض قريب', 'offer' => true, 'sale_price' => '99.99', 'sale_ends_at' => now()->addDay()->format('Y-m-d H:i:s')]);
+    $endsIn = fn (int $seconds) => DB::table('services')->where('name_ar', 'عرض قريب')->update(['sale_ends_at' => DB::raw("now() + interval '{$seconds} seconds'")]);
+    $endsIn(50);
     foreach (['/services', '/services/'.rawurlencode($s->slug), '/advertise'] as $path) {
         expect(api($path)->headers->get('Cache-Control'))->toBe('max-age=30, public, s-maxage=50, stale-while-revalidate=0');
     }
 
-    DB::table('services')->where('name_ar', 'عرض قريب')->update(['sale_ends_at' => now()->addSeconds(200)]);
+    $endsIn(200);
     expect(api('/services')->headers->get('Cache-Control'))->toBe('max-age=30, public, s-maxage=120, stale-while-revalidate=80');
-    DB::table('services')->where('name_ar', 'عرض قريب')->update(['sale_ends_at' => now()->addSeconds(10)]);
+    $endsIn(10);
     expect(api('/advertise')->headers->get('Cache-Control'))->toBe('max-age=10, public, s-maxage=10, stale-while-revalidate=0');
 });
 
