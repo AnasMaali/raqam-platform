@@ -6,6 +6,7 @@ use App\Ads\AdPlacements;
 use App\Api\Presenter;
 use App\Api\SiteToken;
 use App\Content\BodyRenderer;
+use App\Http\Middleware\ApiResponseCache;
 use App\Models\AdPlacement;
 use App\Models\Service;
 use App\Services\ContactClicks;
@@ -29,21 +30,25 @@ class ServiceApiController extends ApiController
         parent::__construct($presenter);
     }
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
+        ApiResponseCache::trueFor($request, ServiceBoard::nextChange());
+
         return response()->json(['data' => ['page' => $this->systemPage('services'), 'groups' => $this->board->groups()], 'meta' => $this->board->meta()]);
     }
 
-    public function show(string $slug): JsonResponse
+    public function show(Request $request, string $slug): JsonResponse
     {
+        ApiResponseCache::trueFor($request, ServiceBoard::nextChange());
         $service = $this->board->detail($slug);
 
         return $service === null ? $this->notFound() : response()->json(['data' => $service, 'meta' => $this->board->meta()]);
     }
 
     /** 13.14: the slots and their sizes, the ad packages with their prices (from the services), and the contact buttons. */
-    public function advertise(): JsonResponse
+    public function advertise(Request $request): JsonResponse
     {
+        ApiResponseCache::trueFor($request, ServiceBoard::nextChange());
         $flags = AdPlacements::flags();
         $slots = AdPlacements::all()->filter(fn (AdPlacement $p) => AdPlacements::isOn($p, $flags))
             ->map(fn (AdPlacement $p) => ['code' => $p->code, 'name' => $p->name_ar, 'sizes' => ['desktop' => $p->size('desktop'), 'mobile' => $p->size('mobile')]])->values()->all();

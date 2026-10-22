@@ -61,7 +61,8 @@ class AdApiController extends ApiController
     /**
      * 13.6: the site reports the ads that were at least half on screen in one page view. Always 204 for a well-formed
      * report, counted or not, so nobody can learn which reports count. JSON only: a page elsewhere cannot make a browser
-     * send one (that would need a preflight, and CORS is off).
+     * send one (that would need a preflight, and CORS is off). Only the site's own server, holding the token and naming
+     * the visitor, is counted: views are what advertisers pay for, and anyone else could invent them.
      */
     public function impressions(Request $request): JsonResponse|Response
     {
@@ -80,7 +81,9 @@ class AdApiController extends ApiController
         }
         $data = $validator->validated();
 
-        $this->counter->impressions(array_values($data['items']), $data['view_id'], SiteToken::visitorIp($request), SiteToken::visitorAgent($request));
+        if (($visitor = SiteToken::visitor($request)) !== null) {
+            $this->counter->impressions(array_values($data['items']), $data['view_id'], $visitor, SiteToken::visitorAgent($request));
+        }
 
         return response()->noContent()->withHeaders(['Cache-Control' => 'no-store']);
     }

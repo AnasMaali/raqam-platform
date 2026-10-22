@@ -78,7 +78,8 @@ final class WeatherFetcher
     /** @param list<ForecastSlot> $slots */
     private function replaceForecast(int $cityId, array $slots): void
     {
-        $today = CarbonImmutable::now('Asia/Hebron')->toDateString();
+        $midnight = CarbonImmutable::now('Asia/Hebron')->startOfDay();
+        $today = $midnight->toDateString();
         $days = [];
         foreach ($slots as $slot) {
             $condition = $this->condition($slot->condition);
@@ -89,11 +90,16 @@ final class WeatherFetcher
             $days[$local->toDateString()][] = ['hour' => (int) $local->format('G'), 'min' => $slot->min, 'max' => $slot->max, 'condition' => $condition];
         }
 
-        // Today's low and high gather over the day: late in the evening the forecast has few or no slots of today left.
-        $kept = DB::table('weather_forecasts')->where('city_id', $cityId)->where('forecast_date', $today)->first();
+        // Today's low and high are what was measured since midnight (Palestine) and what the forecast still has for the
+        // rest of the day; the hours that have passed count by their readings, not by what was once forecast for them.
+        // Late in the evening no slot of today is left, and the readings alone make the day (its picture stays).
+        $seen = DB::table('weather_observations')->where('city_id', $cityId)->where('observed_at', '>=', $midnight->format('Y-m-d H:i:sP'))
+            ->selectRaw('min(temperature_c) AS low, max(temperature_c) AS high')->first();
+        $picture = DB::table('weather_forecasts')->where('city_id', $cityId)->where('forecast_date', $today)->value('condition_code')
+            ?? DB::table('weather_observations')->where('city_id', $cityId)->orderByDesc('observed_at')->value('condition_code');
         DB::table('weather_forecasts')->where('city_id', $cityId)->delete();
-        if ($kept !== null) {
-            $days[$today] = [...($days[$today] ?? []), ['hour' => 99, 'min' => $kept->temp_min_c, 'max' => $kept->temp_max_c, 'condition' => (int) $kept->condition_code]];
+        if ($seen->low !== null) {
+            $days[$today] = [...($days[$today] ?? []), ['hour' => 99, 'min' => $seen->low, 'max' => $seen->high, 'condition' => (int) $picture]];
         }
         foreach ($days as $date => $day) {
             if ($date < $today || ($date > $today && count($day) < self::SLOTS_PER_DAY)) {

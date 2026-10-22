@@ -2,7 +2,7 @@
 
 namespace App\Ads;
 
-use Mpdf\Mpdf;
+use App\Support\OfflinePdf;
 use OpenSpout\Common\Entity\Cell;
 use OpenSpout\Common\Entity\Cell\StringCell;
 use OpenSpout\Common\Entity\Row;
@@ -61,12 +61,10 @@ final class AdReportExport
 
     public function pdf(array $report): string
     {
-        $dir = storage_path('framework/cache/mpdf');
-        is_dir($dir) || mkdir($dir, 0775, true);
-        $pdf = new Mpdf(['mode' => 'utf-8', 'format' => 'A4', 'directionality' => 'rtl', 'autoScriptToLang' => true, 'autoLangToFont' => true,
-            'tempDir' => $dir, 'margin_top' => 14, 'margin_bottom' => 14]);
+        // Nothing is read while the page is drawn: the HTML carries no addresses, and OfflinePdf answers every fetch empty.
+        $pdf = OfflinePdf::make(['mode' => 'utf-8', 'format' => 'A4', 'directionality' => 'rtl', 'autoScriptToLang' => true, 'autoLangToFont' => true,
+            'margin_top' => 14, 'margin_bottom' => 14]);
         $pdf->SetTitle('تقرير حملة إعلانية');
-        // Nothing from outside is fetched while the page is drawn: the HTML carries no addresses, and remote reads are off.
         $pdf->showImageErrors = false;
         $pdf->WriteHTML(view('reports.ad-campaign', ['r' => $report])->render());
 

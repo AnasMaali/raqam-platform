@@ -17,7 +17,7 @@ function serviceData(array $overrides = []): array
     return array_merge([
         'group_id' => DB::table('service_groups')->where('name_ar', 'تغطيات إعلامية')->value('id'),
         'name_ar' => 'حلقة بودكاست', 'slug' => '', 'summary' => 'حلقة مصوّرة مع ضيف.', 'description' => '<p>تفاصيل <strong>الحلقة</strong></p>',
-        'price_mode' => 'fixed', 'price' => '150', 'currency_code' => 'ILS', 'price_note' => 'للحلقة', 'is_active' => true,
+        'price_mode' => 'fixed', 'price' => '123.45', 'currency_code' => 'ILS', 'price_note' => 'للحلقة', 'is_active' => true,   // made-up amounts throughout
         'deliverables' => ['تصوير', 'مونتاج'], 'faqs' => [['question' => 'كم مدة الحلقة؟', 'answer' => 'نحو ساعة.', 'is_published' => true]],
     ], $overrides);
 }
@@ -43,17 +43,17 @@ function serviceRefusal(array $overrides, ?Service $service = null): string
 test('a typed price becomes whole agorot or cents, exactly', function (string $typed, int $minor) {
     expect(Money::toMinor($typed))->toBe($minor);
 })->with([
-    ['16.12', 1612], ['150', 15000], ['150.5', 15050], ['0.01', 1], ['1000000', 100000000], ['999999.99', 99999999], [' 16.12 ', 1612],
-    ['١٦٫١٢', 1612], ['٢٠٠', 20000], ['0016.10', 1610],
+    ['16.12', 1612], ['123', 12300], ['123.4', 12340], ['0.01', 1], ['1000000', 100000000], ['999999.99', 99999999], [' 16.12 ', 1612],
+    ['١٦٫١٢', 1612], ['١٢٣', 12300], ['0016.10', 1610],
 ]);
 
 test('negative, huge, fractional beyond cents, zero and anything not a plain number are refused, never rounded', function (string $typed) {
     expect(fn () => Money::toMinor($typed))->toThrow(PriceRejected::class);
-})->with(['-5', '-0.01', '16.123', '16.129', '0', '0.00', '1000000.01', '99999999999', '1e3', '1,500', '1 500', '١،٥٠٠', '$16', '16$', '', '.5', '16.', 'NaN', 'INF', '0x10', '16.12.1', '+16']);
+})->with(['-5', '-0.01', '16.123', '16.129', '0', '0.00', '1000000.01', '99999999999', '1e3', '1,234', '1 234', '١،٢٣٤', '$16', '16$', '', '.5', '16.', 'NaN', 'INF', '0x10', '16.12.1', '+16']);
 
 test('amounts read back with their decimals and show with thousands separators', function () {
-    expect(Money::fromMinor(1612))->toBe('16.12')->and(Money::fromMinor(15000))->toBe('150.00')->and(Money::fromMinor(1))->toBe('0.01')
-        ->and(Money::display(150000))->toBe('1,500.00')->and(Money::display(99999999))->toBe('999,999.99')->and(Money::fromMinor(1612, 3))->toBe('1.612');
+    expect(Money::fromMinor(1612))->toBe('16.12')->and(Money::fromMinor(12345))->toBe('123.45')->and(Money::fromMinor(1))->toBe('0.01')
+        ->and(Money::display(123456))->toBe('1,234.56')->and(Money::display(99999999))->toBe('999,999.99')->and(Money::fromMinor(1612, 3))->toBe('1.612');
 });
 
 // ---- saving ----------------------------------------------------------------------------------------------
@@ -74,13 +74,13 @@ test('the description is cleaned like any text of the site', function () {
 });
 
 test('a price on request carries no amount, currency, note or offer', function () {
-    $s = saveService(['price_mode' => 'on_request', 'price' => '150', 'offer' => true, 'sale_price' => '100', 'sale_ends_at' => now()->addDay()->format('Y-m-d H:i:s')]);
+    $s = saveService(['price_mode' => 'on_request', 'price' => '123.45', 'offer' => true, 'sale_price' => '99.99', 'sale_ends_at' => now()->addDay()->format('Y-m-d H:i:s')]);
     expect($s->only(['price_amount', 'currency_code', 'price_note', 'sale_price_amount', 'sale_ends_at']))->each->toBeNull();
 });
 
 test('the price must be money in shekels or dollars', function () {
-    expect(serviceRefusal(['price' => '-150']))->toStartWith('price: المبلغ لا يكون سالباً')
-        ->and(serviceRefusal(['price' => '150.555']))->toStartWith('price: المبلغ بمنزلتين')
+    expect(serviceRefusal(['price' => '-123.45']))->toStartWith('price: المبلغ لا يكون سالباً')
+        ->and(serviceRefusal(['price' => '123.456']))->toStartWith('price: المبلغ بمنزلتين')
         ->and(serviceRefusal(['price' => '5000000']))->toStartWith('price: المبلغ أكبر من المسموح')
         ->and(serviceRefusal(['price' => '']))->toStartWith('price:')
         ->and(serviceRefusal(['currency_code' => 'JOD']))->toStartWith('currency_code:')
@@ -91,10 +91,10 @@ test('the price must be money in shekels or dollars', function () {
 });
 
 test('a special offer is cheaper than the price, ends in the future and within a year', function () {
-    $ok = ['offer' => true, 'sale_price' => '120', 'sale_ends_at' => now()->addDays(3)->format('Y-m-d H:i:s')];
+    $ok = ['offer' => true, 'sale_price' => '99.99', 'sale_ends_at' => now()->addDays(3)->format('Y-m-d H:i:s')];
     expect(serviceRefusal($ok))->toBe('saved')
-        ->and(serviceRefusal(['sale_price' => '150'] + $ok))->toStartWith('sale_price: سعر العرض يجب أن يكون أقل')
-        ->and(serviceRefusal(['sale_price' => '200'] + $ok))->toStartWith('sale_price:')
+        ->and(serviceRefusal(['sale_price' => '123.45'] + $ok))->toStartWith('sale_price: سعر العرض يجب أن يكون أقل')
+        ->and(serviceRefusal(['sale_price' => '234.56'] + $ok))->toStartWith('sale_price:')
         ->and(serviceRefusal(['sale_price' => '-1'] + $ok))->toStartWith('sale_price:')
         ->and(serviceRefusal(['sale_price' => '0'] + $ok))->toStartWith('sale_price:')
         ->and(serviceRefusal(['sale_ends_at' => now()->subMinute()->format('Y-m-d H:i:s')] + $ok))->toStartWith('sale_ends_at:')
@@ -105,7 +105,7 @@ test('a special offer is cheaper than the price, ends in the future and within a
 test('the database keeps the last word on prices: a negative amount or an offer above the price cannot be stored', function () {
     $s = saveService();
     expect(rejected(fn () => DB::table('services')->where('id', $s->id)->update(['price_amount' => -1])))->toThrow(QueryException::class)
-        ->and(rejected(fn () => DB::table('services')->where('id', $s->id)->update(['sale_price_amount' => 20000, 'sale_ends_at' => now()->addDay()])))->toThrow(QueryException::class);
+        ->and(rejected(fn () => DB::table('services')->where('id', $s->id)->update(['sale_price_amount' => 23456, 'sale_ends_at' => now()->addDay()])))->toThrow(QueryException::class);
 });
 
 test('the other fields are checked: name, summary, group, section, picture, lists', function () {
@@ -124,22 +124,22 @@ test('the other fields are checked: name, summary, group, section, picture, list
 // ---- audit -----------------------------------------------------------------------------------------------
 
 test('every price change is in the audit log, from how much to how much', function () {
-    $s = saveService(['price' => '150']);
-    saveService(['price' => '175.50'], $s);
+    $s = saveService(['price' => '123.45']);
+    saveService(['price' => '135.70'], $s);
     $ends = now()->addMonth()->setTime(8, 0);
-    saveService(['price' => '175.50', 'offer' => true, 'sale_price' => '120', 'sale_ends_at' => $ends->format('Y-m-d H:i:s')], $s->refresh());
+    saveService(['price' => '135.70', 'offer' => true, 'sale_price' => '99.99', 'sale_ends_at' => $ends->format('Y-m-d H:i:s')], $s->refresh());
 
     $rows = DB::table('audit_log_changes')->join('audit_log', 'audit_log.id', '=', 'audit_log_changes.audit_id')
         ->where('audit_log.subject_table', 'services')->where('audit_log_changes.field', 'price')->orderBy('audit_log.id')
         ->get(['old_value', 'new_value'])->map(fn ($r) => [$r->old_value, $r->new_value])->all();
     expect($rows)->toBe([
-        [null, '150.00 ILS (سعر ثابت) للحلقة'],
-        ['150.00 ILS (سعر ثابت) للحلقة', '175.50 ILS (سعر ثابت) للحلقة'],
-        ['175.50 ILS (سعر ثابت) للحلقة', '175.50 ILS (سعر ثابت) للحلقة — عرض 120.00 حتى '.$ends->copy()->setTimezone('Asia/Hebron')->format('Y-m-d H:i')],
+        [null, '123.45 ILS (سعر ثابت) للحلقة'],
+        ['123.45 ILS (سعر ثابت) للحلقة', '135.70 ILS (سعر ثابت) للحلقة'],
+        ['135.70 ILS (سعر ثابت) للحلقة', '135.70 ILS (سعر ثابت) للحلقة — عرض 99.99 حتى '.$ends->copy()->setTimezone('Asia/Hebron')->format('Y-m-d H:i')],
     ]);
     expect(DB::table('audit_log_changes')->join('audit_log', 'audit_log.id', '=', 'audit_log_changes.audit_id')
         ->where('audit_log.subject_table', 'services')->where('field', 'price_amount')->orderByDesc('audit_log.id')->first(['old_value', 'new_value']))
-        ->toEqual((object) ['old_value' => '15000', 'new_value' => '17550']);
+        ->toEqual((object) ['old_value' => '12345', 'new_value' => '13570']);
 });
 
 test('changes to what a service includes and to its FAQ are audited too, and the site is told once per save', function () {
@@ -158,7 +158,7 @@ test('changes to what a service includes and to its FAQ are audited too, and the
 
 test('services:install adds the six starting services hidden and without prices, and never touches existing ones', function () {
     ensurePostKinds();
-    $mine = saveService(['name_ar' => 'قصة نجاح', 'price' => '300']);
+    $mine = saveService(['name_ar' => 'قصة نجاح', 'price' => '111.11']);
 
     $this->artisan('services:install')->expectsOutputToContain('skipped: قصة نجاح')->assertSuccessful();
     $this->artisan('services:install')->expectsOutputToContain('Services added: 0')->assertSuccessful();
@@ -167,7 +167,7 @@ test('services:install adds the six starting services hidden and without prices,
         ->and(Service::query()->whereKeyNot($mine->id)->pluck('price_mode')->unique()->all())->toBe(['on_request'])
         ->and(Service::query()->whereKeyNot($mine->id)->where('is_active', true)->count())->toBe(0)
         ->and(Service::query()->whereNotNull('price_amount')->pluck('id')->all())->toBe([$mine->id])
-        ->and($mine->refresh()->price_amount)->toBe(30000)
+        ->and($mine->refresh()->price_amount)->toBe(11111)
         ->and(Service::query()->where('slug', 'ad-packages')->first()->group->name_ar)->toBe('إعلانات')
         ->and(Service::query()->where('slug', 'podcast-episode')->value('section_id'))->toBe(DB::table('sections')->where('key', 'podcast')->value('id'));
 });

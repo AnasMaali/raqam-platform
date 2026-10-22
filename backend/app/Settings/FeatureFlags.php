@@ -5,6 +5,7 @@ namespace App\Settings;
 use App\Ads\AdBoard;
 use App\Ads\AdPlacements;
 use App\Models\FeatureFlag;
+use App\Services\ServiceBoard;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,10 @@ final class FeatureFlags
                 // The popup and the mobile bar show only while their switch is on: the ad slots the site gets change.
                 if (in_array($flag->key, AdPlacements::SWITCHES, true)) {
                     AdBoard::changed('placement');
+                }
+                // The booking button of every service, and of the advertise page, follows this switch (14.10).
+                if ($flag->key === 'booking') {
+                    ServiceBoard::changed(null, everyPage: true);
                 }
             });
         } catch (QueryException $e) {

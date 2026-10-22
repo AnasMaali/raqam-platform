@@ -16,8 +16,10 @@ is visible wherever the weather is shown. Every weather answer of the API carrie
 * Now: one `weather_observations` row per observation time (the same observation twice is kept once).
   Wind comes in m/s and is stored in km/h. Day or night comes from the source's icon (`01d` / `01n`).
 * Forecast: replaces the city's rows. Slots are grouped by Palestine date; the low and high are over the day's slots,
-  the picture is the slot nearest 13:00. A day needs four slots, except today, whose low and high gather over the day
-  (late in the evening no slot of today is left, so today's row is kept). The API shows five days, today first.
+  the picture is the slot nearest 13:00. A day needs four slots, except today: its low and high are the readings
+  stored since midnight (Palestine) together with the forecast slots left for the rest of today, so the hours that have
+  passed count by what was measured, not by what was once forecast. Late in the evening no slot of today is left and
+  the readings alone make today (its picture stays). The API shows five days, today first; `now.today` is that row.
 * `cities:install` adds any of the twelve cities of 12.1 that is missing and never changes one the admin edited.
 
 ## The key travels in the address

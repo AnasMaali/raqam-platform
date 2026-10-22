@@ -3,6 +3,7 @@
 use App\Ads\AdRejected;
 use App\Ads\AdReport;
 use App\Ads\AdReportExport;
+use App\Support\OfflinePdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use OpenSpout\Reader\XLSX\Reader;
@@ -88,6 +89,40 @@ test('the PDF is drawn from escaped HTML: a name cannot add markup (or make the 
     $html = view('reports.ad-campaign', ['r' => app(AdReport::class)->build($c, '2026-10-01', '2026-10-01')])->render();
 
     expect($html)->not->toContain('<img')->not->toContain('<b>')->toContain('&lt;img src=&quot;http://127.0.0.1:9/x&quot;&gt;');
+});
+
+test('the PDF reads nothing while it is drawn: no file of the server, no address; pictures in the HTML itself still draw', function () {
+    $root = sys_get_temp_dir().'/offline-pdf-'.bin2hex(random_bytes(4));
+    mkdir($root);
+    $png = $root.'/picture.png';
+    imagepng(imagecreatetruecolor(40, 40), $png);
+    // The same picture is also served over HTTP, so a fetch of the address would succeed if one were made.
+    $socket = stream_socket_server('tcp://127.0.0.1:0');
+    $port = (int) substr(strrchr(stream_socket_get_name($socket, false), ':'), 1);
+    fclose($socket);
+    $server = proc_open([PHP_BINARY, '-S', "127.0.0.1:{$port}", '-t', $root], [['pipe', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes);
+    for ($i = 0; $i < 50 && @file_get_contents("http://127.0.0.1:{$port}/picture.png") === false; $i++) {
+        usleep(100_000);
+    }
+    $draw = function (string $html) {
+        $pdf = OfflinePdf::make(['mode' => 'utf-8']);
+        $pdf->showImageErrors = false;
+        $pdf->WriteHTML($html);
+
+        return $pdf->Output('', 'S');
+    };
+
+    try {
+        expect($draw('<p>نص</p><img src="'.$png.'">'))->not->toContain('/Subtype /Image')
+            ->and($draw('<img src="file://'.$png.'">'))->not->toContain('/Subtype /Image')
+            ->and($draw('<img src="http://127.0.0.1:'.$port.'/picture.png">'))->not->toContain('/Subtype /Image')
+            ->and($draw('<img src="data:image/png;base64,'.base64_encode((string) file_get_contents($png)).'">'))->toContain('/Subtype /Image');
+    } finally {
+        proc_terminate($server);
+        proc_close($server);
+        @unlink($png);
+        @rmdir($root);
+    }
 });
 
 test('the PDF copy is a PDF with the campaign in it', function () {

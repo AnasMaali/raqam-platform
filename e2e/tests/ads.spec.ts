@@ -73,6 +73,12 @@ test('a view and a click are counted, the click lands on the stored address only
     const view = (viewId: string) => page.request.post(`${app.url}/api/v1/ads/impressions`, {
         headers: { ...SITE, 'X-Raqam-Visitor-Ip': '203.0.113.50', 'X-Raqam-Visitor-Ua': PERSON_AGENT }, data: { view_id: viewId, items: [{ campaign_id: id, placement: 'header_leaderboard' }] },
     });
+    // Without the site's token the report is answered the same way and counts nothing.
+    const forgedView = await page.request.post(`${app.url}/api/v1/ads/impressions`, {
+        headers: { 'X-Raqam-Visitor-Ip': '203.0.113.51', 'User-Agent': PERSON_AGENT }, data: { view_id: 'page-view-0000', items: [{ campaign_id: id, placement: 'header_leaderboard' }] },
+    });
+    expect(forgedView.status()).toBe(204);
+    expect(app.sql(`SELECT count(*) FROM ad_stats_daily WHERE campaign_id = ${id}`)).toBe('0');
     expect((await view('page-view-0001')).status()).toBe(204);
     expect((await view('page-view-0001')).status()).toBe(204);
     expect(app.sql(`SELECT impressions FROM ad_stats_daily WHERE campaign_id = ${id}`)).toBe('1');

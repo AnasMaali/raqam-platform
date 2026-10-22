@@ -144,7 +144,7 @@ CREATE TABLE services (
   CHECK ((price_mode = 'on_request') = (price_amount IS NULL)),
   CHECK ((price_amount IS NULL) = (currency_code IS NULL)),
   CHECK ((sale_price_amount IS NULL) = (sale_ends_at IS NULL)),
-  CHECK (sale_price_amount IS NULL OR sale_price_amount < price_amount)
+  CHECK (sale_price_amount IS NULL OR (price_mode <> 'on_request' AND sale_price_amount < price_amount))  -- an offer undercuts a stated price
 );
 CREATE INDEX services_group_idx ON services (group_id, sort_order) WHERE deleted_at IS NULL;
 

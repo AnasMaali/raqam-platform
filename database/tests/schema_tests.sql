@@ -226,12 +226,15 @@ SELECT pg_temp.expect_fail('providers: two primary currency providers',
 -- ---------------------------------------------------------------- services
 SELECT pg_temp.expect_fail('services: "on request" must not have a price',
   $$INSERT INTO services (group_id, name_ar, slug, summary, price_mode, price_amount, currency_code)
-    VALUES (1, 'x', 'x', 'x', 'on_request', 1000, 'USD')$$);
+    VALUES (1, 'x', 'x', 'x', 'on_request', 12345, 'USD')$$);
+SELECT pg_temp.expect_fail('services: no special offer on a price "on request"',
+  $$INSERT INTO services (group_id, name_ar, slug, summary, price_mode, sale_price_amount, sale_ends_at)
+    VALUES (1, 'z', 'z', 'z', 'on_request', 9999, now() + interval '7 days')$$);
 SELECT pg_temp.expect_fail('services: sale price must be lower',
   $$INSERT INTO services (group_id, name_ar, slug, summary, price_mode, price_amount, currency_code, sale_price_amount, sale_ends_at)
-    VALUES (1, 'y', 'y', 'y', 'fixed', 1000, 'USD', 1200, now() + interval '7 days')$$);
+    VALUES (1, 'y', 'y', 'y', 'fixed', 12345, 'USD', 23456, now() + interval '7 days')$$);
 INSERT INTO services (group_id, name_ar, slug, summary, price_mode, price_amount, currency_code, price_note)
-VALUES (1, 'حلقة بودكاست', 'حلقة-بودكاست', 'استضافة في حلقة', 'fixed', 30000, 'USD', 'للحلقة');
+VALUES (1, 'حلقة بودكاست', 'حلقة-بودكاست', 'استضافة في حلقة', 'fixed', 12345, 'USD', 'للحلقة');   -- made-up amounts throughout
 
 -- ---------------------------------------------------------------- bookings
 INSERT INTO customers (name, email, phone) VALUES ('سامي', 'sami@example.com', '+970599123456');
@@ -262,16 +265,16 @@ SELECT pg_temp.expect_fail('bookings: a 4th attachment is refused',
 -- ---------------------------------------------------------------- payments & invoices
 INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status,
                       idempotency_key, paid_at)
-SELECT id, 'fake', 1, 'ORD-1', 30000, 'USD', 'captured', 'bk1-a1', now() FROM bookings LIMIT 1;
+SELECT id, 'fake', 1, 'ORD-1', 12345, 'USD', 'captured', 'bk1-a1', now() FROM bookings LIMIT 1;
 SELECT pg_temp.expect_fail('payments: second successful payment for one booking',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key, paid_at)
-    SELECT id, 'fake', 2, 'ORD-2', 30000, 'USD', 'captured', 'bk1-a2', now() FROM bookings LIMIT 1$$);
+    SELECT id, 'fake', 2, 'ORD-2', 12345, 'USD', 'captured', 'bk1-a2', now() FROM bookings LIMIT 1$$);
 SELECT pg_temp.expect_fail('payments: same idempotency key twice',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, idempotency_key)
-    SELECT id, 'fake', 3, 'ORD-3', 30000, 'USD', 'bk1-a1' FROM bookings LIMIT 1$$);
-INSERT INTO refunds (payment_id, amount, status) SELECT id, 10000, 'succeeded' FROM payments LIMIT 1;
+    SELECT id, 'fake', 3, 'ORD-3', 12345, 'USD', 'bk1-a1' FROM bookings LIMIT 1$$);
+INSERT INTO refunds (payment_id, amount, status) SELECT id, 2345, 'succeeded' FROM payments LIMIT 1;
 SELECT pg_temp.expect_fail('refunds: total cannot exceed payment',
-  $$INSERT INTO refunds (payment_id, amount) SELECT id, 25000 FROM payments LIMIT 1$$);
+  $$INSERT INTO refunds (payment_id, amount) SELECT id, 10001 FROM payments LIMIT 1$$);
 
 INSERT INTO invoices (payment_id, billed_name, billed_email, currency_code, tax_rate_bp)
 SELECT p.id, 'سامي', 'sami@example.com', 'USD', 1600 FROM payments p LIMIT 1;
@@ -279,11 +282,11 @@ SELECT pg_temp.expect_eq('invoices: booking comes from the payment (no booking_i
   (SELECT count(*)::text FROM information_schema.columns
    WHERE table_name = 'invoices' AND column_name = 'booking_id'), '0');
 INSERT INTO invoice_lines (invoice_id, line_no, description, quantity, unit_amount)
-SELECT id, 1, 'حلقة بودكاست', 1, 30000 FROM invoices;
+SELECT id, 1, 'حلقة بودكاست', 1, 12345 FROM invoices;
 SELECT pg_temp.expect_eq('invoices: number generated',
   (SELECT number FROM invoices), 'INV-' || local_year() || '-00001');
 SELECT pg_temp.expect_eq('invoices: totals computed by view (16% VAT)',
-  (SELECT subtotal || '/' || tax_amount || '/' || total_amount FROM invoice_totals), '30000/4800/34800');
+  (SELECT subtotal || '/' || tax_amount || '/' || total_amount FROM invoice_totals), '12345/1975/14320');
 SELECT pg_temp.expect_fail('invoices: billed data immutable',
   $$UPDATE invoices SET billed_name = 'غيره'$$);
 UPDATE invoices SET pdf_media_id = (SELECT id FROM media_assets WHERE path = 'a/pdf.pdf');

@@ -41,7 +41,7 @@ test('a domain accepts a valid value', function (string $domain, string $value) 
     ['url_text', 'https://raqam.ps/podcast'],
     ['hex_color', '#0B3D5C'],
     ['sha256_hex', str_repeat('a', 64)],
-    ['money_minor', '30000'],
+    ['money_minor', '12345'],
     ['basis_points', '1600'],
 ]);
 

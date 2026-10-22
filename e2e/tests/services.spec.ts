@@ -22,42 +22,42 @@ test('the starting services, a refused price, then a special offer that goes bac
 
     // Negative, then three decimals: refused under the field, nothing saved.
     await page.getByLabel('سعر ثابت').check();
-    await page.locator('[id="form.price"]').fill('-150');
+    await page.locator('[id="form.price"]').fill('-123.45');
     await pick(page, 'currency_code', 'شيكل');
     await saveForm(page);
     await expect(page.getByText('المبلغ لا يكون سالباً.')).toBeVisible();
-    await page.locator('[id="form.price"]').fill('150.555');
+    await page.locator('[id="form.price"]').fill('123.456');
     await saveForm(page);
     await expect(page.getByText('بمنزلتين عشريتين على الأكثر')).toBeVisible();
     expect(app.sql(`SELECT price_mode FROM services WHERE slug = 'podcast-episode'`)).toBe('on_request');
 
-    // 150 an episode, an offer of 120 until two to three minutes from now, and shown on the site.
-    await page.locator('[id="form.price"]').fill('150');
+    // 123.45 an episode, an offer of 99.99 until two to three minutes from now, and shown on the site (made-up amounts).
+    await page.locator('[id="form.price"]').fill('123.45');
     await page.locator('[id="form.price_note"]').fill('للحلقة');
     await page.getByLabel('عرض خاص').check();
-    await page.locator('[id="form.sale_price"]').fill('120');
+    await page.locator('[id="form.sale_price"]').fill('99.99');
     await setDateTime(page, 'form.sale_ends_at', await hebronParts(page, 180_000));
     await page.getByLabel('ظاهرة على الموقع').check();
     await saveForm(page);
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
-    expect(app.sql(`SELECT price_amount || ' ' || sale_price_amount FROM services WHERE slug = 'podcast-episode'`)).toBe('15000 12000');
+    expect(app.sql(`SELECT price_amount || ' ' || sale_price_amount FROM services WHERE slug = 'podcast-episode'`)).toBe('12345 9999');
 
     const shown = (await api(page, app, '/services/podcast-episode')).data;
-    expect(shown.price).toMatchObject({ amount: '120.00', text: '120.00 ₪ للحلقة', offer: { was: '150.00' } });
+    expect(shown.price).toMatchObject({ amount: '99.99', text: '99.99 ₪ للحلقة', offer: { was: '123.45' } });
     expect(shown.contact.whatsapp).toContain(encodeURIComponent('«حلقة بودكاست»'));
     expect(shown.booking).toEqual({ enabled: false, path: null });
-    expect(shown.structured_data.offers).toMatchObject({ '@type': 'Offer', price: '120.00', priceCurrency: 'ILS' });
-    expect(app.sql(`SELECT new_value FROM audit_log_changes WHERE field = 'price' ORDER BY audit_id DESC LIMIT 1`)).toContain('150.00 ILS (سعر ثابت) للحلقة — عرض 120.00');
+    expect(shown.structured_data.offers).toMatchObject({ '@type': 'Offer', price: '99.99', priceCurrency: 'ILS' });
+    expect(app.sql(`SELECT new_value FROM audit_log_changes WHERE field = 'price' ORDER BY audit_id DESC LIMIT 1`)).toContain('123.45 ILS (سعر ثابت) للحلقة — عرض 99.99');
 
     // When the offer ends the regular price is back, with nobody touching anything.
     await expect.poll(async () => (await api(page, app, '/services/podcast-episode')).data.price, { timeout: 240_000, intervals: [5_000] })
-        .toMatchObject({ amount: '150.00', offer: null });
+        .toMatchObject({ amount: '123.45', offer: null });
 });
 
 test('contact presses are counted per service and button; booking appears only when switched on; the advertise page lists the packages', async ({ page, app }) => {
     app.artisan(['services:install']);
     app.sql(`UPDATE services SET is_active = true`);
-    app.sql(`UPDATE services SET price_mode = 'fixed', price_amount = 40000, currency_code = 'ILS', price_note = 'للشهر' WHERE slug = 'ad-packages'`);
+    app.sql(`UPDATE services SET price_mode = 'fixed', price_amount = 11111, currency_code = 'ILS', price_note = 'للشهر' WHERE slug = 'ad-packages'`);
     dropCaches(app);
     const press = (channel: string, ip: string) => page.request.post(`${app.url}/api/v1/services/podcast-episode/contact`, {
         headers: { ...SITE, 'X-Raqam-Visitor-Ip': ip, 'X-Raqam-Visitor-Ua': PERSON_AGENT }, data: { channel },
@@ -68,7 +68,7 @@ test('contact presses are counted per service and button; booking appears only w
     expect(app.sql(`SELECT string_agg(channel || '=' || clicks, ',' ORDER BY channel) FROM service_contact_clicks_daily`)).toBe('phone=1,whatsapp=1');
 
     const advertise = (await api(page, app, '/advertise')).data;
-    expect(advertise.packages.map((p: any) => [p.name, p.price.text])).toEqual([['باقات إعلانية', '400.00 ₪ للشهر']]);
+    expect(advertise.packages.map((p: any) => [p.name, p.price.text])).toEqual([['باقات إعلانية', '111.11 ₪ للشهر']]);
     expect(advertise.placements.map((p: any) => p.code)).toEqual(['header_leaderboard', 'sidebar_mpu', 'in_article', 'between_sections']);
 
     await signIn(page, app, process.env.E2E_ADMIN_PASSWORD!);

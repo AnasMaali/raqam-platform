@@ -87,7 +87,8 @@ const io = new IntersectionObserver(entries => {
 
 `/api/ads/impressions` is a route **of the website** (same domain): it forwards the body to
 `POST /api/v1/ads/impressions` with `X-Raqam-Site-Token`, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua` (the visitor's
-User-Agent). The browser never holds the token, and CORS stays off.
+User-Agent). The browser never holds the token, and CORS stays off. **A report without a valid token and visitor
+address counts nothing** (it is still answered 204): views are what advertisers pay for, and anyone could invent them.
 
 The API counts a view only when: the agent is a person's browser (robots, link previews, monitors, headless browsers and
 HTTP libraries are not counted); the campaign is live in that slot at that moment; the same `view_id` was not counted
@@ -107,7 +108,8 @@ is limited. Floods of requests are for the edge (Cloudflare rate rules).
 ### Privacy
 
 No address is stored or used as a key: every per-visitor counter is keyed by an HMAC of the address, and view ids only
-appear inside hashed keys. Counts are per campaign, slot and Palestine day (`ad_stats_daily`); nothing else is kept.
+appear inside hashed keys. An IPv6 visitor is their whole /64 (one line can change its address inside it at will), so
+moving to a new address neither repeats a view nor escapes a limit; `::ffff:a.b.c.d` is the IPv4 address. Counts are per campaign, slot and Palestine day (`ad_stats_daily`); nothing else is kept.
 
 ## Reports (13.8)
 
