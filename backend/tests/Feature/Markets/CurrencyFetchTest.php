@@ -214,7 +214,7 @@ test('provider_health never keeps a key, even if a message carries one', functio
 
 // ---- when it runs --------------------------------------------------------------------------------------
 
-test('the check runs every 30 minutes from 12:00 to 16:00 Palestine time, Monday to Friday', function () {
+test('the check runs every 30 minutes from 12:00 to 17:30 Palestine time, Monday to Friday', function () {
     // The scheduler builds its list every minute, so it is built again at each moment tried.
     $due = function (string $local) {
         Carbon::setTestNow(Carbon::parse($local, 'Asia/Hebron'));
@@ -230,9 +230,11 @@ test('the check runs every 30 minutes from 12:00 to 16:00 Palestine time, Monday
         ->and($due('2026-10-21 12:30'))->toBeTrue()
         ->and($due('2026-10-21 15:30'))->toBeTrue()
         ->and($due('2026-10-21 16:00'))->toBeTrue()
+        ->and($due('2026-10-21 17:00'))->toBeTrue()          // a late publication is still caught
+        ->and($due('2026-10-21 17:30'))->toBeTrue()
         ->and($due('2026-10-23 13:00'))->toBeTrue()          // Friday: the bank publishes
         ->and($due('2026-10-21 11:30'))->toBeFalse()
-        ->and($due('2026-10-21 16:30'))->toBeFalse()
+        ->and($due('2026-10-21 18:00'))->toBeFalse()
         ->and($due('2026-10-21 12:15'))->toBeFalse()
         ->and($due('2026-10-24 13:00'))->toBeFalse()         // Saturday
         ->and($due('2026-10-25 13:00'))->toBeFalse();        // Sunday

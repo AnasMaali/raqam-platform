@@ -102,7 +102,7 @@ return [
     */
     'currency' => [
         'window_from' => '12:00',
-        'window_to' => '16:00',
+        'window_to' => '17:30',
         // Browser tests only: a stand-in for https://boi.org.il. Production refuses to start with it set.
         'boi_base' => env('CURRENCY_BOI_BASE'),
     ],

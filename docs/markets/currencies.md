@@ -8,8 +8,11 @@ without a key, plus buy/sell rates derived from them.
 * `GET https://boi.org.il/PublicApi/GetExchangeRates` answers with every published currency at once:
   `{"exchangeRates": [{"key": "USD", "currentExchangeRate": 3.106, "unit": 1, "lastUpdate": "2026-10-20T12:42:27.6546389Z"}, …]}`
   (shape checked 2026-10-21). The rate is shekels for `unit` units; the stored rate is divided by `unit`.
-* The bank publishes once a business day, **Monday to Friday** (none on Sundays or Israeli holidays).
-* `currency:fetch` runs every 30 minutes from 12:00 to 16:00 Palestine time on Monday to Friday. A rate is stored
+* The bank publishes once a business day, **Monday to Friday** (none on Saturdays, Sundays or Israeli holidays). Checked
+  against the bank's own series on 2026-10-21: every Monday to Friday of the last 30 days had a rate except Yom Kippur
+  (Monday 2026-09-21); no Saturday or Sunday had one. Recent publication times: 15:21 and 15:42 Palestine time.
+* `currency:fetch` runs every 30 minutes from 12:00 to 17:30 Palestine time on Monday to Friday (the late end keeps a
+  delayed publication on its own day). A rate is stored
   only when its `lastUpdate` is newer than the last one kept for that currency, so a day adds one row per currency.
   Every row is kept forever (`exchange_rates`).
 * AED and SAR are never fetched: `currency_pegs` derives them from the dollar (3.6725 and 3.75).
