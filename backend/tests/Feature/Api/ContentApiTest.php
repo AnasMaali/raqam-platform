@@ -54,7 +54,7 @@ test('every route of the API is in the contract and every path of the contract i
 
     expect($actual)->toBe($documented);
     // Read only, except the counters of what visitors do (they write a count, never content).
-    $counters = ['/ads/impressions'];
+    $counters = ['/ads/impressions', '/services/{slug}/contact'];
     foreach ($spec['paths'] as $template => $path) {
         expect(array_keys($path))->toBe(in_array($template, $counters, true) ? ['post'] : ['get'], $template);
     }

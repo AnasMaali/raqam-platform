@@ -20,6 +20,7 @@ final class SettingsCatalog
             'contact.whatsapp' => ['group' => 'التواصل', 'label' => 'رقم الواتساب', 'type' => 'phone', 'hint' => 'بالصيغة الدولية، مثال: +970599123456'],
             'contact.whatsapp_message' => ['group' => 'التواصل', 'label' => 'رسالة الواتساب الجاهزة', 'type' => 'string', 'hint' => 'يُضاف إليها اسم الخدمة تلقائياً'],
             'contact.email' => ['group' => 'التواصل', 'label' => 'البريد الإلكتروني للتواصل', 'type' => 'email'],
+            'contact.email_subject' => ['group' => 'التواصل', 'label' => 'عنوان رسالة البريد الجاهز', 'type' => 'string', 'hint' => 'يُضاف إليه اسم الخدمة تلقائياً، مثل: استفسار عن خدمة: حلقة بودكاست'],
             'contact.address' => ['group' => 'التواصل', 'label' => 'العنوان', 'type' => 'string'],
             'seo.title_suffix' => ['group' => 'محركات البحث', 'label' => 'لاحقة عنوان الصفحة', 'type' => 'string', 'hint' => 'تُضاف بعد عنوان كل صفحة'],
             'seo.default_image' => ['group' => 'محركات البحث', 'label' => 'صورة المشاركة الافتراضية', 'type' => 'media', 'hint' => 'تظهر عند مشاركة صفحة ليس لها صورة'],

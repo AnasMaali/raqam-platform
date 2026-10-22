@@ -45,6 +45,10 @@ info:
       never holds the token). The popup's `frequency_cap_hours` is kept in the visitor's browser (localStorage, no
       cookie). A change to campaigns or slots sends `{"type": "ads", "change": "campaign" | "placement", "paths": []}`;
       a campaign starting or ending by its own times sends nothing, so refresh `/ads` at least every minute or two.
+    * **Services** (`/services`, `/services/{slug}`, `/advertise`): prices are decimal strings with a ready `text`; a
+      special offer ends by itself (answers are cached only until then). A change in the panel sends
+      `{"type": "services", "change": "service", "paths": ["/services", "/services/{slug}", "/advertise"]}`. Contact
+      button presses are counted through `POST /services/{slug}/contact`, sent by the website's server like ad views.
     * **Weather** sends no webhook (every city changes every hour): refresh weather pages every 10 minutes. Every
       weather answer carries `meta.attribution` ("Weather data © OpenWeather"), which must be visible wherever
       the weather is shown (the free plan's condition).
@@ -64,6 +68,7 @@ tags:
   - name: Markets
   - name: Weather
   - name: Ads
+  - name: Services
 
 paths:
   /posts:
@@ -1083,6 +1088,166 @@ paths:
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /services:
+    get:
+      tags: [Services]
+      summary: The services and prices page (decision 14)
+      description: |
+        The page's intro (the published system page "services", or null) and the visible services by group, in the
+        admin's order, each with its price ready to show (`price.text`), a special offer while it lasts (`price.offer`:
+        the offer is the price, `was` the regular one; it ends by itself at `ends_at`), contact links that name the
+        service, and the booking button (`booking.enabled` is false while booking is off: show no booking button).
+        Cached briefly, never past the end of an offer.
+      operationId: listServices
+      responses:
+        '200':
+          description: The page.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: object
+                    required: [page, groups]
+                    properties:
+                      page: { oneOf: [{ $ref: '#/components/schemas/SystemPageText' }, { type: 'null' }] }
+                      groups:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, name, services]
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            services: { type: array, items: { $ref: '#/components/schemas/ServiceCard' } }
+                  meta: { $ref: '#/components/schemas/ServicesMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /services/{slug}:
+    get:
+      tags: [Services]
+      summary: One service's page (14.7)
+      description: |
+        Everything on the card plus the full description (cleaned HTML), what the service includes, its published FAQ,
+        up to six published examples from its section, SEO, and `structured_data` (schema.org Service with an Offer;
+        no Offer when the price is on request) to put in a JSON-LD script. A hidden or unknown service is a 404.
+      operationId: showService
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, maxLength: 200 }
+      responses:
+        '200':
+          description: The service.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    allOf:
+                      - { $ref: '#/components/schemas/ServiceCard' }
+                      - type: object
+                        required: [description_html, deliverables, faqs, examples, seo, structured_data]
+                        properties:
+                          description_html: { type: [string, 'null'] }
+                          deliverables: { type: array, items: { type: string } }
+                          faqs:
+                            type: array
+                            items:
+                              type: object
+                              required: [question, answer]
+                              properties: { question: { type: string }, answer: { type: string } }
+                          examples: { type: array, items: { $ref: '#/components/schemas/PostSummary' } }
+                          seo: { type: object }
+                          structured_data: { type: object }
+                  meta: { $ref: '#/components/schemas/ServicesMeta' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /services/{slug}/contact:
+    post:
+      tags: [Services]
+      summary: Count a press on a contact button of a service (14.9)
+      description: |
+        Send it when a visitor presses WhatsApp, call or e-mail on a service, **through a route of the website** with
+        the site token, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua`, then let the link open. People only; the same
+        visitor pressing the same button of the same service within 30 seconds counts once; at most 30 an hour per
+        visitor. JSON only. 204 whether or not it was counted; a hidden or unknown service is a 404.
+      operationId: countServiceContact
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel]
+              properties:
+                channel: { type: string, enum: [whatsapp, phone, email] }
+      responses:
+        '204': { description: Received. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /advertise:
+    get:
+      tags: [Services]
+      summary: The «أعلن معنا» page (13.14)
+      description: |
+        The page's text (the published system page "advertise", or null), the ad slots that are on with their sizes,
+        the ad packages with their prices (the visible services of the «إعلانات» group; prices are set by the
+        management in the panel), the contact links, and `booking.enabled` (false in V1: no booking button).
+      operationId: advertisePage
+      responses:
+        '200':
+          description: The page.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [page, placements, packages, contact, booking]
+                    properties:
+                      page: { oneOf: [{ $ref: '#/components/schemas/SystemPageText' }, { type: 'null' }] }
+                      placements:
+                        type: array
+                        items:
+                          type: object
+                          required: [code, name, sizes]
+                          properties:
+                            code: { $ref: '#/components/schemas/AdPlacementCode' }
+                            name: { type: string }
+                            sizes:
+                              type: object
+                              required: [desktop, mobile]
+                              properties:
+                                desktop: { oneOf: [{ $ref: '#/components/schemas/AdSize' }, { type: 'null' }] }
+                                mobile: { oneOf: [{ $ref: '#/components/schemas/AdSize' }, { type: 'null' }] }
+                      packages: { type: array, items: { $ref: '#/components/schemas/ServiceCard' } }
+                      contact: { $ref: '#/components/schemas/ContactLinks' }
+                      booking:
+                        type: object
+                        required: [enabled]
+                        properties: { enabled: { type: boolean } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
 components:
   parameters:
     Page:
@@ -1147,6 +1312,68 @@ components:
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
   schemas:
+    SystemPageText:
+      type: object
+      required: [title, body_html, seo]
+      properties:
+        title: { type: string }
+        body_html: { type: string }
+        seo: { type: object }
+    ContactLinks:
+      type: object
+      description: Ready links; null when the setting is empty (hide that button).
+      required: [whatsapp, phone, email]
+      properties:
+        whatsapp: { type: [string, 'null'], description: 'https://wa.me/… with a ready message naming the service.' }
+        phone: { type: [string, 'null'], description: 'tel:+970…' }
+        email: { type: [string, 'null'], description: 'mailto:… with a ready subject naming the service.' }
+    ServicePrice:
+      type: object
+      required: [mode, amount, currency, symbol, note, text, offer]
+      properties:
+        mode: { type: string, enum: [fixed, from, on_request] }
+        amount: { type: [string, 'null'], description: 'Decimal string ("16.12"); the offer price while an offer lasts.' }
+        currency: { type: [string, 'null'], enum: [ILS, USD, null] }
+        symbol: { type: [string, 'null'] }
+        note: { type: [string, 'null'], description: 'e.g. «للحلقة».' }
+        text: { type: string, description: 'Ready to show: "150.00 ₪ للحلقة", "يبدأ من 1,500.00 ₪", "السعر عند التواصل".' }
+        offer:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [was, was_text, ends_at]
+              properties:
+                was: { type: string }
+                was_text: { type: string }
+                ends_at: { type: string, format: date-time }
+    ServiceCard:
+      type: object
+      required: [id, slug, path, group_id, name, summary, cover, price, contact, booking]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        path: { type: string, description: '/services/{slug}' }
+        group_id: { type: integer }
+        name: { type: string }
+        summary: { type: string }
+        cover: { oneOf: [{ $ref: '#/components/schemas/Media' }, { type: 'null' }] }
+        price: { $ref: '#/components/schemas/ServicePrice' }
+        contact: { $ref: '#/components/schemas/ContactLinks' }
+        booking:
+          type: object
+          required: [enabled, path]
+          properties:
+            enabled: { type: boolean }
+            path: { type: [string, 'null'] }
+    ServicesMeta:
+      type: object
+      required: [booking, currency_note]
+      properties:
+        booking:
+          type: object
+          required: [enabled]
+          properties: { enabled: { type: boolean } }
+        currency_note: { type: string }
     AdPlacementCode:
       type: string
       enum: [header_leaderboard, sidebar_mpu, in_article, between_sections, popup, mobile_sticky]

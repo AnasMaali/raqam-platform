@@ -7,6 +7,7 @@ use App\Console\CurrencyFetchCommand;
 use App\Console\InstallCharactersCommand;
 use App\Console\InstallCitiesCommand;
 use App\Console\InstallPagesCommand;
+use App\Console\InstallServicesCommand;
 use App\Console\InstallSynonymsCommand;
 use App\Console\PruneDevicesCommand;
 use App\Console\PublishDuePostsCommand;
@@ -35,7 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
-        CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class])
+        CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })
