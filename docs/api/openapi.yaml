@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   summary: Read-only access to the published content of the Raqam platform.
   description: |
-    Everything here is **read only** and serves **published content only**: drafts, scheduled items, archived items
+    Everything here is **read only** (except the visitor-action counters below) and serves **published content only**: drafts, scheduled items, archived items
     and anything in the trash never appear (a request for one is a 404, or a 410 when the address was deleted for good).
 
     * Lists have **12 items per page** (`page` starts at 1). The response carries `meta` and `links`.
@@ -34,6 +34,17 @@ info:
       spread, the list) the site gets `{"type": "currencies", "change": "rates_published" | "manual_rate" | "board" |
       "source", "paths": ["/currencies"]}`. A manual rate that simply runs out sends nothing: the board answers are
       cached only until that moment, so refresh `/currencies` at least every few minutes.
+    * **Ads** (`/ads`): every slot with its reserved sizes, the campaigns that may fill it now and what an empty slot
+      shows. Pick one campaign per slot and render with `weight` (weighted random: a campaign with weight 80 shows twice
+      as often as one with 40), dropping any whose `starts_at`/`ends_at` no longer hold at render time. Reserve the
+      slot's size before the picture loads. Mark every ad with `meta.label` ("إعلان"). Link the picture to `click_url`
+      with `rel="sponsored noopener"` (`rel`): the click is counted there and the browser is sent on (302) to the
+      advertiser. When a slot has no campaign, show `house` if present, otherwise nothing. When an ad is at least half
+      on screen (IntersectionObserver, threshold 0.5) report it once per page view to `POST /ads/impressions` **through
+      a route of the website** that adds the site token, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua` (the browser
+      never holds the token). The popup's `frequency_cap_hours` is kept in the visitor's browser (localStorage, no
+      cookie). A change to campaigns or slots sends `{"type": "ads", "change": "campaign" | "placement", "paths": []}`;
+      a campaign starting or ending by its own times sends nothing, so refresh `/ads` at least every minute or two.
     * **Weather** sends no webhook (every city changes every hour): refresh weather pages every 10 minutes. Every
       weather answer carries `meta.attribution` ("Weather data © OpenWeather"), which must be visible wherever
       the weather is shown (the free plan's condition).
@@ -52,6 +63,7 @@ tags:
   - name: Search
   - name: Markets
   - name: Weather
+  - name: Ads
 
 paths:
   /posts:
@@ -974,6 +986,103 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /ads:
+    get:
+      tags: [Ads]
+      summary: The ad slots, the live campaigns of each, and what an empty slot shows (decision 13)
+      description: |
+        Every slot, in the site's order, whether it is on (`active`), its reserved sizes per device (13.10; a missing
+        size means the slot does not exist on that device, e.g. the mobile bar on a desktop), lazy loading (13.11), the
+        popup's frequency, and `empty`: `house` (show `house`, the «أعلن معنا» banner, when no campaign fills it) or
+        `hide`. `ads` are the campaigns live now in that slot (13.4), highest priority first, with both pictures the slot
+        needs. Cached briefly; never kept past the next start or end of a campaign.
+      operationId: listAdSlots
+      responses:
+        '200':
+          description: The slots.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AdSlot' } }
+                  meta:
+                    type: object
+                    required: [label, rotation, generated_at, adsense]
+                    properties:
+                      label: { type: string, description: 'Show it on every ad ("إعلان").' }
+                      rotation: { type: string, enum: [weighted] }
+                      generated_at: { type: string, format: date-time }
+                      adsense:
+                        type: object
+                        description: AdSense is off in V1 (13.15); the slots work without it.
+                        required: [enabled, client]
+                        properties:
+                          enabled: { type: boolean }
+                          client: { type: [string, 'null'] }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /ads/click/{campaign}/{placement}/{signature}:
+    get:
+      tags: [Ads]
+      summary: The click link of an ad (13.7)
+      description: |
+        Use the `click_url` of `/ads` as it is; never build it. The click is counted (people only, once per few seconds
+        per visitor, campaign and slot), then the browser is sent with **302** to the address stored with the campaign
+        and nowhere else: the link carries no destination, so it cannot send anyone to another site. A link that was
+        not issued by `/ads` (wrong signature) is a 404. A campaign that has since ended or been paused still sends the
+        visitor on, without counting. Never cached.
+      operationId: adClick
+      parameters:
+        - { name: campaign, in: path, required: true, schema: { type: integer, minimum: 1 } }
+        - { name: placement, in: path, required: true, schema: { $ref: '#/components/schemas/AdPlacementCode' } }
+        - { name: signature, in: path, required: true, schema: { type: string, pattern: '^[0-9a-f]{32}$' } }
+      responses:
+        '302':
+          description: On to the advertiser.
+          headers: { Location: { schema: { type: string, format: uri } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /ads/impressions:
+    post:
+      tags: [Ads]
+      summary: Report the ads a visitor saw (13.6)
+      description: |
+        Send the ads that were at least half on screen in one page view, once. `view_id` is a random id the page makes
+        for that page view (8–64 of `A-Z a-z 0-9 _ -`); the same view of the same ad is counted once. Send it from the
+        website's server with the site token, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua`; the visitor's limit and
+        identity are an HMAC of that address, never the address. Robots are not counted. JSON only. The answer is 204
+        whether or not anything was counted.
+      operationId: reportAdImpressions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [view_id, items]
+              additionalProperties: false
+              properties:
+                view_id: { type: string, pattern: '^[A-Za-z0-9_-]{8,64}$' }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 8
+                  items:
+                    type: object
+                    required: [campaign_id, placement]
+                    additionalProperties: false
+                    properties:
+                      campaign_id: { type: integer, minimum: 1 }
+                      placement: { $ref: '#/components/schemas/AdPlacementCode' }
+      responses:
+        '204': { description: Received. }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
 components:
   parameters:
     Page:
@@ -1038,6 +1147,58 @@ components:
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
   schemas:
+    AdPlacementCode:
+      type: string
+      enum: [header_leaderboard, sidebar_mpu, in_article, between_sections, popup, mobile_sticky]
+    AdSize:
+      type: object
+      required: [width, height]
+      properties: { width: { type: integer, minimum: 1 }, height: { type: integer, minimum: 1 } }
+    AdImages:
+      type: object
+      description: One picture per device the slot has a size for; null for a device it has none for.
+      required: [desktop, mobile]
+      properties:
+        desktop: { oneOf: [{ $ref: '#/components/schemas/Media' }, { type: 'null' }] }
+        mobile: { oneOf: [{ $ref: '#/components/schemas/Media' }, { type: 'null' }] }
+    Ad:
+      type: object
+      required: [id, weight, advertiser, starts_at, ends_at, images, click_url, rel]
+      properties:
+        id: { type: integer }
+        weight: { type: integer, minimum: 1, maximum: 100, description: The campaign's priority; its share of the rotation. }
+        advertiser: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        images: { $ref: '#/components/schemas/AdImages' }
+        click_url: { type: string, format: uri }
+        rel: { type: string, enum: ['sponsored noopener'] }
+    AdSlot:
+      type: object
+      required: [code, name, active, sizes, lazy, frequency_cap_hours, empty, ads, house]
+      properties:
+        code: { $ref: '#/components/schemas/AdPlacementCode' }
+        name: { type: string }
+        active: { type: boolean, description: 'Off: render nothing and reserve nothing.' }
+        sizes:
+          type: object
+          required: [desktop, mobile]
+          properties:
+            desktop: { oneOf: [{ $ref: '#/components/schemas/AdSize' }, { type: 'null' }] }
+            mobile: { oneOf: [{ $ref: '#/components/schemas/AdSize' }, { type: 'null' }] }
+        lazy: { type: boolean }
+        frequency_cap_hours: { type: [integer, 'null'], description: 'Popup only: show it to a visitor at most once in this many hours.' }
+        empty: { type: string, enum: [house, hide] }
+        ads: { type: array, items: { $ref: '#/components/schemas/Ad' } }
+        house:
+          description: The «أعلن معنا» banner for an empty slot (internal link or https address), or null.
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [images, target]
+              properties:
+                images: { $ref: '#/components/schemas/AdImages' }
+                target: { type: string }
     SearchResponse:
       type: object
       required: [data, meta, links]

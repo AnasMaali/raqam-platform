@@ -10,6 +10,7 @@ require_once __DIR__.'/Support/media.php';
 require_once __DIR__.'/Support/api.php';
 require_once __DIR__.'/Support/search.php';
 require_once __DIR__.'/Support/markets.php';
+require_once __DIR__.'/Support/ads.php';
 
 /*
 |--------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 
 namespace App\Panel;
 
+use App\Ads\AdAlerts;
 use App\Integrations\ProviderAlerts;
 use App\Media\ImageProcessor;
 use App\Video\YouTubeQuota;
@@ -22,8 +23,8 @@ final class PanelAlerts
             $alerts[] = 'صيغة AVIF غير مدعومة على هذا السيرفر، فالصور تُقدَّم بـ WebP وJPEG فقط وبحجم أكبر. صورة Docker لازم يكون فيها GD مبني مع libavif.';
         }
 
-        // An outside source that failed three times in a row and has not answered since (11.3, 12.3).
-        return [...$alerts, ...ProviderAlerts::current(), ...self::videoAlerts()];
+        // An outside source that failed three times in a row and has not answered since (11.3, 12.3); campaigns ending within three days (13.9).
+        return [...$alerts, ...ProviderAlerts::current(), ...self::videoAlerts(), ...AdAlerts::ending()];
     }
 
     /** @return list<string> */

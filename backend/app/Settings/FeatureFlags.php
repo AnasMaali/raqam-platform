@@ -2,6 +2,8 @@
 
 namespace App\Settings;
 
+use App\Ads\AdBoard;
+use App\Ads\AdPlacements;
 use App\Models\FeatureFlag;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +25,13 @@ final class FeatureFlags
 
         try {
             // A refused statement aborts a PostgreSQL transaction; the nested one keeps the caller's usable.
-            DB::transaction(fn () => $flag->update(['is_enabled' => $enabled, 'updated_by' => $userId]));
+            DB::transaction(function () use ($flag, $enabled, $userId) {
+                $flag->update(['is_enabled' => $enabled, 'updated_by' => $userId]);
+                // The popup and the mobile bar show only while their switch is on: the ad slots the site gets change.
+                if (in_array($flag->key, AdPlacements::SWITCHES, true)) {
+                    AdBoard::changed('placement');
+                }
+            });
         } catch (QueryException $e) {
             if ($e->getCode() === '23514') {
                 throw new FeatureFlagRefused($this->explain($flag, $enabled));

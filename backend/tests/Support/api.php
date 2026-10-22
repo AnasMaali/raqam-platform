@@ -45,7 +45,18 @@ function validateAgainstPath(array $data, string $template): void
     $validator = new Validator;
     $validator->resolver()->registerRaw($spec, 'https://raqam.test/openapi');
     $schema = json_decode(str_replace('"#/components', '"https://raqam.test/openapi#/components', json_encode($schema, JSON_UNESCAPED_SLASHES)));
-    $result = $validator->validate(json_decode(json_encode($data)), $schema);
+    // The test decodes JSON into arrays, which turns an empty object into an empty list; put those back.
+    $objects = function ($value) use (&$objects) {
+        if (! is_array($value)) {
+            return $value;
+        }
+        foreach ($value as $key => $item) {
+            $value[$key] = in_array($key, ['links', 'variants'], true) && $item === [] ? new stdClass : $objects($item);
+        }
+
+        return $value;
+    };
+    $result = $validator->validate(json_decode(json_encode($objects($data))), $schema);
 
     expect($result->isValid())->toBeTrue($result->isValid() ? '' : json_encode((new ErrorFormatter)->format($result->error()), JSON_UNESCAPED_UNICODE));
 }

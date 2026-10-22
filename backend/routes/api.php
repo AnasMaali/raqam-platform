@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdApiController;
 use App\Http\Controllers\Api\AwarenessApiController;
 use App\Http\Controllers\Api\CurrencyApiController;
 use App\Http\Controllers\Api\PageApiController;
@@ -56,7 +57,15 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/weather/cities', [WeatherApiController::class, 'cities']);
     Route::get('/weather/widget', [WeatherApiController::class, 'widget']);
     Route::get('/weather/{slug}', [WeatherApiController::class, 'show']);
+
+    Route::get('/ads', [AdApiController::class, 'slots']);
 });
+
+// Ads (decision 13): the click link a browser follows (counts, then 302 to the stored address) and the view reports
+// of the site. Never cached; each has its own per-visitor limit.
+Route::middleware('throttle:ads-click')->get('/ads/click/{campaign}/{placement}/{signature}', [AdApiController::class, 'click'])
+    ->where(['campaign' => '[0-9]{1,18}', 'placement' => '[a-z_]{1,20}', 'signature' => '[0-9a-f]{32}'])->name('ads.click');
+Route::middleware('throttle:ads-impressions')->post('/ads/impressions', [AdApiController::class, 'impressions']);
 
 // Search (decision 10): its own limit, and no response cache (results are personal to a query and never cached).
 Route::middleware('throttle:api-search')->get('/search', [SearchApiController::class, 'index']);

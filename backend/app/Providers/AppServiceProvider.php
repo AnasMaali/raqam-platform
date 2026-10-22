@@ -79,6 +79,13 @@ class AppServiceProvider extends ServiceProvider
             return SiteToken::valid($request) ? Limit::perMinute((int) config('raqam.api.site_limit'))->by('site') : $perVisitor->by(TrackingHash::visitor($request->ip()));
         });
 
+        // Ads (13.6, 13.7): the view reports of one visitor (the address the site names with its token, or the request's
+        // own), and the click links a browser follows. A click over the limit is refused here only when it is a flood;
+        // below that, the counter itself decides what counts and the visitor always reaches the advertiser.
+        RateLimiter::for('ads-impressions', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.impression_requests_per_minute'))
+            ->by('ads-views|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('ads-click', fn (Request $request) => Limit::perMinute(60)->by('ads-click|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what
         // AuthenticateSession raises when the password changed since the session began.
         Event::listen(Logout::class, fn (Logout $event) => $event->user && AdminAudit::logout($event->user, AdminAudit::expectedReason()));
