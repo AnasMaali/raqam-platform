@@ -47,3 +47,6 @@ Schedule::command('newsletter:refresh-stats')->hourlyAt(20)->withoutOverlapping(
 // keeps the raw retention period (90 days by default), the daily figures stay for ever.
 Schedule::command('stats:flush')->hourlyAt(5)->withoutOverlapping();
 Schedule::command('stats:prune')->dailyAt('02:50')->withoutOverlapping();
+
+// The audit trail and the sign-in attempts keep two years (22.17); the database refuses anything younger.
+Schedule::command('audit:prune')->dailyAt('03:10')->withoutOverlapping();
