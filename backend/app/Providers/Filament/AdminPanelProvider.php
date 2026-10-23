@@ -8,6 +8,7 @@ use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Filament\Pages\ChangePassword;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\GeneralSettings;
+use App\Filament\Pages\HomeLayoutEditor;
 use App\Filament\Pages\MenuEditor;
 use App\Filament\Pages\SearchStatistics;
 use App\Filament\Pages\Statistics;
@@ -55,7 +56,7 @@ class AdminPanelProvider extends PanelProvider
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
             ->navigationGroups(['المحتوى', 'الإحصائيات', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'الشات بوت', 'البحث', 'النظام'])
-            ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class, Statistics::class])
+            ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class, Statistics::class, HomeLayoutEditor::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),
             ])

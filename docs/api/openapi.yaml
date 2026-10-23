@@ -76,8 +76,35 @@ tags:
   - name: Newsletter
   - name: Chat
   - name: Statistics
+  - name: Home
 
 paths:
+  /home:
+    get:
+      tags: [Home]
+      summary: The home page, block by block, in the admin's order (21.11)
+      description: |
+        The visible blocks in order, each with what it shows now: posts (live only) for `hero` (featured first: the first
+        is the main story), `breaking`, `latest`, `category` (with its sub-categories), `section`, `awareness` and
+        `most_read`; videos for `videos` and `playlist`. A block whose category, section or playlist is hidden, or that has
+        nothing to show, is left out. `markets`, `ad` and `newsletter` name the endpoints to read (they keep their own
+        caches and counting). The admin's change of order or visibility reaches the site by the webhook
+        (`type: home`, `paths: ["/"]`).
+      operationId: home
+      responses:
+        '200':
+          description: The blocks.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/HomeBlock' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /posts:
     get:
       tags: [Posts]
@@ -2001,6 +2028,33 @@ components:
         name: { type: string }
         slug: { type: string }
         website: { type: [string, 'null'] }
+    HomeBlock:
+      type: object
+      required: [id, type, title]
+      additionalProperties: false
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [hero, breaking, latest, category, section, videos, playlist, awareness, most_read, markets, ad, newsletter] }
+        title: { type: string, description: "The admin's title, or the block's own name (the category's, the section's …)." }
+        posts: { type: array, items: { $ref: '#/components/schemas/PostSummary' } }
+        videos: { type: array, items: { $ref: '#/components/schemas/Video' } }
+        category:
+          type: object
+          required: [id, name, slug]
+          properties: { id: { type: integer }, name: { type: string }, slug: { type: string } }
+        section:
+          type: object
+          required: [key, name, slug]
+          properties: { key: { type: string }, name: { type: string }, slug: { type: string } }
+        playlist:
+          type: object
+          required: [name, slug]
+          properties: { name: { type: string }, slug: { type: string } }
+        placement: { $ref: '#/components/schemas/AdPlacementCode' }
+        sources:
+          type: object
+          description: Endpoints to read for this block.
+          additionalProperties: { type: string }
     PostSummary:
       type: object
       required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
