@@ -171,9 +171,9 @@ test('the scheduler runs the alerts and the weekly summary at their times', func
 test('the weekly summary counts the week before and escapes what visitors wrote (20.12)', function () {
     $today = CarbonImmutable::parse('2026-10-24 09:00', 'Asia/Hebron');   // a Saturday
     DB::table('subscribers')->insert([
-        ['email' => 'in@example.com', 'status' => 'active', 'confirmed_at' => '2026-10-20 10:00:00+00'],
-        ['email' => 'before@example.com', 'status' => 'active', 'confirmed_at' => '2026-10-10 10:00:00+00'],
-        ['email' => 'pending@example.com', 'status' => 'pending', 'confirmed_at' => null],
+        ['email' => 'in@example.com', 'source_placement' => 'footer', 'status' => 'active', 'confirmed_at' => '2026-10-20 10:00:00+00'],
+        ['email' => 'before@example.com', 'source_placement' => 'footer', 'status' => 'active', 'confirmed_at' => '2026-10-10 10:00:00+00'],
+        ['email' => 'pending@example.com', 'source_placement' => 'footer', 'status' => 'pending', 'confirmed_at' => null],
     ]);
     $c = adCampaign(['name' => 'حملة <b>الخريف</b>']);
     DB::table('ad_stats_daily')->insert([

@@ -39,6 +39,11 @@ test('each unsafe setting is refused, and only that one', function (array $spoil
     'no ADMIN_PATH' => [['raqam.admin_path' => null], 'ADMIN_PATH'],
     'no TURNSTILE_SECRET_KEY' => [['raqam.turnstile.secret' => null], 'TURNSTILE_SECRET_KEY'],
     'no API_SITE_TOKEN' => [['raqam.api.site_token' => ''], 'API_SITE_TOKEN'],
+    'no SITE_URL' => [['raqam.site_url' => null], 'SITE_URL'],
+    'SITE_URL over http' => [['raqam.site_url' => 'http://raqam.example'], 'SITE_URL'],
+    'test-only Brevo stand-in' => [['raqam.newsletter.brevo.api_base' => 'http://127.0.0.1:9'], 'BREVO_API_BASE'],
+    'Brevo without a list' => [['raqam.newsletter.brevo.key' => 'xkeysib-x', 'raqam.newsletter.brevo.list_id' => null, 'raqam.newsletter.brevo.webhook_token' => str_repeat('t', 32)], 'BREVO_LIST_ID'],
+    'Brevo without a webhook token' => [['raqam.newsletter.brevo.key' => 'xkeysib-x', 'raqam.newsletter.brevo.list_id' => '3', 'raqam.newsletter.brevo.webhook_token' => 'short'], 'BREVO_WEBHOOK_TOKEN'],
     'test-only Turnstile stand-in' => [['raqam.turnstile.verify_url' => 'http://127.0.0.1:9'], 'TURNSTILE_VERIFY_URL'],
 ]);
 

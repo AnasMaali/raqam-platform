@@ -62,6 +62,22 @@ final class ProductionChecks
             $failures[] = 'CURRENCY_BOI_BASE is for browser tests only and must not be set.';
         }
 
+        if (filled(config('raqam.newsletter.brevo.api_base'))) {
+            $failures[] = 'BREVO_API_BASE is for browser tests only and must not be set.';
+        }
+        // Brevo is optional (empty key = no connection); once it is on, everything it needs must be there.
+        if (filled(config('raqam.newsletter.brevo.key'))) {
+            if (! ctype_digit((string) config('raqam.newsletter.brevo.list_id'))) {
+                $failures[] = 'BREVO_LIST_ID must be the number of the Brevo list.';
+            }
+            if (strlen((string) config('raqam.newsletter.brevo.webhook_token')) < 32) {
+                $failures[] = 'BREVO_WEBHOOK_TOKEN must be set (at least 32 characters).';
+            }
+        }
+        if (! str_starts_with((string) config('raqam.site_url'), 'https://')) {
+            $failures[] = 'SITE_URL must be the https:// address of the website.';
+        }
+
         if (filled(config('raqam.turnstile.verify_url'))) {
             $failures[] = 'TURNSTILE_VERIFY_URL is for browser tests only and must not be set.';
         }

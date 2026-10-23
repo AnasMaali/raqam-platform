@@ -70,6 +70,14 @@ final class EmailCatalog
                 'vars' => ['الاسم' => 'text'],
             ],
 
+            // Newsletter (2.2, 19.2): sent from the platform's own mailbox, not Brevo.
+            'visitor_newsletter_code' => [
+                'name' => 'رمز تأكيد الاشتراك بالنشرة', 'audience' => 'visitor', 'sender' => 'no_reply', 'locked' => true,
+                'subject' => 'رمز تأكيد اشتراكك في نشرة رَقَم',
+                'body' => '<p>رمز تأكيد اشتراكك في النشرة البريدية:</p><p>{الرمز}</p><p>اكتبه في الموقع خلال {الدقائق} دقيقة. إن لم تطلب الاشتراك فتجاهل هذه الرسالة ولن نرسل لك شيئاً.</p>',
+                'vars' => ['الرمز' => 'code', 'الدقائق' => 'text'], 'required' => ['الرمز'],
+            ],
+
             // Alerts for the admins (20.3, 20.4) and the weekly summary (20.12).
             'admin_provider_failure' => [
                 'name' => 'تنبيه: مصدر بيانات لا يستجيب', 'audience' => 'admin', 'sender' => 'no_reply',

@@ -73,6 +73,7 @@ tags:
   - name: Ads
   - name: Services
   - name: Contact
+  - name: Newsletter
 
 paths:
   /posts:
@@ -1255,6 +1256,135 @@ paths:
         '415': { $ref: '#/components/responses/Invalid' }
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
+  /newsletter/subscribe:
+    post:
+      tags: [Newsletter]
+      summary: Ask to subscribe to the newsletter (19.1, 19.2)
+      description: |
+        **From the website's server only** (site token + `X-Raqam-Visitor-Ip`; 403 `site_only` otherwise), JSON only (415). 10
+        requests a minute per visitor (429).
+
+        Checks Turnstile (`turnstile_token`, action `newsletter`), then answers **the same whatever the address**
+        (subscribed or not, limit reached or not): a `challenge` to keep (e.g. in an httpOnly cookie of the site) and,
+        when the limits allow, a 6-digit code goes to the address (valid 30 minutes, 5 tries). One address gets at most
+        3 codes an hour and 6 a day, whoever asks; 10 requests an hour per visitor (429 `too_many`).
+        `placement` is the form: `footer`, `post_end` or `newsletter_page`; `path` the page (kept as consent proof only
+        once the code is confirmed).
+      operationId: newsletterSubscribe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, placement, turnstile_token]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                name: { type: [string, 'null'], minLength: 2, maxLength: 120 }
+                placement: { type: string, enum: [footer, post_end, newsletter_page] }
+                path: { type: [string, 'null'], maxLength: 500, description: "A path of the site, starting with /." }
+                turnstile_token: { type: string, maxLength: 2048 }
+      responses:
+        '202': { $ref: '#/components/responses/NewsletterChallenge' }
+        '403': { $ref: '#/components/responses/Invalid' }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /newsletter/resend:
+    post:
+      tags: [Newsletter]
+      summary: Send the code again (19.2)
+      description: |
+        **From the website's server only** (site token + `X-Raqam-Visitor-Ip`; 403 `site_only` otherwise), JSON only (415). 10
+        requests a minute per visitor (429).
+
+        A new code for the same challenge, at least 60 seconds after the last one and within the per-address limits;
+        the answer is the same whether or not one went. 422 `expired` for an unknown or old challenge.
+      operationId: newsletterResend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [challenge], properties: { challenge: { type: string } } }
+      responses:
+        '202': { $ref: '#/components/responses/NewsletterChallenge' }
+        '403': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /newsletter/confirm:
+    post:
+      tags: [Newsletter]
+      summary: Confirm the subscription with the code (19.2)
+      description: |
+        **From the website's server only** (site token + `X-Raqam-Visitor-Ip`; 403 `site_only` otherwise), JSON only (415). 10
+        requests a minute per visitor (429).
+
+        The code is good only with the challenge it was sent for. 422 `bad_code` (wrong, or its 5 tries are used) or
+        `expired`. On success the address is subscribed (consent: when, page, form) and goes to Brevo.
+      operationId: newsletterConfirm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge, code]
+              properties:
+                challenge: { type: string }
+                code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200':
+          description: Subscribed.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, required: [confirmed], properties: { confirmed: { type: boolean, const: true } } } } }
+        '403': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /newsletter/unsubscribe:
+    post:
+      tags: [Newsletter]
+      summary: Unsubscribe with the subscriber's own link (19.5)
+      description: |
+        **From the website's server only** (site token + `X-Raqam-Visitor-Ip`; 403 `site_only` otherwise), JSON only (415). 10
+        requests a minute per visitor (429).
+
+        The page `/newsletter/unsubscribe?s={subscriber}&t={signature}` of the site sends both values here (also for a
+        one-click `List-Unsubscribe-Post`). 422 `invalid_link` when the signature is not that subscriber's.
+      operationId: newsletterUnsubscribe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscriber, signature]
+              properties:
+                subscriber: { type: [integer, string] }
+                signature: { type: string }
+      responses:
+        '200':
+          description: Unsubscribed.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, required: [unsubscribed], properties: { unsubscribed: { type: boolean, const: true } } } } }
+        '403': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /newsletter/brevo-webhook:
+    post:
+      tags: [Newsletter]
+      summary: Brevo's marketing webhook (19.4)
+      description: |
+        Called by Brevo, not by the site, with `X-Raqam-Brevo-Token` (the secret `BREVO_WEBHOOK_TOKEN`; a wrong one is a
+        404). One event or a list of them (`unsubscribed`, `hard_bounce`, `spam`, `contact_deleted`). Brevo does not
+        sign its messages, so a message is only a hint: the subscriber changes only after Brevo's API confirms the
+        contact no longer receives the list. Always 204.
+      operationId: newsletterBrevoWebhook
+      responses:
+        '204': { description: Received. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /advertise:
     get:
       tags: [Services]
@@ -1360,6 +1490,21 @@ components:
     Invalid:
       description: A parameter is wrong.
       content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NewsletterChallenge:
+      description: The challenge to send back with the code; the same answer for every address.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [challenge, resend_after, expires_in]
+                properties:
+                  challenge: { type: string, description: "Opaque, encrypted. Keep it on the site's side." }
+                  resend_after: { type: integer, description: Seconds before a new code can be asked for. }
+                  expires_in: { type: integer, description: Seconds the code is valid. }
     TooManyRequests:
       description: Too many requests; wait `Retry-After` seconds.
       headers: { Retry-After: { schema: { type: integer } } }

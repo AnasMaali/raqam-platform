@@ -4,6 +4,7 @@ namespace App\Panel;
 
 use App\Integrations\DataProviders;
 use App\Integrations\ProviderAlerts;
+use App\Newsletter\BrevoClient;
 use App\Search\MeiliClient;
 use App\Video\YouTubeQuota;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,7 @@ final class ConnectionStatus
      */
     public static function all(bool $probeSearch = true): array
     {
-        return [self::currency(), self::weather(), self::youtube(), self::search($probeSearch), self::email()];
+        return [self::currency(), self::weather(), self::youtube(), self::search($probeSearch), self::email(), self::newsletter()];
     }
 
     /** @return array{name: string, state: string, key: string, lines: list<string>} */
@@ -71,6 +72,17 @@ final class ConnectionStatus
 
         return ['name' => 'البحث', 'state' => $up ? self::OK : self::FAILING, 'key' => 'مضبوط',
             'lines' => [$up ? 'Meilisearch يعمل.' : 'Meilisearch لا يستجيب؛ البحث يعمل مؤقتاً من قاعدة البيانات.']];
+    }
+
+    /** The newsletter's Brevo (19.4): off without its key, otherwise from provider_health like the other sources. */
+    private static function newsletter(): array
+    {
+        if (! BrevoClient::configured()) {
+            return ['name' => 'النشرة (Brevo)', 'state' => self::OFF, 'key' => 'غير مضبوط', 'lines' => ['لا اتصال بـ Brevo: المشتركون يُحفظون عندنا فقط. أضف BREVO_API_KEY وBREVO_LIST_ID إلى ملف البيئة.']];
+        }
+
+        return self::fromHealth('النشرة (Brevo)', 'brevo', 'مضبوط', ['القائمة رقم '.config('raqam.newsletter.brevo.list_id'),
+            'المشتركون الفعّالون: '.DB::table('subscribers')->where('status', 'active')->count()]);
     }
 
     /**

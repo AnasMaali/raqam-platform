@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Mail\Transport\ArrayTransport;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\Exception\TransportException;
@@ -64,4 +65,13 @@ function failingMailer(string $message = 'Expected response code "235" but got c
 function staffAdmin(string $email = 'admin@raqam.example', array $extra = []): int
 {
     return insertUser('staff', $email, $extra);
+}
+
+/** @return list<string> every key the test cache holds now (the array store of the tests) */
+function cacheStoreKeys(): array
+{
+    $store = Cache::getStore();
+    $storage = (new ReflectionProperty($store, 'storage'))->getValue($store);
+
+    return array_map('strval', array_keys($storage));
 }

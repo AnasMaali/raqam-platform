@@ -90,6 +90,8 @@ class AppServiceProvider extends ServiceProvider
         // Click links have no limit here (the visitor must always reach the advertiser); their counter limits what counts.
         RateLimiter::for('ads-impressions', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.impression_requests_per_minute'))
             ->by('ads-views|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('newsletter', fn (Request $request) => Limit::perMinute((int) config('raqam.newsletter.requests_per_minute'))->by('newsletter|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('brevo-webhook', fn (Request $request) => Limit::perMinute(120)->by('brevo-webhook|'.TrackingHash::visitor($request->ip())));
         RateLimiter::for('contact-form', fn (Request $request) => Limit::perMinute((int) config('raqam.contact.requests_per_minute'))->by('contact-form|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('service-contact', fn (Request $request) => Limit::perMinute(30)->by('service-contact|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
 

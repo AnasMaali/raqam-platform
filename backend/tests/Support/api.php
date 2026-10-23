@@ -40,7 +40,11 @@ function validateAgainstPath(array $data, string $template, string $method = 'ge
 {
     static $spec = null;
     $spec ??= json_decode(json_encode(Yaml::parseFile(base_path('../docs/api/openapi.yaml'))));
-    $schema = $spec->paths->{$template}->{$method}->responses->{(string) $status}->content->{'application/json'}->schema;
+    $response = $spec->paths->{$template}->{$method}->responses->{(string) $status};
+    if (isset($response->{'$ref'})) {
+        $response = $spec->components->responses->{basename($response->{'$ref'})};
+    }
+    $schema = $response->content->{'application/json'}->schema;
 
     $validator = new Validator;
     $validator->resolver()->registerRaw($spec, 'https://raqam.test/openapi');

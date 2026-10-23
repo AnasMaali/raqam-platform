@@ -7,7 +7,6 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Redis;
 
 uses(RefreshDatabase::class);
 
@@ -69,7 +68,8 @@ test('one address gets one automatic reply a day, whoever asks for it (decision 
     // Every message is kept and reaches the admins; the mailbox got one reply.
     expect(DB::table('contact_messages')->count())->toBe(3)
         ->and(count(sentEmailsTo('sami@example.com')))->toBe(1)
-        ->and(Redis::connection('cache')->keys('*sami*'))->toBe([]);
+        ->and(cacheStoreKeys())->not->toBeEmpty()
+        ->and(implode(' ', cacheStoreKeys()))->not->toContain('sami');
 
     $this->travel(25)->hours();
     sendContact(ip: '192.0.2.44')->assertStatus(202);

@@ -8,6 +8,7 @@ use App\Settings\SettingsStore;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -81,10 +82,13 @@ class GeneralSettings extends Page
 
         foreach (SettingsCatalog::fields() as $key => $field) {
             $name = $store->fieldName($key);
-            $input = match ($field['type']) {
-                'text' => Textarea::make($name)->rows(3)->maxLength(2000),
-                'media' => MediaSelect::make($name),
-                default => TextInput::make($name)->maxLength(255),
+            $input = match (true) {
+                isset($field['options']) => Select::make($name)->options($field['options'])->native(false),
+                default => match ($field['type']) {
+                    'text' => Textarea::make($name)->rows(3)->maxLength(2000),
+                    'media' => MediaSelect::make($name),
+                    default => TextInput::make($name)->maxLength(255),
+                },
             };
 
             $input->label($field['label'])->helperText($field['hint'] ?? null)->rules(SettingsCatalog::rules($field['type']))
