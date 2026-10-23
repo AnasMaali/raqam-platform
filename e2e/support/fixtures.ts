@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { test as base, expect, type Page } from '@playwright/test';
 import { ADMIN_EMAIL, ADMIN_PATH, startApp, type App, type AppOptions } from './app';
 import { startFakeMarkets, type FakeMarkets } from './markets';
+import { startFakeOutside, type FakeOutside } from './outside';
 import { startFakeYoutube, type FakeYoutube } from './youtube';
 
 type Fixtures = {
@@ -14,6 +15,8 @@ type Fixtures = {
     youtube: FakeYoutube;
     /** A stand-in for the Bank of Israel and OpenWeather; the application under test is pointed at it. */
     markets: FakeMarkets;
+    /** A stand-in for Brevo and Cloudflare Turnstile; the application under test is pointed at it. */
+    outside: FakeOutside;
 };
 
 export const test = base.extend<Fixtures>({
@@ -34,12 +37,22 @@ export const test = base.extend<Fixtures>({
             await markets.stop();
         }
     },
-    app: async ({ appOptions, youtube, markets }, use, testInfo) => {
+    outside: async ({}, use) => {
+        const outside = await startFakeOutside();
+        try {
+            await use(outside);
+        } finally {
+            await outside.stop();
+        }
+    },
+    app: async ({ appOptions, youtube, markets, outside }, use, testInfo) => {
         const app = await startApp({
             ...appOptions,
             env: {
                 YOUTUBE_API_KEY: 'e2e-fake-youtube-key', YOUTUBE_API_BASE: youtube.apiBase, YOUTUBE_IMAGE_BASE: youtube.imageBase, YOUTUBE_FETCH_THUMBNAILS: 'true',
                 CURRENCY_BOI_BASE: markets.boiBase, OPENWEATHER_API_BASE: markets.owBase, OPENWEATHER_API_KEY: 'e2e-fake-openweather-key',
+                TURNSTILE_SECRET_KEY: 'e2e-fake-turnstile-secret', TURNSTILE_VERIFY_URL: outside.turnstileUrl, TURNSTILE_HOSTNAMES: 'raqam.test',
+                BREVO_API_KEY: 'e2e-fake-brevo-key', BREVO_LIST_ID: '3', BREVO_API_BASE: outside.brevoBase, BREVO_WEBHOOK_TOKEN: 'e2e-fake-brevo-webhook-token-0123456789abcdef',
                 ...appOptions.env,
             },
         });

@@ -8,7 +8,8 @@ Decisions 2.2 and 19.1–19.11. The free Brevo plan is enough; Brevo is optional
   on our server. Forms: footer, end of a post, newsletter page (`placement`), plus the page path.
 - The answer is the same for every address: a `challenge` (opaque, encrypted by us; the site keeps it, e.g. in an
   httpOnly cookie) and, when the limits allow, a 6-digit code by e-mail from the platform's mailbox (not Brevo).
-- The code: 30 minutes, 5 tries, a new one after a minute (a new code replaces the old). It is an HMAC (key
+- The code: 30 minutes, 5 tries per code and per challenge (a stranger's challenge for the same address cannot use up
+  the owner's tries), a new one after a minute (a new code replaces the old). It is an HMAC (key
   `ADMIN_CODE_KEY`) of the address, a random value inside the challenge, and the digits, so a code works only with
   the challenge it was sent for. The checks run inside a Timebox.
 - Limits: **one address gets at most 3 codes an hour and 6 a day, whoever asks** (same answer, nothing sent beyond

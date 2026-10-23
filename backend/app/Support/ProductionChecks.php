@@ -94,6 +94,8 @@ final class ProductionChecks
             'ADMIN_PATH' => 'raqam.admin_path',
             // The public forms are checked with Turnstile (24.10) and reach us only from the site's server (its token).
             'TURNSTILE_SECRET_KEY' => 'raqam.turnstile.secret',
+            // A token solved on another site that uses the same widget key would pass without our hostnames (review F1).
+            'TURNSTILE_HOSTNAMES' => 'raqam.turnstile.hostnames',
             'API_SITE_TOKEN' => 'raqam.api.site_token',
         ] as $name => $setting) {
             if (blank(config($setting))) {

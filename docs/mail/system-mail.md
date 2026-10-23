@@ -53,7 +53,9 @@ Decisions 20.1–20.13 of the requirements log. Everything here works without an
 - A hidden field `website` catches robots (same answer, nothing kept). 5 messages an hour and 20 a day per visitor
   (IPv6 by /64), 10 requests a minute.
 - Strict checks: a name with a link, an address or a domain is refused, no line breaks in name or subject, phone in
-  international form (Arabic digits, spaces and `00` are accepted).
+  international form (Arabic digits, spaces and `00` are accepted). Bidirectional override characters (U+202A–U+202E,
+  U+2066–U+2069) are removed from every visitor's text and from every value that goes into an e-mail, so a name cannot
+  disguise itself in the inbox (`App\Support\VisitorText`).
 - The message is kept for **Contact → Contact messages** (opening one marks it read; archive, delete, reply by
   e-mail). The admins get the bell and an e-mail (reply-to = the sender), at most 20 e-mails an hour.
 - The sender gets an automatic reply that carries only their name, and **one address gets at most one reply in
@@ -65,6 +67,6 @@ Decisions 20.1–20.13 of the requirements log. Everything here works without an
 |---|---|
 | `MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` | SMTP (production refuses `log`/`array`). |
 | `TURNSTILE_SECRET_KEY` | Required in production; empty elsewhere skips the check. |
-| `TURNSTILE_HOSTNAMES` | The site's hosts, comma separated. |
+| `TURNSTILE_HOSTNAMES` | The site's hosts, comma separated (required in production). |
 | `API_SITE_TOKEN` | Required in production (the forms reach us only through the site). |
 | `TURNSTILE_VERIFY_URL`, `ALERTS_DISK_PATH` | Tests only (production refuses the first). |
