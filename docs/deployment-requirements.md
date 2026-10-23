@@ -42,3 +42,10 @@ The scheduler runs `search:sync-due` every minute (a safety net for the indexing
 `search:reindex` every night at 03:30 (repairs any drift). A queue worker must run: indexing happens in
 queued jobs after each save, so a save never waits for the engine. When the engine is down, visitors
 are answered from PostgreSQL (pg_trgm) and the jobs retry.
+
+## Redis persistence (statistics)
+
+Visit counters (decision 22) stay in Redis up to an hour before `stats:flush` writes them to PostgreSQL. Run Redis
+with `appendonly yes` (and its data on a volume), so a restart loses at most a second of counts. A transfer never
+lowers a stored figure, whatever Redis lost. Never run `FLUSHALL`, and never point `REDIS_DB` (queues and counters)
+at the cache database: `cache:clear` empties the cache database only.

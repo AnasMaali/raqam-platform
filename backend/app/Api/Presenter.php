@@ -2,6 +2,7 @@
 
 namespace App\Api;
 
+use App\Analytics\ViewCounts;
 use App\Content\BodyRenderer;
 use App\Content\PostPath;
 use App\Media\MediaStorage;
@@ -87,12 +88,14 @@ final class Presenter
         $authors = DB::table('post_authors')->join('authors', 'authors.id', '=', 'post_authors.author_id')->whereNull('authors.deleted_at')
             ->whereIn('post_id', $posts->pluck('id'))->orderBy('post_authors.sort_order')->get(['post_id', 'authors.id', 'authors.name', 'authors.slug'])->groupBy('post_id');
         $sponsors = DB::table('organizations')->whereIn('id', $posts->pluck('sponsor_organization_id')->filter())->get()->keyBy('id');
+        // 22.12: the number of readings only when the admin shows it; otherwise the field is not sent at all.
+        $views = ViewCounts::shown() ? ViewCounts::totals($posts->pluck('id')) : null;
 
-        return $posts->map(function (Post $p) use ($kinds, $categories, $authors, $sponsors) {
+        return $posts->map(function (Post $p) use ($kinds, $categories, $authors, $sponsors, $views) {
             $c = $categories->get($p->category_id);
             $s = $sponsors->get($p->sponsor_organization_id);
 
-            return [
+            return ($views === null ? [] : ['views' => $views[$p->id] ?? 0]) + [
                 'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code] ?? $p->kind_code],
                 'title' => $p->title, 'subtitle' => $p->subtitle, 'excerpt' => $p->excerpt, 'slug' => $p->slug,
                 'path' => PostPath::for($p->kind_code, $p->id, $p->slug),

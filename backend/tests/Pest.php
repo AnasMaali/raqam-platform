@@ -13,6 +13,7 @@ require_once __DIR__.'/Support/markets.php';
 require_once __DIR__.'/Support/ads.php';
 require_once __DIR__.'/Support/mail.php';
 require_once __DIR__.'/Support/newsletter.php';
+require_once __DIR__.'/Support/stats.php';
 
 /*
 |--------------------------------------------------------------------------

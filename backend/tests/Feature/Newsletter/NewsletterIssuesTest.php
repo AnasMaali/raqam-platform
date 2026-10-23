@@ -106,14 +106,14 @@ test('when Brevo is down the draft stays with us, and the admins are told to sen
         ->and(DB::table('admin_notifications')->where('user_id', $this->admin->id)->value('body'))->toContain('لم تصل إلى Brevo');
 });
 
-test('the campaign is RTL, links every post to the site, escapes the texts and carries both unsubscribe links', function () {
+test('the campaign is RTL, links every post to the site (tagged as the newsletter\'s visit), escapes the texts and carries both unsubscribe links', function () {
     weekPost('<script>alert(1)</script> عنوان', ['excerpt' => 'ملخص <b>عريض</b>']);
     $id = app(NewsletterIssues::class)->createDraft();
     DB::table('newsletter_issues')->where('id', $id)->update(['intro' => "سطر <i>أول</i>\nسطر ثانٍ"]);
 
     $html = app(NewsletterIssues::class)->html($id);
     $post = DB::table('posts')->first();
-    expect($html)->toContain('dir="rtl"')->toContain('href="https://raqam.example'.PostPath::for($post->kind_code, $post->id, $post->slug).'"')
+    expect($html)->toContain('dir="rtl"')->toContain('href="https://raqam.example'.PostPath::for($post->kind_code, $post->id, $post->slug).'?utm_source=newsletter"')
         ->not->toContain('<script>')->toContain('&lt;script&gt;')->not->toContain('<b>عريض</b>')->toContain('سطر &lt;i&gt;أول&lt;/i&gt;<br>')
         ->toContain('href="{{ unsubscribe }}"')->toContain('href="{{ contact.RAQAM_UNSUB }}"');
 });

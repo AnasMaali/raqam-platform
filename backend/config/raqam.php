@@ -191,6 +191,27 @@ return [
     ],
 
     /*
+    | Visit statistics (decision 22), internal only: no Google Analytics, no cookie. The site's server reports each page
+    | view, interaction and missing page (POST /api/v1/stats/hits); the counters live in Redis (`redis_connection`, the
+    | queue connection, which nothing empties) for `redis_seconds`, and stats:flush writes them into the daily tables every
+    | hour. Against inflated numbers, per visitor (a salted daily HMAC of the network and browser): the same page within
+    | `reload_seconds` counts once; at most `views_per_visitor_day` views a day, `events_per_visitor_hour` interactions an
+    | hour (the same one once in `event_gap_seconds`) and `not_found_per_visitor_day` missing pages a day. A visit opens
+    | after `visit_minutes` of quiet. `requests_per_minute` is the endpoint's limit per visitor.
+    */
+    'stats' => [
+        'redis_connection' => 'default',
+        'redis_seconds' => 172800,
+        'reload_seconds' => 10,
+        'views_per_visitor_day' => 500,
+        'events_per_visitor_hour' => 60,
+        'event_gap_seconds' => 10,
+        'not_found_per_visitor_day' => 30,
+        'visit_minutes' => 30,
+        'requests_per_minute' => 120,
+    ],
+
+    /*
     | How long visitors' own words are kept (decision 2026-10-24), deleted every night by retention:prune: chatbot
     | conversations from the day they began, contact messages from the day they arrived.
     */

@@ -26,6 +26,8 @@ use App\Console\SearchEvaluateCommand;
 use App\Console\SearchReindexCommand;
 use App\Console\SearchSetupCommand;
 use App\Console\SearchSyncDueCommand;
+use App\Console\StatsFlushCommand;
+use App\Console\StatsPruneCommand;
 use App\Console\WeatherFetchCommand;
 use App\Console\WeeklyDigestCommand;
 use App\Http\Middleware\SecurityHeaders;
@@ -49,7 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
         InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
         NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class,
-        PruneRetainedDataCommand::class])
+        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })

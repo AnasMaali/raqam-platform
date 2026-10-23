@@ -99,6 +99,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('brevo-webhook', fn (Request $request) => Limit::perMinute(120)->by('brevo-webhook|'.TrackingHash::visitor($request->ip())));
         RateLimiter::for('chat', fn (Request $request) => Limit::perMinute(30)->by('chat|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('contact-form', fn (Request $request) => Limit::perMinute((int) config('raqam.contact.requests_per_minute'))->by('contact-form|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('stats', fn (Request $request) => Limit::perMinute((int) config('raqam.stats.requests_per_minute'))->by('stats|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('service-contact', fn (Request $request) => Limit::perMinute(30)->by('service-contact|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
 
         // A job that gave up or a scheduled task that failed reaches the admins (20.4).

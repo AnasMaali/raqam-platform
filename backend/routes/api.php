@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\RedirectLookupController;
 use App\Http\Controllers\Api\SearchApiController;
 use App\Http\Controllers\Api\ServiceApiController;
+use App\Http\Controllers\Api\StatsApiController;
 use App\Http\Controllers\Api\TaxonomyApiController;
 use App\Http\Controllers\Api\VideoApiController;
 use App\Http\Controllers\Api\WeatherApiController;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Route;
 // Read-only content API, /api/v1 (contract: docs/api/openapi.yaml). Published content only.
 Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(function () {
     Route::get('/posts', [PostApiController::class, 'index']);
+    Route::get('/posts/most-read', [StatsApiController::class, 'mostRead']);
     // At most 18 digits: a longer number does not fit the database's bigint (and would be a server error, not a 404).
     Route::get('/posts/{id}', [PostApiController::class, 'show'])->where('id', '[0-9]{1,18}');
     Route::get('/posts/{id}/{slug}', [PostApiController::class, 'show'])->where('id', '[0-9]{1,18}');
@@ -99,3 +101,7 @@ Route::middleware('throttle:brevo-webhook')->post('/newsletter/brevo-webhook', [
 
 // The chatbot (decision 18): from the site's server only, JSON only.
 Route::middleware('throttle:chat')->post('/chat/messages', [ChatApiController::class, 'message']);
+
+// Statistics (decision 22): what the site's server reports for its visitors. Never cached, JSON only, no cookie, a
+// limit per visitor.
+Route::middleware('throttle:stats')->post('/stats/hits', [StatsApiController::class, 'hit']);

@@ -75,6 +75,7 @@ tags:
   - name: Contact
   - name: Newsletter
   - name: Chat
+  - name: Statistics
 
 paths:
   /posts:
@@ -126,6 +127,52 @@ paths:
                   data: { type: array, items: { $ref: '#/components/schemas/PostSummary' } }
                   meta: { $ref: '#/components/schemas/PageMeta' }
                   links: { $ref: '#/components/schemas/PageLinks' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /posts/most-read:
+    get:
+      tags: [Posts]
+      summary: The most read posts of today or of the last seven days (22.5)
+      description: |
+        Live posts ranked by readings counted by the site (one reading per visitor, post and day). `day` is today
+        (Palestine time); just after midnight, while today has no readings yet, it is yesterday, and `meta.from`/`meta.to`
+        say which days were used. `week` is the last seven days, today included. The ranking moves once an hour.
+        `period_views` (readings in the period) is present only when the admin shows view counts.
+      operationId: mostReadPosts
+      parameters:
+        - name: period
+          in: query
+          schema: { type: string, enum: [day, week], default: day }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 12, default: 5 }
+      responses:
+        '200':
+          description: The ranking, most read first.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/PostSummary'
+                        - type: object
+                          properties:
+                            period_views: { type: integer, minimum: 0 }
+                  meta:
+                    type: object
+                    required: [period, from, to]
+                    properties:
+                      period: { type: string, enum: [day, week] }
+                      from: { type: string, format: date }
+                      to: { type: string, format: date }
         '304': { $ref: '#/components/responses/NotModified' }
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
@@ -1095,6 +1142,51 @@ paths:
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /stats/hits:
+    post:
+      tags: [Statistics]
+      summary: Report a page view, an interaction or a missing page (22.1–22.10)
+      description: |
+        Internal statistics without cookies. **Only reports from the website's server are counted:** the browser calls a
+        route of the site on the same domain, which calls this with `X-Raqam-Site-Token`, `X-Raqam-Visitor-Ip` and
+        `X-Raqam-Visitor-Ua` (as for ad views). A report without a valid token or visitor address is answered 204 and
+        counts nothing; so is a robot, a repeat, or a visitor past their limits. The answer never says whether it counted.
+        JSON only; no cookie is set and no other site may call it (no CORS).
+
+        - `view`: every page view. `path` is the page's path with its query (a `utm_source` there names the source);
+          `referrer` is `document.referrer`; `post_id` for the page of a post. Do **not** report pages shown in preview
+          or draft mode; a post that is not published gets no readings anyway.
+        - `event`: an interaction, `event` one of `video_play` (with `video_id`), `share_click`, `converter_use`,
+          `newsletter_signup`, `chatbot_open`, `infographic_download`. The contact buttons of a service are reported to
+          `/services/{slug}/contact`.
+        - `not_found`: a page the site answered 404 (after checking `/redirects/lookup`). The query is not kept.
+
+        The visitor of a day is a salted HMAC of the address (IPv6 by /64) and browser; the address is never kept.
+      operationId: reportStatsHit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, path]
+              additionalProperties: false
+              properties:
+                type: { type: string, enum: [view, event, not_found] }
+                path: { type: string, maxLength: 2000, pattern: '^/(?!/)\S*$', example: '/news/12/عنوان-الخبر?utm_source=whatsapp' }
+                referrer: { type: [string, 'null'], maxLength: 2000 }
+                post_id: { type: [integer, 'null'], minimum: 1, description: Only with `view`. }
+                event:
+                  type: string
+                  description: Required with `event`, refused otherwise.
+                  enum: [video_play, share_click, converter_use, newsletter_signup, chatbot_open, infographic_download]
+                video_id: { type: [integer, 'null'], minimum: 1, description: Only with `event`. }
+      responses:
+        '204': { description: Received. }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /services:
     get:
       tags: [Services]
@@ -1936,6 +2028,13 @@ components:
         sponsor:
           description: Present for sponsored content, which must be shown with a clear label.
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }]
+        views:
+          description: |
+            How many times the post was read, all time (22.12). **Only present when the admin shows view counts**
+            (switch `public_view_counts`, off by default); otherwise the field is absent and nothing may be shown.
+            Updated once an hour.
+          type: integer
+          minimum: 0
     Seo:
       type: object
       required: [title, description, canonical_url, noindex, share_image]
