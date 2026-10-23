@@ -185,15 +185,28 @@ test('the weekly summary counts the week before and escapes what visitors wrote 
         DB::table('bot_messages')->insert(['conversation_id' => $conv, 'role' => 'user', 'content' => $q, 'created_at' => '2026-10-21 10:00:00+00']);
     }
     DB::table('contact_messages')->insert(['name' => 'س', 'email' => 's@example.com', 'subject' => 'م', 'message' => 'نص', 'created_at' => '2026-10-22 10:00:00+00']);
+    DB::table('site_stats_daily')->insert([
+        ['stat_date' => '2026-10-17', 'page_views' => 300, 'unique_visitors' => 100],
+        ['stat_date' => '2026-10-23', 'page_views' => 200, 'unique_visitors' => 50],
+        ['stat_date' => '2026-10-24', 'page_views' => 9999, 'unique_visitors' => 999],   // today: next week
+        ['stat_date' => '2026-10-16', 'page_views' => 8888, 'unique_visitors' => 888],   // the week before
+    ]);
+    DB::table('traffic_sources_daily')->insert([
+        ['stat_date' => '2026-10-18', 'source_code' => 'facebook', 'visits' => 30],
+        ['stat_date' => '2026-10-18', 'source_code' => 'google', 'visits' => 10],
+    ]);
+    $read = insertPost(publishedPostValues(['title' => 'الأسعار <i>اليوم</i>', 'published_at' => '2026-10-01 10:00:00+00']));
+    DB::table('post_views_daily')->insert([['post_id' => $read, 'stat_date' => '2026-10-19', 'views' => 77], ['post_id' => $read, 'stat_date' => '2026-10-24', 'views' => 500]]);
 
     $d = WeeklyDigest::build($today);
 
     expect($d['label'])->toBe('2026-10-17 – 2026-10-23')
-        ->and($d['numbers'])->toBe(['subscribers' => 1, 'unanswered' => 3, 'messages' => 1, 'campaigns' => 1])
+        ->and($d['numbers'])->toBe(['page_views' => 500, 'visitors' => 150, 'subscribers' => 1, 'unanswered' => 3, 'messages' => 1, 'campaigns' => 1])
+        ->and($d['html'])->toContain('مشاهدات الصفحات: 500 — الزوار: 150 — الزيارات: 40')->toContain('أهم المصادر: فيسبوك 75.0%، جوجل 25.0%')
+        ->toContain('<li>الأسعار &lt;i&gt;اليوم&lt;/i&gt; (77)</li>')
         ->and($d['html'])->toContain('مشتركون جدد: 1 — المجموع الآن: 2')->toContain('>1000<')->toContain('>25<')->toContain('2.50%')
         ->toContain('&lt;script&gt;alert(1)&lt;/script&gt; متى تفتحون؟ (2)')->toContain('حملة &lt;b&gt;الخريف&lt;/b&gt;')
-        ->not->toContain('<script>')->not->toContain('<b>الخريف')
-        ->toContain('تُضاف مع مرحلة الإحصائيات');
+        ->not->toContain('<script>')->not->toContain('<b>الخريف')->not->toContain('<i>اليوم');
 
     WeeklyDigest::send($today);
     $mail = sentEmailsTo('a@raqam.example')[0];

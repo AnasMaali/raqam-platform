@@ -10,6 +10,7 @@ use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\GeneralSettings;
 use App\Filament\Pages\MenuEditor;
 use App\Filament\Pages\SearchStatistics;
+use App\Filament\Pages\Statistics;
 use App\Filament\Resources\Posts\Pages\EditPost;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
@@ -53,8 +54,8 @@ class AdminPanelProvider extends PanelProvider
             ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
-            ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'الشات بوت', 'البحث', 'النظام'])
-            ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class])
+            ->navigationGroups(['المحتوى', 'الإحصائيات', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'الشات بوت', 'البحث', 'النظام'])
+            ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class, Statistics::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),
             ])

@@ -92,6 +92,9 @@ class RedirectResource extends Resource
             ])
             ->headerActions([
                 CreateAction::make()->label('تحويل جديد')
+                    // Opened from the missing pages screen (?tableAction=create&tableActionArguments[from]=…) with that address.
+                    ->fillForm(fn (array $arguments) => ['status_code' => 301]
+                        + (is_string($arguments['from'] ?? null) && SafeUrl::isPath($arguments['from']) ? ['from_path' => $arguments['from']] : []))
                     ->mutateDataUsing(function (array $data) {
                         if ((int) $data['status_code'] === 410) {
                             $data['to_path'] = null;

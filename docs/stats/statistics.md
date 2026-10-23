@@ -68,3 +68,17 @@ visitors (22.12): the API sends `views` (all time) and `period_views` only while
 
 Daily figures are kept for ever. The raw counters expire in Redis within two days; `stats:prune` (every night at 02:50)
 deletes missing pages nobody reached, or resolved, more than `analytics.raw_retention_days` days ago (90).
+
+## The panel
+
+- **الإحصائيات → الإحصائيات**: a period (today, 7, 30 days or picked), totals with the change from the period before,
+  a day-by-day chart drawn on the server (bars: page views, line: visitors; also as a table), sources, devices,
+  interactions (with the services' contact buttons and the most played videos), the most read, readings by category,
+  special section and author (22.4), and the other modules over the same days: search, ads, newsletter, chatbot,
+  contact messages (22.9). Today is live (Redis), earlier days as stored. **Excel export** (one sheet per table, text
+  cells only, written to the audit log). Nothing polls: the page changes only when another period is picked.
+- **الإحصائيات → صفحات غير موجودة (404)**: open paths, most reached first; «اعمل تحويل» opens the redirects screen
+  with the old address filled in, and any redirect from that address (made by the admin or by the application) marks
+  it handled; «تمت المعالجة» / «إعادة فتح», several at once. A handled path that is still reached says so.
+- The home shows today's visits (live) and the most read today; the weekly summary carries the week's visits, top
+  sources and most read.
