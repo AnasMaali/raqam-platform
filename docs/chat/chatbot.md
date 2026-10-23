@@ -36,6 +36,9 @@ interface (the `chatbot_ai` switch exists for it) and the API does not change.
 A conversation is anonymous: the browser keeps a random token, we keep only its HMAC; no name, no IP (not even an
 HMAC of it in the database). Questions are stored without e-mails and phone numbers.
 
+A conversation is kept **180 days** from when it began, then `retention:prune` (every night at 02:40) deletes it with
+its messages (`raqam.retention.chat_conversations_days`). The chatbot figures of the panel cover that period.
+
 ## Panel (group «الشات بوت»)
 
 - **Knowledge base**: question, answer (bold, links, lists; cleaned by an allow-list on save and again when shown),

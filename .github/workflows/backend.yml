@@ -8,12 +8,14 @@ on:
       - "database/schema/**"
       - "database/tests/normalizer_cases.json"
       - ".github/workflows/backend.yml"
+      - ".github/scripts/**"
   pull_request:
     paths:
       - "backend/**"
       - "database/schema/**"
       - "database/tests/normalizer_cases.json"
       - ".github/workflows/backend.yml"
+      - ".github/scripts/**"
 
 permissions:
   contents: read
@@ -26,7 +28,7 @@ jobs:
   tests:
     name: Pest & schema parity
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -65,10 +67,12 @@ jobs:
         working-directory: backend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
+        timeout-minutes: 10
         with:
           php-version: "8.4"
           extensions: pgsql, pdo_pgsql, redis, mbstring, intl, bcmath
@@ -76,12 +80,27 @@ jobs:
           coverage: none
 
       - name: Every schema file has a migration
+        timeout-minutes: 2
         run: ./scripts/check-migration-coverage.sh
 
+      - name: Month (cache key of the system packages)
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: System packages cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/apt-archives
+          key: apt-backend-${{ runner.os }}-${{ steps.month.outputs.month }}-${{ hashFiles('.github/workflows/backend.yml') }}
+          restore-keys: apt-backend-${{ runner.os }}-
+
       - name: Install PostgreSQL client
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client ffmpeg
+        timeout-minutes: 15
+        run: ../.github/scripts/apt-install.sh postgresql-client ffmpeg
 
       - name: Create the app role and test database
+        timeout-minutes: 2
         env:
           PGUSER: postgres
           PGPASSWORD: postgres
@@ -90,28 +109,43 @@ jobs:
           createdb -O raqam raqam_testing
 
       - name: Composer cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
+        timeout-minutes: 5
         with:
           path: ~/.cache/composer
           key: composer-${{ hashFiles('backend/composer.lock') }}
           restore-keys: composer-
 
       - name: Install dependencies
-        run: composer install --no-interaction --no-progress --prefer-dist
+        timeout-minutes: 15
+        run: TRY_SECONDS=400 ../.github/scripts/retry.sh composer install --no-interaction --no-progress --prefer-dist
 
       - name: Prepare environment
+        timeout-minutes: 2
         run: cp .env.example .env && php artisan key:generate
 
-      - name: Meilisearch v1.54.3 for the search tests
-        run: ./scripts/ci-meilisearch.sh
+      - name: Meilisearch binary cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/meilisearch-1.54.3
+          key: meilisearch-1.54.3-${{ runner.os }}
 
+      - name: Meilisearch v1.54.3 for the search tests
+        timeout-minutes: 8
+        run: MEILI_DIR="$HOME/.cache/meilisearch-1.54.3" ./scripts/ci-meilisearch.sh
+
+      # One database (raqam_testing_test_N, built by the migrations) and one Redis prefix per process.
       - name: Pest
-        run: php artisan test
+        timeout-minutes: 20
+        run: php artisan test --parallel --processes=4
 
       - name: Schema parity (migrations == database/schema, step-by-step rollback)
+        timeout-minutes: 10
         run: ./scripts/check-schema-parity.sh
 
       - name: migrate:fresh twice in a row
+        timeout-minutes: 5
         env:
           DB_DATABASE: raqam_testing
         run: |

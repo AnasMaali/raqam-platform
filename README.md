@@ -50,7 +50,8 @@ Every rule the database enforces is also covered by Pest, on PostgreSQL only.
 
 ```bash
 cd backend
-php artisan test                         # Pest (database: raqam_testing)
+php artisan test --parallel --processes=4  # Pest, one database (raqam_testing_test_N) and Redis prefix per process
+php artisan test                         # Pest in one process (database: raqam_testing)
 ./scripts/check-migration-coverage.sh    # every schema file has a migration
 PGHOST=127.0.0.1 PGUSER=<role> ./scripts/check-schema-parity.sh
                                          # migrations == SQL files, each down() verified
