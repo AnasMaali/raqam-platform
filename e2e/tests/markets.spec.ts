@@ -143,8 +143,9 @@ test('when the bank fails three times the last good rates stay, and the home say
 
     expect((await api(page, app, '/currencies')).data[0]).toMatchObject({ code: 'USD', mid: '3.106' });
     await page.goto(panel(''));
-    await expect(page.getByText('مصدر العملات (بنك إسرائيل) فشل 3 مرات متتالية').first()).toBeVisible();
-    await expect(page.getByText('الموقع يعرض آخر أسعار صحيحة').first()).toBeVisible();
+    // On the page itself: the bell in the top bar holds the same alert, hidden until it is opened.
+    await expect(page.locator('.fi-main').getByText('مصدر العملات (بنك إسرائيل) فشل 3 مرات متتالية').first()).toBeVisible();
+    await expect(page.locator('.fi-main').getByText('الموقع يعرض آخر أسعار صحيحة').first()).toBeVisible();
     await expect(page.getByText('العملات — لا يستجيب')).toBeVisible();
     expect(Number(app.sql("SELECT count(*) FROM admin_notifications WHERE dedupe_key = 'provider:bank_of_israel'"))).toBe(1);
 
@@ -154,7 +155,9 @@ test('when the bank fails three times the last good rates stay, and the home say
     markets.answers.boiTime = new Date(Date.now() - 60_000).toISOString();
     await app.artisanAsync(['currency:fetch']);
     await page.reload();
-    await expect(page.getByText('فشل 3 مرات متتالية')).toHaveCount(0);
+    // The warning is gone; the alert stays in the history (bell and the home's alerts card) until it is read.
+    await expect(page.locator('.fi-main').getByText(/فشل 3 مرات متتالية \(/)).toHaveCount(0);
+    await expect(page.locator('.fi-main').getByText('الموقع يعرض آخر أسعار صحيحة')).toHaveCount(0);
     await expect(page.getByText('العملات — يعمل')).toBeVisible();
     expect((await api(page, app, '/currencies')).data[0]).toMatchObject({ mid: '3.120', direction: 'up' });
 });
