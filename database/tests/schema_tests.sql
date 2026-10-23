@@ -316,7 +316,13 @@ SELECT pg_temp.expect_fail('home: category block without category',
 SELECT pg_temp.expect_fail('newsletter: issue week must start on Saturday',
   $$INSERT INTO newsletter_issues (week_start, subject) VALUES ('2026-10-12', 'x')$$);
 SELECT pg_temp.expect_fail('subscribers: active without confirmation',
-  $$INSERT INTO subscribers (email, status) VALUES ('n@example.com', 'active')$$);
+  $$INSERT INTO subscribers (email, status, source_placement) VALUES ('n@example.com', 'active', 'footer')$$);
+SELECT pg_temp.expect_fail('subscribers: consent without the form it came from (19.9)',
+  $$INSERT INTO subscribers (email, status, confirmed_at) VALUES ('n@example.com', 'active', now())$$);
+SELECT pg_temp.expect_fail('subscribers: unknown form',
+  $$INSERT INTO subscribers (email, status, confirmed_at, source_placement) VALUES ('n@example.com', 'active', now(), 'popup')$$);
+INSERT INTO subscribers (email, status, confirmed_at, source_path, source_placement)
+  VALUES ('n@example.com', 'active', now(), '/news/1/x', 'post_end');
 
 -- ---------------------------------------------------------------- audit log
 INSERT INTO audit_log (actor_user_id, action, subject_table, subject_id)

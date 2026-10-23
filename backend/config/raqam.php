@@ -190,4 +190,36 @@ return [
         'alert_emails_per_hour' => 20,
     ],
 
+    /*
+    | The public website's address (https://raqam.ps): links in e-mails and the newsletter point there.
+    */
+    'site_url' => env('SITE_URL'),
+
+    /*
+    | Newsletter (decision 19). Confirmation by a 6-digit code (19.2): valid `code_minutes`, `code_attempts` tries,
+    | a new one after `resend_seconds`. Whoever asks, one address gets at most `codes_per_email_hour` codes an hour and
+    | `codes_per_email_day` a day (decision 2026-10-23); beyond that the answer is the same and nothing is sent.
+    | Brevo (19.4–19.6, 19.10): the key lives only in .env; empty = no connection at all. Its webhook proves itself
+    | with `webhook_token` in a header (Brevo does not sign), and nothing it says is believed before Brevo's API agrees.
+    */
+    'newsletter' => [
+        'code_minutes' => 30,
+        'code_attempts' => 5,
+        'resend_seconds' => 60,
+        'codes_per_email_hour' => 3,
+        'codes_per_email_day' => 6,
+        'requests_per_visitor_hour' => 10,
+        'confirms_per_visitor_hour' => 30,
+        'requests_per_minute' => 10,
+        'timebox_ms' => 400,
+        'issue_posts' => 8,
+        'brevo' => [
+            'key' => env('BREVO_API_KEY'),
+            'list_id' => env('BREVO_LIST_ID'),
+            'webhook_token' => env('BREVO_WEBHOOK_TOKEN'),
+            // Browser tests only: a stand-in for https://api.brevo.com/v3. Production refuses to start with it set.
+            'api_base' => env('BREVO_API_BASE'),
+        ],
+    ],
+
 ];

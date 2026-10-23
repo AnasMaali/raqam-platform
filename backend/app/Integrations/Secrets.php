@@ -11,7 +11,8 @@ final class Secrets
     public const MARK = '[hidden]';
 
     /** Config entries that hold a key for an outside service. */
-    private const KEYS = ['raqam.youtube.key', 'raqam.weather.key', 'raqam.search.key', 'raqam.api.site_token'];
+    private const KEYS = ['raqam.youtube.key', 'raqam.weather.key', 'raqam.search.key', 'raqam.api.site_token',
+        'raqam.newsletter.brevo.key', 'raqam.newsletter.brevo.webhook_token', 'raqam.turnstile.secret'];
 
     public static function scrub(string $text): string
     {

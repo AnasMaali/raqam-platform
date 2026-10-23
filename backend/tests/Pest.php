@@ -12,6 +12,7 @@ require_once __DIR__.'/Support/search.php';
 require_once __DIR__.'/Support/markets.php';
 require_once __DIR__.'/Support/ads.php';
 require_once __DIR__.'/Support/mail.php';
+require_once __DIR__.'/Support/newsletter.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -271,6 +272,9 @@ function productionConfig(array $overrides = []): void
         'raqam.turnstile.secret' => 'a-turnstile-secret',
         'raqam.turnstile.verify_url' => null,
         'raqam.api.site_token' => 'a-site-token',
+        'raqam.site_url' => 'https://raqam.example',
+        'raqam.newsletter.brevo.key' => null,
+        'raqam.newsletter.brevo.api_base' => null,
         ...$overrides,
     ]);
 }

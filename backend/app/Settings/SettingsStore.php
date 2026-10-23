@@ -51,7 +51,7 @@ final class SettingsStore
 
         $rules = [];
         foreach (SettingsCatalog::fields() as $key => $field) {
-            $rules[$this->fieldName($key)] = SettingsCatalog::rules($field['type']);
+            $rules[$this->fieldName($key)] = [...SettingsCatalog::rules($field['type']), ...(isset($field['options']) ? ['in:'.implode(',', array_keys($field['options']))] : [])];
         }
         foreach (array_keys($social) as $code) {
             $rules["social.{$code}"] = ['nullable', 'url:http,https', 'max:2048'];

@@ -27,7 +27,7 @@ test('the home shows every outside connection: currencies, weather, YouTube, sea
     foreach (['حالة الربط الخارجي', 'العملات', 'الطقس', 'يوتيوب', 'البحث', 'البريد', 'بنك إسرائيل'] as $text) {
         $page->assertSee($text);
     }
-    expect(states())->toBe(['العملات' => 'unknown', 'الطقس' => 'off', 'يوتيوب' => 'off', 'البحث' => 'off', 'البريد' => 'off']);
+    expect(states())->toBe(['العملات' => 'unknown', 'الطقس' => 'off', 'يوتيوب' => 'off', 'البحث' => 'off', 'البريد' => 'off', 'النشرة (Brevo)' => 'off']);
 });
 
 test('a source that answered is working; one failing says since when and why', function () {

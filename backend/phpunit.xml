@@ -51,5 +51,12 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Outside services stay off unless a test switches them on with a stand-in. -->
+        <server name="TURNSTILE_SECRET_KEY" value="" force="true"/>
+        <server name="BREVO_API_KEY" value="" force="true"/>
+        <server name="BREVO_LIST_ID" value="" force="true"/>
+        <server name="BREVO_WEBHOOK_TOKEN" value="" force="true"/>
+        <server name="BREVO_API_BASE" value="" force="true"/>
+        <server name="SITE_URL" value="https://raqam.example" force="true"/>
     </php>
 </phpunit>

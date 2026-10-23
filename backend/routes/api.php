@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdApiController;
 use App\Http\Controllers\Api\AwarenessApiController;
 use App\Http\Controllers\Api\ContactApiController;
 use App\Http\Controllers\Api\CurrencyApiController;
+use App\Http\Controllers\Api\NewsletterApiController;
 use App\Http\Controllers\Api\PageApiController;
 use App\Http\Controllers\Api\PeopleApiController;
 use App\Http\Controllers\Api\PostApiController;
@@ -82,3 +83,12 @@ Route::middleware('throttle:service-contact')->post('/services/{slug}/contact', 
 
 // The contact form (20.13): from the site's server only (its token and the visitor's address), JSON only.
 Route::middleware('throttle:contact-form')->post('/contact', [ContactApiController::class, 'store']);
+
+// The newsletter (decision 19): from the site's server only, JSON only. The Brevo webhook is Brevo's own call.
+Route::middleware('throttle:newsletter')->group(function () {
+    Route::post('/newsletter/subscribe', [NewsletterApiController::class, 'subscribe']);
+    Route::post('/newsletter/resend', [NewsletterApiController::class, 'resend']);
+    Route::post('/newsletter/confirm', [NewsletterApiController::class, 'confirm']);
+    Route::post('/newsletter/unsubscribe', [NewsletterApiController::class, 'unsubscribe']);
+});
+Route::middleware('throttle:brevo-webhook')->post('/newsletter/brevo-webhook', [NewsletterApiController::class, 'brevoWebhook']);

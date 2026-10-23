@@ -2,6 +2,8 @@
 
 namespace App\Settings;
 
+use App\Newsletter\NewsletterIssues;
+
 /**
  * The settings the admin edits (decision 21.13): key => Arabic label, type and a hint. The type is one
  * of those the settings table allows; the database CHECKs stay the last word, this list gives the form
@@ -10,7 +12,7 @@ namespace App\Settings;
  */
 final class SettingsCatalog
 {
-    /** @return array<string, array{group: string, label: string, type: string, hint?: string}> */
+    /** @return array<string, array{group: string, label: string, type: string, hint?: string, options?: array<string, string>}> */
     public static function fields(): array
     {
         return [
@@ -26,6 +28,9 @@ final class SettingsCatalog
             'mail.info' => ['group' => 'البريد', 'label' => 'عنوان التواصل (info@)', 'type' => 'email', 'hint' => 'الرد التلقائي على «اتصل بنا»'],
             'mail.ads' => ['group' => 'البريد', 'label' => 'عنوان الإعلانات (ads@)', 'type' => 'email'],
             'mail.booking' => ['group' => 'البريد', 'label' => 'عنوان الحجوزات (booking@)', 'type' => 'email', 'hint' => 'جاهز لنظام الحجز (مطفأ)'],
+            'newsletter.send_day' => ['group' => 'النشرة البريدية', 'label' => 'يوم تجهيز النشرة الأسبوعية', 'type' => 'string', 'options' => NewsletterIssues::DAYS,
+                'hint' => 'في هذا اليوم والساعة تُجهَّز مسودة النشرة وتُرسَل إلى Brevo كمسودة، ثم تراجعها وترسلها منه.'],
+            'newsletter.send_time' => ['group' => 'النشرة البريدية', 'label' => 'ساعة تجهيز النشرة', 'type' => 'time', 'hint' => 'بتوقيت فلسطين، مثال: 09:00'],
             'seo.title_suffix' => ['group' => 'محركات البحث', 'label' => 'لاحقة عنوان الصفحة', 'type' => 'string', 'hint' => 'تُضاف بعد عنوان كل صفحة'],
             'seo.default_image' => ['group' => 'محركات البحث', 'label' => 'صورة المشاركة الافتراضية', 'type' => 'media', 'hint' => 'تظهر عند مشاركة صفحة ليس لها صورة'],
             'seo.default_description' => ['group' => 'محركات البحث', 'label' => 'الوصف الافتراضي', 'type' => 'text', 'hint' => 'يُستعمل عندما لا يكون للصفحة وصف خاص'],

@@ -106,13 +106,25 @@ describe('newsletter', function () {
     });
 
     test('an active subscriber has confirmed', function () {
-        expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'active'])))
+        expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'active', 'source_placement' => 'footer'])))
             ->toThrow(QueryException::class, '"subscribers_check"');
     });
 
     test('an unsubscribed address records when', function () {
-        expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'unsubscribed'])))
+        expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'unsubscribed', 'source_placement' => 'footer'])))
             ->toThrow(QueryException::class, '"subscribers_check1"');
+    });
+
+    test('a subscriber records which form the consent came from (19.3, 19.9)', function () {
+        expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'active', 'confirmed_at' => now()])))
+            ->toThrow(QueryException::class, 'null value in column "source_placement"');
+        expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'active', 'confirmed_at' => now(), 'source_placement' => 'popup'])))
+            ->toThrow(QueryException::class, '"subscribers_source_placement_check"');
+
+        foreach (['footer', 'post_end', 'newsletter_page'] as $i => $placement) {
+            DB::table('subscribers')->insert(['email' => "n{$i}@example.com", 'status' => 'active', 'confirmed_at' => now(), 'source_placement' => $placement]);
+        }
+        expect(DB::table('subscribers')->count())->toBe(3);
     });
 });
 

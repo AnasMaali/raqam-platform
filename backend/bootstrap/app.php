@@ -3,6 +3,7 @@
 use App\Console\AdEndingAlertsCommand;
 use App\Console\AdminCreateCommand;
 use App\Console\AdminUnlockCommand;
+use App\Console\BrevoSetupCommand;
 use App\Console\CheckDiskCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\CurrencyFetchCommand;
@@ -12,6 +13,8 @@ use App\Console\InstallEmailTemplatesCommand;
 use App\Console\InstallPagesCommand;
 use App\Console\InstallServicesCommand;
 use App\Console\InstallSynonymsCommand;
+use App\Console\NewsletterStatsCommand;
+use App\Console\NewsletterWeeklyDraftCommand;
 use App\Console\PruneDevicesCommand;
 use App\Console\PruneEmailLogCommand;
 use App\Console\PublishDuePostsCommand;
@@ -42,7 +45,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
-        InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class])
+        InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
+        NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })
