@@ -53,7 +53,7 @@ class AdminPanelProvider extends PanelProvider
             ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
-            ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'البحث', 'النظام'])
+            ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'الشات بوت', 'البحث', 'النظام'])
             ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),

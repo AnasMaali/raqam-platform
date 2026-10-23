@@ -8,6 +8,7 @@ use App\Console\CheckDiskCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\CurrencyFetchCommand;
 use App\Console\InstallCharactersCommand;
+use App\Console\InstallChatbotCommand;
 use App\Console\InstallCitiesCommand;
 use App\Console\InstallEmailTemplatesCommand;
 use App\Console\InstallPagesCommand;
@@ -46,7 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
         InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
-        NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class])
+        NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })
