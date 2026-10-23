@@ -15,12 +15,13 @@ APT=(sudo apt-get -y -qq --no-install-recommends
   -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
   -o DPkg::Lock::Timeout=120)
 
-if timeout 600 "${APT[@]}" --no-download install "$@"; then
+if timeout 120 "${APT[@]}" --no-download install "$@"; then
   echo "Installed from the cache: $*"
 else
   echo "Not everything is cached; refreshing the package lists."
-  TRY_SECONDS=300 "$HERE/retry.sh" "${APT[@]}" update
-  TRY_SECONDS=600 "$HERE/retry.sh" "${APT[@]}" install "$@"
+  # A normal run needs well under a minute for each; a mirror that stalls is cut off and tried again.
+  TRY_SECONDS=120 "$HERE/retry.sh" "${APT[@]}" update
+  TRY_SECONDS=240 "$HERE/retry.sh" "${APT[@]}" install "$@"
 fi
 
 # The cache step runs as the runner user: hand it the files apt downloaded as root (the lock and partial files stay out).
