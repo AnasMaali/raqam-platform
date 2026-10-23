@@ -31,6 +31,7 @@ final class SettingsCatalog
             'newsletter.send_day' => ['group' => 'النشرة البريدية', 'label' => 'يوم تجهيز النشرة الأسبوعية', 'type' => 'string', 'options' => NewsletterIssues::DAYS,
                 'hint' => 'في هذا اليوم والساعة تُجهَّز مسودة النشرة وتُرسَل إلى Brevo كمسودة، ثم تراجعها وترسلها منه.'],
             'newsletter.send_time' => ['group' => 'النشرة البريدية', 'label' => 'ساعة تجهيز النشرة', 'type' => 'time', 'hint' => 'بتوقيت فلسطين، مثال: 09:00'],
+            'chatbot.welcome' => ['group' => 'الشات بوت', 'label' => 'رسالة الترحيب', 'type' => 'string', 'hint' => 'أول ما يراه الزائر عند فتح المحادثة'],
             'seo.title_suffix' => ['group' => 'محركات البحث', 'label' => 'لاحقة عنوان الصفحة', 'type' => 'string', 'hint' => 'تُضاف بعد عنوان كل صفحة'],
             'seo.default_image' => ['group' => 'محركات البحث', 'label' => 'صورة المشاركة الافتراضية', 'type' => 'media', 'hint' => 'تظهر عند مشاركة صفحة ليس لها صورة'],
             'seo.default_description' => ['group' => 'محركات البحث', 'label' => 'الوصف الافتراضي', 'type' => 'text', 'hint' => 'يُستعمل عندما لا يكون للصفحة وصف خاص'],

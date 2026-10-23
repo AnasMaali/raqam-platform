@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdApiController;
 use App\Http\Controllers\Api\AwarenessApiController;
+use App\Http\Controllers\Api\ChatApiController;
 use App\Http\Controllers\Api\ContactApiController;
 use App\Http\Controllers\Api\CurrencyApiController;
 use App\Http\Controllers\Api\NewsletterApiController;
@@ -66,6 +67,9 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/services', [ServiceApiController::class, 'index']);
     Route::get('/services/{slug}', [ServiceApiController::class, 'show']);
     Route::get('/advertise', [ServiceApiController::class, 'advertise']);
+
+    Route::get('/chat', [ChatApiController::class, 'config']);
+    Route::get('/faqs', [ChatApiController::class, 'faqs']);
 });
 
 // Ads (decision 13): the click link a browser follows (counts, then 302 to the stored address) and the view reports
@@ -92,3 +96,6 @@ Route::middleware('throttle:newsletter')->group(function () {
     Route::post('/newsletter/unsubscribe', [NewsletterApiController::class, 'unsubscribe']);
 });
 Route::middleware('throttle:brevo-webhook')->post('/newsletter/brevo-webhook', [NewsletterApiController::class, 'brevoWebhook']);
+
+// The chatbot (decision 18): from the site's server only, JSON only.
+Route::middleware('throttle:chat')->post('/chat/messages', [ChatApiController::class, 'message']);

@@ -15,12 +15,13 @@ function matchesContract(mixed $data, string $schema): void
     $validator = new Validator;
     $validator->resolver()->registerRaw($spec, 'https://raqam.test/openapi');
     // The test decodes JSON into arrays, which turns an empty object into an empty list; put those back.
-    $objects = function ($value) use (&$objects) {
+    // Only the pagination "links" (top level) and media "variants" are objects; a list named "links" stays a list.
+    $objects = function ($value, int $depth = 0) use (&$objects) {
         if (! is_array($value)) {
             return $value;
         }
         foreach ($value as $key => $item) {
-            $value[$key] = in_array($key, ['links', 'variants'], true) && $item === [] ? new stdClass : $objects($item);
+            $value[$key] = (($key === 'links' && $depth === 0) || $key === 'variants') && $item === [] ? new stdClass : $objects($item, $depth + 1);
         }
 
         return $value;
@@ -50,12 +51,12 @@ function validateAgainstPath(array $data, string $template, string $method = 'ge
     $validator->resolver()->registerRaw($spec, 'https://raqam.test/openapi');
     $schema = json_decode(str_replace('"#/components', '"https://raqam.test/openapi#/components', json_encode($schema, JSON_UNESCAPED_SLASHES)));
     // The test decodes JSON into arrays, which turns an empty object into an empty list; put those back.
-    $objects = function ($value) use (&$objects) {
+    $objects = function ($value, int $depth = 0) use (&$objects) {
         if (! is_array($value)) {
             return $value;
         }
         foreach ($value as $key => $item) {
-            $value[$key] = in_array($key, ['links', 'variants'], true) && $item === [] ? new stdClass : $objects($item);
+            $value[$key] = (($key === 'links' && $depth === 0) || $key === 'variants') && $item === [] ? new stdClass : $objects($item, $depth + 1);
         }
 
         return $value;
