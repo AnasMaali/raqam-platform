@@ -270,6 +270,7 @@ function productionConfig(array $overrides = []): void
         'raqam.currency.boi_base' => null,
         'raqam.weather.api_base' => null,
         'raqam.turnstile.secret' => 'a-turnstile-secret',
+        'raqam.turnstile.hostnames' => 'raqam.example',
         'raqam.turnstile.verify_url' => null,
         'raqam.api.site_token' => 'a-site-token',
         'raqam.site_url' => 'https://raqam.example',

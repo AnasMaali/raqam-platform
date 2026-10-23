@@ -22,7 +22,7 @@ class ListSubscribers extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('export')->label('تصدير Excel')->icon('heroicon-o-arrow-down-tray')
+            Action::make('export')->label('تصدير Excel')->icon('heroicon-o-arrow-down-tray')->modalSubmitActionLabel('تنزيل')
                 ->schema([Select::make('which')->label('من')->native(false)->default('active')
                     ->options(['active' => 'المشتركون الحاليون', 'all' => 'الكل (مع من ألغى ومن ارتدّ بريده)'])])
                 ->action(function (array $data): StreamedResponse {

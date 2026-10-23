@@ -3,6 +3,7 @@
 namespace App\Chat;
 
 use App\Contact\ContactInbox;
+use App\Support\VisitorText;
 
 /**
  * What a visitor may send the chatbot (18.12) and what of it is kept (18.9). At most 500 characters; no links and no
@@ -49,6 +50,6 @@ final class ChatGuard
     /** Spaces and control characters tidied; the visitor's words otherwise kept. */
     public static function tidy(string $text): string
     {
-        return trim((string) preg_replace(['/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '/[ \t]+/u', "/\n{3,}/u"], ['', ' ', "\n\n"], $text));
+        return trim((string) preg_replace(['/[ \t]+/u', "/\n{3,}/u"], [' ', "\n\n"], VisitorText::clean($text)));
     }
 }

@@ -8,6 +8,7 @@ use App\Panel\AdminAlerts;
 use App\Support\PhoneNumber;
 use App\Support\TrackingHash;
 use App\Support\Turnstile;
+use App\Support\VisitorText;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -68,7 +69,7 @@ final class ContactInbox
      */
     public function validate(array $input): array
     {
-        $text = fn ($v) => is_string($v) ? trim((string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $v)) : $v;
+        $text = fn ($v) => is_string($v) ? VisitorText::clean($v) : $v;
         $data = [
             'name' => $text($input['name'] ?? null), 'email' => $text($input['email'] ?? null), 'phone' => $text($input['phone'] ?? null) ?: null,
             'subject' => $text($input['subject'] ?? null), 'message' => $text($input['message'] ?? null),

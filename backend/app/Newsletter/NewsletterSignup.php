@@ -8,6 +8,7 @@ use App\Mail\SystemMail;
 use App\Mail\TemplatedEmail;
 use App\Support\TrackingHash;
 use App\Support\Turnstile;
+use App\Support\VisitorText;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -83,11 +84,14 @@ final class NewsletterSignup
             if (! $row) {
                 return (clone $open)->exists() ? 'expired' : 'bad_code';
             }
-            if ($row->attempts >= (int) config('raqam.newsletter.code_attempts')) {
+            // Tries count per code and per challenge (review F3): a stranger's challenge for the same address can never
+            // match, and must not use up the tries of the person whose challenge the code was sent for.
+            $tries = 'newsletter:tries:'.$row->id.':'.hash_hmac('sha256', (string) $challenge['r'], (string) config('app.key'));
+            if (RateLimiter::tooManyAttempts($tries, (int) config('raqam.newsletter.code_attempts'))) {
                 return 'bad_code';
             }
             if (! hash_equals($row->code_hash, self::hash($challenge['e'], $challenge['r'], $code))) {
-                DB::table('verification_codes')->where('id', $row->id)->increment('attempts');
+                RateLimiter::hit($tries, (int) config('raqam.newsletter.code_minutes') * 60);
 
                 return 'bad_code';
             }
@@ -111,7 +115,7 @@ final class NewsletterSignup
      */
     public function validate(array $input): array
     {
-        $text = fn ($v) => is_string($v) ? trim((string) preg_replace('/[\x00-\x1F\x7F]/u', '', $v)) : $v;
+        $text = fn ($v) => is_string($v) ? VisitorText::clean($v, keepNewlines: false) : $v;
         $data = ['email' => $text($input['email'] ?? null), 'name' => $text($input['name'] ?? null) ?: null, 'placement' => $input['placement'] ?? null, 'path' => $text($input['path'] ?? null) ?: null];
         $raw = $input['email'] ?? null;
 

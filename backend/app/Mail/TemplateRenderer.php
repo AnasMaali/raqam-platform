@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Support\VisitorText;
+
 /**
  * Fills a template with its values (20.7). Each {variable} is replaced once, in a single pass, so a value that itself
  * looks like {الرمز} stays as typed and is never filled again; and every value goes in by its kind (EmailCatalog):
@@ -40,12 +42,12 @@ final class TemplateRenderer
     /** One line: no line breaks or control characters (a header can never be split into two). */
     public static function line(string $value): string
     {
-        return trim((string) preg_replace('/[\x00-\x1F\x7F\x{2028}\x{2029}]+/u', ' ', $value));
+        return VisitorText::clean((string) preg_replace('/[\x{2028}\x{2029}]+/u', ' ', $value), keepNewlines: false);
     }
 
     private static function html(string $kind, string $value): string
     {
-        $clean = (string) preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $value);
+        $clean = $kind === 'html' ? $value : VisitorText::clean($value);
 
         return match ($kind) {
             'code' => '<span dir="ltr" style="display:inline-block;font-size:32px;letter-spacing:8px;font-weight:bold">'.e(self::line($clean)).'</span>',
