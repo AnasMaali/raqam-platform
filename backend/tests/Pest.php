@@ -11,6 +11,7 @@ require_once __DIR__.'/Support/api.php';
 require_once __DIR__.'/Support/search.php';
 require_once __DIR__.'/Support/markets.php';
 require_once __DIR__.'/Support/ads.php';
+require_once __DIR__.'/Support/mail.php';
 
 /*
 |--------------------------------------------------------------------------
@@ -267,6 +268,9 @@ function productionConfig(array $overrides = []): void
         'raqam.search.prefix' => 'raqam_',
         'raqam.currency.boi_base' => null,
         'raqam.weather.api_base' => null,
+        'raqam.turnstile.secret' => 'a-turnstile-secret',
+        'raqam.turnstile.verify_url' => null,
+        'raqam.api.site_token' => 'a-site-token',
         ...$overrides,
     ]);
 }

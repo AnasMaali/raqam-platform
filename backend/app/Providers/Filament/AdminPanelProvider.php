@@ -30,6 +30,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
@@ -52,7 +53,7 @@ class AdminPanelProvider extends PanelProvider
             ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
-            ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'البحث', 'النظام'])
+            ->navigationGroups(['المحتوى', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'البحث', 'النظام'])
             ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),
@@ -76,6 +77,8 @@ class AdminPanelProvider extends PanelProvider
                     Route::get('/session/status', [AdminSessionController::class, 'status'])->name('session.status');
                 });
             })
+            // The bell (20.10), drawn with each page.
+            ->renderHook(PanelsRenderHook::USER_MENU_BEFORE, fn () => Filament::auth()->check() ? Blade::render('@livewire(\'admin-bell\')') : '')
             ->renderHook(PanelsRenderHook::BODY_END, fn () => Filament::auth()->check() ? view('filament.post-editor', [
                 'key' => 'raqam:post:'.Filament::auth()->id().':'.request()->route('record'),
                 'serverAt' => optional(Post::query()->withTrashed()->find((int) request()->route('record')))->updated_at?->timestamp ?? 0,

@@ -2,21 +2,11 @@
 
 namespace App\Mail;
 
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
-
-class AdminLoginCode extends Mailable
+/** The 6-digit sign-in code (2.4). Sent straight away, never queued (decision 2026-10-23). */
+class AdminLoginCode extends TemplatedEmail
 {
-    public function __construct(public readonly string $code, public readonly int $minutes) {}
-
-    public function envelope(): Envelope
+    public function __construct(public readonly string $code, public readonly int $minutes)
     {
-        return new Envelope(subject: 'رمز الدخول إلى لوحة رَقَم');
-    }
-
-    public function content(): Content
-    {
-        return new Content(view: 'mail.admin-login-code');
+        parent::__construct('admin_login_code', ['الرمز' => $code, 'الدقائق' => $minutes]);
     }
 }

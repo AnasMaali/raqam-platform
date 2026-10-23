@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdApiController;
 use App\Http\Controllers\Api\AwarenessApiController;
+use App\Http\Controllers\Api\ContactApiController;
 use App\Http\Controllers\Api\CurrencyApiController;
 use App\Http\Controllers\Api\PageApiController;
 use App\Http\Controllers\Api\PeopleApiController;
@@ -78,3 +79,6 @@ Route::middleware('throttle:api-search')->get('/search', [SearchApiController::c
 
 // Services (14.9): the contact buttons a visitor presses, reported by the site; never cached, a per-visitor limit.
 Route::middleware('throttle:service-contact')->post('/services/{slug}/contact', [ServiceApiController::class, 'contact']);
+
+// The contact form (20.13): from the site's server only (its token and the visitor's address), JSON only.
+Route::middleware('throttle:contact-form')->post('/contact', [ContactApiController::class, 'store']);

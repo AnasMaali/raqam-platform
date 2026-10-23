@@ -140,4 +140,54 @@ return [
         'secret' => env('SITE_WEBHOOK_SECRET'),
     ],
 
+    /*
+    | System e-mail (decision 20): every message goes out through SMTP from a template the admin edits. Queued messages
+    | are tried `attempts` times (20.8), `backoff` seconds apart; the sign-in messages are not queued (a stuck queue must
+    | never lock the admin out) and are tried as many times right away, `direct_pause_ms` apart. email_log keeps
+    | `retention_days` days (20.9).
+    */
+    'mail' => [
+        'attempts' => 3,
+        'backoff' => [30, 120],
+        'direct_pause_ms' => 500,
+        'retention_days' => 90,
+    ],
+
+    /*
+    | Admin alerts (20.3, 20.4, 20.10, 20.11): the same alert at most once in `window_minutes`. The disk is low when
+    | less than `disk_min_free_percent` of it or less than `disk_min_free_gb` is free.
+    */
+    'alerts' => [
+        'window_minutes' => 60,
+        'disk_min_free_percent' => 10,
+        'disk_min_free_gb' => 2,
+        // The disk the check looks at; the storage folder by default (tests point it elsewhere).
+        'disk_path' => env('ALERTS_DISK_PATH'),
+    ],
+
+    /*
+    | Cloudflare Turnstile (24.10), checked on our server for every public form. The secret lives only in .env; production
+    | refuses to start without it, and without it elsewhere the check is skipped (local development). `hostnames` are the
+    | site's own hosts, comma separated: a token solved on another site is refused.
+    */
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET_KEY'),
+        'hostnames' => env('TURNSTILE_HOSTNAMES'),
+        // Browser tests only: a stand-in for Cloudflare's siteverify. Production refuses to start with it set.
+        'verify_url' => env('TURNSTILE_VERIFY_URL'),
+    ],
+
+    /*
+    | The contact form (20.13): submissions per visitor, and one automatic reply per address in `reply_gap_hours`
+    | whoever asks for it, so the form cannot be used to flood somebody's mailbox. At most `alert_emails_per_hour`
+    | messages a hour reach the admins by e-mail; beyond that the bell says more are waiting.
+    */
+    'contact' => [
+        'per_hour' => 5,
+        'per_day' => 20,
+        'requests_per_minute' => 10,
+        'reply_gap_hours' => 24,
+        'alert_emails_per_hour' => 20,
+    ],
+
 ];

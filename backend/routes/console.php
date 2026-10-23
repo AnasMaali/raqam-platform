@@ -29,3 +29,10 @@ Schedule::command('currency:fetch')->timezone('Asia/Hebron')->weekdays()->everyT
 
 // Weather (decision 12.2): each visible city once an hour, spread over the minutes of the hour.
 Schedule::command('weather:fetch --due')->everyMinute()->withoutOverlapping();
+
+// System e-mail and alerts (decision 20): the log keeps 90 days (20.9); the 3-day warning of a campaign (13.9); the disk
+// (20.4); the weekly summary for the admins (20.12), Saturday morning in Palestine.
+Schedule::command('emails:prune')->dailyAt('02:30')->withoutOverlapping();
+Schedule::command('ads:ending-alerts')->hourly()->withoutOverlapping();
+Schedule::command('system:check-disk')->hourly()->withoutOverlapping();
+Schedule::command('admin:weekly-digest')->timezone('Asia/Hebron')->weeklyOn(6, '09:00')->withoutOverlapping();

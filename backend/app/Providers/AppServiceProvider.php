@@ -9,16 +9,22 @@ use App\Events\PostChanged;
 use App\Filament\Forms\LtrFields;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifySiteOfPostChange;
+use App\Livewire\AdminBell;
+use App\Panel\SystemFailures;
 use App\Search\SearchSync;
 use App\Support\ProductionChecks;
 use App\Support\TrackingHash;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Database\Console\WipeCommand;
 use Illuminate\Http\Request;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
@@ -45,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
         // The sign-in code page is a bare route, not a panel page, so Filament does not register it. Without
         // a name Livewire cannot find it again when the page posts back to /livewire/update (419).
         Livewire::component('admin-login-code', AdminLoginCode::class);
+        Livewire::component('admin-bell', AdminBell::class);
 
         // The dialog's keep-alive and status requests: 10 a minute for each, per admin.
         RateLimiter::for('admin-session', fn (Request $request) => Limit::perMinute(10)
@@ -83,7 +90,13 @@ class AppServiceProvider extends ServiceProvider
         // Click links have no limit here (the visitor must always reach the advertiser); their counter limits what counts.
         RateLimiter::for('ads-impressions', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.impression_requests_per_minute'))
             ->by('ads-views|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('contact-form', fn (Request $request) => Limit::perMinute((int) config('raqam.contact.requests_per_minute'))->by('contact-form|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('service-contact', fn (Request $request) => Limit::perMinute(30)->by('service-contact|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+
+        // A job that gave up or a scheduled task that failed reaches the admins (20.4).
+        Queue::failing(fn (JobFailed $event) => SystemFailures::job($event));
+        Event::listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => SystemFailures::taskFailed($event));
+        Event::listen(ScheduledTaskFinished::class, fn (ScheduledTaskFinished $event) => SystemFailures::taskFinished($event));
 
         // Every sign-out of an admin is logged with its reason. CurrentDeviceLogout is what
         // AuthenticateSession raises when the password changed since the session began.

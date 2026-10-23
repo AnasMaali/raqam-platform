@@ -3,12 +3,12 @@
 namespace App\Auth;
 
 use App\Mail\NewDeviceSignIn;
+use App\Mail\SystemMail;
 use App\Models\User;
 use App\Support\TrackingHash;
 use App\Support\UserAgentSummary;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Remembers which browsers an admin has signed in from (decision 2.4, "new device alert").
@@ -62,7 +62,7 @@ final class KnownDevices
         $at = now();
         defer(function () use ($user, $summary, $at) {
             try {
-                Mail::to($user->email)->send(new NewDeviceSignIn($summary['browser'], $summary['os'], $at));
+                SystemMail::sendNow(new NewDeviceSignIn($summary['browser'], $summary['os'], $at), $user->email);
             } catch (\Throwable $e) {
                 report($e);
             }

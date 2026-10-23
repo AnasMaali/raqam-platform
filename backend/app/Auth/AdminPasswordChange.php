@@ -3,11 +3,11 @@
 namespace App\Auth;
 
 use App\Mail\PasswordChanged;
+use App\Mail\SystemMail;
 use App\Models\User;
 use App\Support\UserAgentSummary;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Sets a new password for the signed-in admin. Every other session of the account ends with the reason
@@ -37,7 +37,7 @@ final class AdminPasswordChange
         $at = now();
         defer(function () use ($user, $summary, $at) {
             try {
-                Mail::to($user->email)->send(new PasswordChanged($summary['browser'], $summary['os'], $at));
+                SystemMail::sendNow(new PasswordChanged($summary['browser'], $summary['os'], $at), $user->email);
             } catch (\Throwable $e) {
                 report($e);
             }

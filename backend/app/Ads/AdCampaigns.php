@@ -34,7 +34,11 @@ final class AdCampaigns
             $before = $campaign ? ['placements' => $campaign->placementCodes(), 'creatives' => $campaign->creativeIds()] : ['placements' => [], 'creatives' => []];
 
             $campaign ??= new AdCampaign(['created_by' => $userId]);
-            $campaign->fill(array_intersect_key($clean, array_flip(['advertiser_id', 'name', 'target_url', 'starts_at', 'ends_at', 'priority', 'status'])))->save();
+            $campaign->fill(array_intersect_key($clean, array_flip(['advertiser_id', 'name', 'target_url', 'starts_at', 'ends_at', 'priority', 'status'])));
+            if ($campaign->exists && $campaign->isDirty('ends_at')) {
+                $campaign->ending_alert_sent_at = null;   // a new end gets its own 3-day warning (13.9)
+            }
+            $campaign->save();
 
             DB::table('ad_campaign_placements')->where('campaign_id', $campaign->id)->whereNotIn('placement_code', $clean['placements'])->delete();
             DB::table('ad_campaign_placements')->insertOrIgnore(array_map(fn ($code) => ['campaign_id' => $campaign->id, 'placement_code' => $code], $clean['placements']));

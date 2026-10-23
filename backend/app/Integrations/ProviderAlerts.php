@@ -2,6 +2,8 @@
 
 namespace App\Integrations;
 
+use App\Mail\TemplatedEmail;
+use App\Panel\AdminAlerts;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -35,25 +37,15 @@ final class ProviderAlerts
         return self::NAMES[$provider] ?? $provider;
     }
 
+    /** The bell and an e-mail for every admin (20.4), at most once an hour per source (20.11). */
     public static function raise(string $provider, int $failures, string $lastError): void
     {
-        $key = 'provider:'.$provider;
         $service = (string) DB::table('data_providers')->where('code', $provider)->value('service');
         $title = self::name($provider).' فشل '.$failures.' مرات متتالية';
-        $body = mb_substr(trim('آخر خطأ: '.$lastError.' '.(self::KEEPS[$service] ?? '')), 0, 1000);
+        $body = trim('آخر خطأ: '.$lastError.' '.(self::KEEPS[$service] ?? ''));
 
-        DB::transaction(function () use ($key, $title, $body) {
-            // Two failures at the same moment must not both decide the hour is free.
-            DB::select('SELECT pg_advisory_xact_lock(hashtext(?))', [$key]);
-            DB::insert(
-                "INSERT INTO admin_notifications (user_id, category, title, body, dedupe_key)
-                 SELECT u.id, 'provider', ?, ?, ? FROM users u
-                 WHERE u.user_type = 'staff' AND u.is_active AND u.deleted_at IS NULL
-                   AND NOT EXISTS (SELECT 1 FROM admin_notifications n
-                                   WHERE n.dedupe_key = ? AND n.created_at > now() - interval '1 hour')",
-                [$title, $body, $key, $key],
-            );
-        });
+        AdminAlerts::raise('provider', 'provider:'.$provider, $title, $body, null,
+            fn () => new TemplatedEmail('admin_provider_failure', ['المصدر' => self::name($provider), 'المرات' => $failures, 'الخطأ' => $lastError]));
     }
 
     /** @return list<string> one sentence per service that is failing now */

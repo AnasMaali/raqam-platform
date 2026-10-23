@@ -1,15 +1,19 @@
 <?php
 
+use App\Console\AdEndingAlertsCommand;
 use App\Console\AdminCreateCommand;
 use App\Console\AdminUnlockCommand;
+use App\Console\CheckDiskCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\CurrencyFetchCommand;
 use App\Console\InstallCharactersCommand;
 use App\Console\InstallCitiesCommand;
+use App\Console\InstallEmailTemplatesCommand;
 use App\Console\InstallPagesCommand;
 use App\Console\InstallServicesCommand;
 use App\Console\InstallSynonymsCommand;
 use App\Console\PruneDevicesCommand;
+use App\Console\PruneEmailLogCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
 use App\Console\SearchCreateKeyCommand;
@@ -18,6 +22,7 @@ use App\Console\SearchReindexCommand;
 use App\Console\SearchSetupCommand;
 use App\Console\SearchSyncDueCommand;
 use App\Console\WeatherFetchCommand;
+use App\Console\WeeklyDigestCommand;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -36,7 +41,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
-        CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class])
+        CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
+        InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })

@@ -37,6 +37,9 @@ test('each unsafe setting is refused, and only that one', function (array $spoil
     'no ADMIN_CODE_KEY' => [['raqam.auth.code_key' => null], 'ADMIN_CODE_KEY'],
     'no TRACKING_HASH_KEY' => [['raqam.tracking_key' => ''], 'TRACKING_HASH_KEY'],
     'no ADMIN_PATH' => [['raqam.admin_path' => null], 'ADMIN_PATH'],
+    'no TURNSTILE_SECRET_KEY' => [['raqam.turnstile.secret' => null], 'TURNSTILE_SECRET_KEY'],
+    'no API_SITE_TOKEN' => [['raqam.api.site_token' => ''], 'API_SITE_TOKEN'],
+    'test-only Turnstile stand-in' => [['raqam.turnstile.verify_url' => 'http://127.0.0.1:9'], 'TURNSTILE_VERIFY_URL'],
 ]);
 
 test('every problem is listed at once and no value is revealed', function () {

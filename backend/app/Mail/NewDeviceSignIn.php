@@ -3,26 +3,15 @@
 namespace App\Mail;
 
 use Carbon\CarbonInterface;
-use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 
-class NewDeviceSignIn extends Mailable
+/** A sign-in from a device this account has not used (2.4). Sent straight away, never queued. */
+class NewDeviceSignIn extends TemplatedEmail
 {
     public readonly string $time;
 
     public function __construct(public readonly string $browser, public readonly string $os, CarbonInterface $at)
     {
         $this->time = $at->copy()->setTimezone('Asia/Hebron')->format('Y-m-d H:i');
-    }
-
-    public function envelope(): Envelope
-    {
-        return new Envelope(subject: 'دخول إلى لوحة رَقَم من جهاز جديد');
-    }
-
-    public function content(): Content
-    {
-        return new Content(view: 'mail.new-device-sign-in');
+        parent::__construct('admin_new_device', ['الوقت' => $this->time, 'المتصفح' => $browser, 'النظام' => $os]);
     }
 }

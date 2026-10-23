@@ -62,6 +62,10 @@ final class ProductionChecks
             $failures[] = 'CURRENCY_BOI_BASE is for browser tests only and must not be set.';
         }
 
+        if (filled(config('raqam.turnstile.verify_url'))) {
+            $failures[] = 'TURNSTILE_VERIFY_URL is for browser tests only and must not be set.';
+        }
+
         // Search must run on the engine in production; PostgreSQL is only the fallback for when it is down (10.11).
         if (blank(config('raqam.search.key')) || preg_match('/^[a-z0-9_]{2,40}$/', (string) config('raqam.search.prefix')) !== 1) {
             $failures[] = 'MEILISEARCH_KEY (a scoped key from search:create-key) and MEILISEARCH_PREFIX must be set.';
@@ -72,6 +76,9 @@ final class ProductionChecks
             'ADMIN_CODE_KEY' => 'raqam.auth.code_key',
             'TRACKING_HASH_KEY' => 'raqam.tracking_key',
             'ADMIN_PATH' => 'raqam.admin_path',
+            // The public forms are checked with Turnstile (24.10) and reach us only from the site's server (its token).
+            'TURNSTILE_SECRET_KEY' => 'raqam.turnstile.secret',
+            'API_SITE_TOKEN' => 'raqam.api.site_token',
         ] as $name => $setting) {
             if (blank(config($setting))) {
                 $failures[] = "{$name} is not set.";

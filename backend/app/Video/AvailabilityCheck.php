@@ -2,6 +2,8 @@
 
 namespace App\Video;
 
+use App\Mail\TemplatedEmail;
+use App\Panel\AdminAlerts;
 use App\Search\SearchSync;
 use Illuminate\Support\Facades\DB;
 
@@ -38,10 +40,28 @@ final class AvailabilityCheck
                     if ($now !== $row->availability) {
                         $changed++;
                         SearchSync::queue('videos', [$row->video_id]);   // a private or removed video leaves search
+                        if ($now !== 'ok') {
+                            self::alert((int) $row->video_id, $now);
+                        }
                     }
                 }
             }, 'youtube_videos.video_id', 'video_id');
 
         return ['checked' => $checked, 'changed' => $changed];
+    }
+
+    /** A video that turned private or was deleted: the bell and an e-mail for the admins (8.12, 20.4). */
+    private static function alert(int $videoId, string $availability): void
+    {
+        $video = DB::table('videos')->join('youtube_videos', 'youtube_videos.video_id', '=', 'videos.id')->where('videos.id', $videoId)
+            ->first(['videos.display_title', 'youtube_videos.source_title']);
+        $title = (string) ($video?->display_title ?: $video?->source_title ?: '#'.$videoId);
+        $state = $availability === 'private' ? 'صار خاصاً' : 'حُذف';
+        $posts = DB::table('video_usage')->join('posts', 'posts.id', '=', 'video_usage.post_id')->where('video_usage.video_id', $videoId)
+            ->distinct()->limit(10)->pluck('posts.title')->all();
+        $uses = $posts === [] ? 'لا شيء' : implode('، ', $posts);
+
+        AdminAlerts::raise('content', "video:{$videoId}:{$availability}", "الفيديو «{$title}» {$state} على يوتيوب", 'يستعمله: '.$uses,
+            "videos/{$videoId}/edit", fn () => new TemplatedEmail('admin_video_unavailable', ['الفيديو' => $title, 'الحالة' => $state, 'المواد' => $uses]));
     }
 }
