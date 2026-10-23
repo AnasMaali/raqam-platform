@@ -3,12 +3,12 @@
 namespace App\Auth;
 
 use App\Mail\AdminLoginCode;
+use App\Mail\SystemMail;
 use App\Models\User;
 use App\Support\TrackingHash;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Support\Timebox;
@@ -192,7 +192,7 @@ final class AdminSignIn
                 ]);
             });
 
-            Mail::to($user->email)->send(new AdminLoginCode($code, (int) config('raqam.auth.code_minutes')));
+            SystemMail::sendNow(new AdminLoginCode($code, (int) config('raqam.auth.code_minutes')), $user->email);
         } catch (\Throwable $e) {
             report($e);
         }

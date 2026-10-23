@@ -4,9 +4,12 @@ namespace App\Filament\Pages;
 
 use App\Ads\AdAlerts;
 use App\Jobs\SendSiteWebhook;
+use App\Models\ContactMessage;
+use App\Panel\AdminAlerts;
 use App\Panel\ConnectionStatus;
 use App\Panel\PanelAlerts;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
 use Filament\Pages\Dashboard as BaseDashboard;
 use Filament\Schemas\Components\Grid;
@@ -27,8 +30,6 @@ class Dashboard extends BaseDashboard
     private const CARDS = [
         'زيارات اليوم' => 'تظهر مع مرحلة الإحصائيات.',
         'الأكثر قراءة' => 'تظهر مع مرحلة الإحصائيات.',
-        'رسائل جديدة' => 'تظهر مع نموذج «اتصل بنا».',
-        'التنبيهات' => 'تظهر مع مرحلة التنبيهات.',
     ];
 
     protected function getHeaderActions(): array
@@ -65,6 +66,17 @@ class Dashboard extends BaseDashboard
         $cards = [Section::make('حملات إعلانية فعّالة ('.count($running).')')->schema($running === []
             ? [Text::make('لا توجد حملة تعمل الآن.')->color('gray')]
             : array_map(fn (array $c) => Text::make($c['name'].' — '.$c['advertiser'].' — حتى '.$c['ends_at']), array_slice($running, 0, 8)))];
+        // 21.4: new contact messages and this admin's unread alerts.
+        $messages = ContactMessage::query()->where('status', 'new')->orderByDesc('created_at')->limit(5)->get(['id', 'name', 'subject']);
+        $newCount = ContactMessage::query()->where('status', 'new')->count();
+        $cards[] = Section::make('رسائل جديدة ('.$newCount.')')->schema($messages->isEmpty()
+            ? [Text::make('لا رسائل جديدة.')->color('gray')]
+            : $messages->map(fn (ContactMessage $m) => Text::make($m->name.' — '.$m->subject))->all());
+        $userId = (int) Filament::auth()->id();
+        $unread = array_filter(AdminAlerts::latest($userId, 5), fn ($n) => $n->read_at === null);
+        $cards[] = Section::make('التنبيهات ('.AdminAlerts::unreadCount($userId).' غير مقروءة)')->schema($unread === []
+            ? [Text::make('لا تنبيهات جديدة.')->color('gray')]
+            : array_values(array_map(fn ($n) => Text::make($n->title), $unread)));
         foreach (self::CARDS as $title => $note) {
             $cards[] = Section::make($title)->schema([Text::make($note)->color('gray')]);
         }

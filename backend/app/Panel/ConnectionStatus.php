@@ -73,21 +73,47 @@ final class ConnectionStatus
             'lines' => [$up ? 'Meilisearch يعمل.' : 'Meilisearch لا يستجيب؛ البحث يعمل مؤقتاً من قاعدة البيانات.']];
     }
 
-    /** @return array{name: string, state: string, key: string, lines: list<string>} */
+    /**
+     * E-mail (20.9, 21.15), from the e-mail log: the last message that finished decides the state (sent = working,
+     * failed after its tries = failing); nothing sent yet = unknown.
+     *
+     * @return array{name: string, state: string, key: string, lines: list<string>}
+     */
     private static function email(): array
     {
         $mailer = (string) config('mail.default');
         $real = ! in_array($mailer, ['log', 'array'], true);
         $password = $mailer === 'smtp' ? (filled(config('mail.mailers.smtp.password')) ? 'مضبوطة' : 'غير مضبوطة') : null;
+        $key = $password === null ? '—' : 'كلمة المرور: '.$password;
+        $lines = ['طريقة الإرسال: '.$mailer.($real ? '' : ' (الرسائل تُكتب في السجل ولا تُرسَل)')];
+        if (filled(config('mail.from.address'))) {
+            $lines[] = 'المرسِل الافتراضي: '.config('mail.from.address');
+        }
+        if (! $real) {
+            return ['name' => 'البريد', 'state' => self::OFF, 'key' => $key, 'lines' => $lines];
+        }
 
-        return [
-            'name' => 'البريد', 'state' => $real ? self::UNKNOWN : self::OFF, 'key' => $password === null ? '—' : 'كلمة المرور: '.$password,
-            'lines' => array_values(array_filter([
-                'طريقة الإرسال: '.$mailer.($real ? '' : ' (الرسائل تُكتب في السجل ولا تُرسَل)'),
-                filled(config('mail.from.address')) ? 'المرسِل: '.config('mail.from.address') : null,
-                $real ? 'لا يُتابَع نجاح الإرسال هنا بعد (مرحلة التنبيهات).' : null,
-            ])),
-        ];
+        $last = DB::table('email_log')->whereIn('status', ['sent', 'failed'])->orderByDesc('id')->first(['status', 'error']);
+        $lastSent = DB::table('email_log')->where('status', 'sent')->max('sent_at');
+        $failedDay = DB::table('email_log')->where('status', 'failed')->where('queued_at', '>', DB::raw("now() - interval '1 day'"))->count();
+        $waiting = DB::table('email_log')->where('status', 'queued')->where('queued_at', '<', DB::raw("now() - interval '10 minutes'"))->count();
+
+        $lines[] = 'آخر إرسال ناجح: '.($lastSent ? ProviderAlerts::time($lastSent) : '—');
+        $lines[] = 'فشل آخر 24 ساعة: '.$failedDay;
+        if ($waiting > 0) {
+            $lines[] = 'رسائل بالانتظار أكثر من 10 دقائق: '.$waiting.' (هل يعمل الطابور؟)';
+        }
+        if ($last?->status === 'failed') {
+            $lines[] = 'آخر خطأ: '.$last->error;
+        }
+
+        $state = match ($last?->status) {
+            'sent' => self::OK,
+            'failed' => self::FAILING,
+            default => self::UNKNOWN,
+        };
+
+        return ['name' => 'البريد', 'state' => $state, 'key' => $key, 'lines' => $lines];
     }
 
     /**

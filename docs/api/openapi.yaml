@@ -72,6 +72,7 @@ tags:
   - name: Weather
   - name: Ads
   - name: Services
+  - name: Contact
 
 paths:
   /posts:
@@ -1204,6 +1205,53 @@ paths:
       responses:
         '204': { description: Received. }
         '404': { $ref: '#/components/responses/NotFound' }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /contact:
+    post:
+      tags: [Contact]
+      summary: Send the contact form (20.13)
+      description: |
+        **From the website's server only**: the browser posts to a route of the site on the same domain, and that route
+        calls this with `X-Raqam-Site-Token`, `X-Raqam-Visitor-Ip` and `X-Raqam-Visitor-Ua`. Without the token and a
+        valid visitor address: 403 `site_only`. JSON only (415 otherwise).
+
+        Turnstile (24.10) is checked here: send the widget's token as `turnstile_token` (action `contact`). Fields are
+        checked strictly (422 with the field and an Arabic reason): name 2–120 without a link or an address, a valid
+        e-mail, phone optional in international form (+970599123456; Arabic digits, spaces and `00` are fine), subject
+        2–200 on one line, message 2–5000. `website` is a honeypot: leave it empty and hidden.
+
+        5 messages an hour and 20 a day per visitor (429 `too_many`); 10 requests a minute (429). Turnstile refused:
+        422 `turnstile_failed`. Otherwise 202, the same answer whatever happens next: the message is kept for the panel,
+        the admins are told and the sender gets one automatic reply a day at most per address.
+      operationId: sendContactMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, subject, message, turnstile_token]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email, maxLength: 254 }
+                phone: { type: [string, 'null'], maxLength: 30 }
+                subject: { type: string, minLength: 2, maxLength: 200 }
+                message: { type: string, minLength: 2, maxLength: 5000 }
+                turnstile_token: { type: string, maxLength: 2048 }
+                website: { type: string, description: "Honeypot: must stay empty." }
+      responses:
+        '202':
+          description: Received.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: object, required: [received], properties: { received: { type: boolean, const: true } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '415': { $ref: '#/components/responses/Invalid' }
         '422': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
