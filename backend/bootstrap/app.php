@@ -32,11 +32,13 @@ use App\Console\StatsFlushCommand;
 use App\Console\StatsPruneCommand;
 use App\Console\WeatherFetchCommand;
 use App\Console\WeeklyDigestCommand;
+use App\Http\Middleware\RequireFeature;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -56,6 +58,9 @@ return Application::configure(basePath: dirname(__DIR__))
         PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+        $middleware->alias(['feature' => RequireFeature::class]);
+        // A switched-off system answers 404 before a request limit counts the request.
+        $middleware->prependToPriorityList(ThrottleRequests::class, RequireFeature::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // The API always answers in the same JSON shape, whatever went wrong.

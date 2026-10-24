@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdApiController;
 use App\Http\Controllers\Api\AwarenessApiController;
+use App\Http\Controllers\Api\BookingApiController;
 use App\Http\Controllers\Api\ChatApiController;
 use App\Http\Controllers\Api\ContactApiController;
 use App\Http\Controllers\Api\CurrencyApiController;
@@ -107,3 +108,10 @@ Route::middleware('throttle:chat')->post('/chat/messages', [ChatApiController::c
 // Statistics (decision 22): what the site's server reports for its visitors. Never cached, JSON only, no cookie, a
 // limit per visitor.
 Route::middleware('throttle:stats')->post('/stats/hits', [StatsApiController::class, 'hit']);
+
+// Online booking (decision 15): built and switched off. While `booking` is off every route here is a 404, before the
+// request limit or anything else looks at the request. From the site's server only.
+Route::middleware('feature:booking')->group(function () {
+    Route::middleware('throttle:booking')->post('/bookings', [BookingApiController::class, 'store']);
+    Route::middleware('throttle:booking-track')->post('/bookings/track', [BookingApiController::class, 'track']);
+});

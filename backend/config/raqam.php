@@ -191,6 +191,22 @@ return [
     ],
 
     /*
+    | Online booking (decision 15), built and switched off (feature `booking`). Requests per visitor (an IPv4 address or
+    | an IPv6 /64), at most `confirmations_per_address_day` confirmation mails a day to one address whoever asks, and the
+    | attachments: up to 3 private files (15.2), each at most `attachment_bytes`, pictures or PDF only. The status page
+    | lives on the site at `track_path`; the private token travels after the `#`, so no server or log ever sees it.
+    */
+    'booking' => [
+        'per_hour' => 3,
+        'per_day' => 10,
+        'requests_per_minute' => 10,
+        'track_per_minute' => 20,
+        'confirmations_per_address_day' => 3,
+        'attachment_bytes' => 10 * 1024 * 1024,
+        'track_path' => '/bookings/track',
+    ],
+
+    /*
     | Visit statistics (decision 22), internal only: no Google Analytics, no cookie. The site's server reports each page
     | view, interaction and missing page (POST /api/v1/stats/hits); the counters live in Redis (`redis_connection`, the
     | queue connection, which nothing empties) for `redis_seconds`, and stats:flush writes them into the daily tables every

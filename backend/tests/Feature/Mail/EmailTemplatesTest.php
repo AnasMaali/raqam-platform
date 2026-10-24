@@ -18,9 +18,9 @@ beforeEach(function () {
 test('emails:install makes every template of the catalogue, and never overwrites an edited one', function () {
     $this->artisan('emails:install')->assertSuccessful();
     expect(DB::table('email_templates')->count())->toBe(count(EmailCatalog::templates()))
-        // The dormant ones (20.5) are made switched off.
-        ->and(DB::table('email_templates')->where('key', 'booking_received')->value('is_active'))->toBeFalse()
-        ->and(DB::table('email_templates')->where('key', 'visitor_contact_reply')->value('is_active'))->toBeTrue();
+        // Each is made on or off as the catalogue says (a template marked `active => false` starts switched off).
+        ->and(DB::table('email_templates')->pluck('is_active', 'key')->all())
+        ->toEqual(array_map(fn (array $t) => $t['active'] ?? true, EmailCatalog::templates()));
 
     EmailTemplates::save('visitor_contact_reply', 'عنوان معدّل', '<p>نص معدّل {الاسم}</p>', true, null);
     $this->artisan('emails:install')->assertSuccessful();
@@ -124,9 +124,10 @@ test('a template edit is audited under the template name', function () {
 });
 
 test('a switched-off template sends nothing and logs nothing; a locked one always sends', function () {
-    EmailTemplates::ensure('booking_received');
+    EmailTemplates::ensure('visitor_contact_reply');
+    DB::table('email_templates')->where('key', 'visitor_contact_reply')->update(['is_active' => false]);
 
-    expect(SystemMail::queue(new TemplatedEmail('booking_received', ['الاسم' => 'س']), 'c@example.com'))->toBeNull()
+    expect(SystemMail::queue(new TemplatedEmail('visitor_contact_reply', ['الاسم' => 'س']), 'c@example.com'))->toBeNull()
         ->and(sentEmails())->toBe([])->and(DB::table('email_log')->count())->toBe(0);
 
     EmailTemplates::ensure('admin_login_code');
