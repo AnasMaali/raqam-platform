@@ -196,7 +196,8 @@ return [
     | queue connection, which nothing empties) for `redis_seconds`, and stats:flush writes them into the daily tables every
     | hour. Against inflated numbers, per visitor (a salted daily HMAC of the network and browser): the same page within
     | `reload_seconds` counts once; at most `views_per_visitor_day` views a day, `events_per_visitor_hour` interactions an
-    | hour (the same one once in `event_gap_seconds`) and `not_found_per_visitor_day` missing pages a day. A visit opens
+    | hour (the same one once in `event_gap_seconds`) and `not_found_per_visitor_day` missing pages a day; one network brings
+    | at most `visitors_per_network_day` visitors a day (the browser name is easy to change). A visit opens
     | after `visit_minutes` of quiet. `requests_per_minute` is the endpoint's limit per visitor.
     */
     'stats' => [
@@ -207,6 +208,7 @@ return [
         'events_per_visitor_hour' => 60,
         'event_gap_seconds' => 10,
         'not_found_per_visitor_day' => 30,
+        'visitors_per_network_day' => 300,
         'visit_minutes' => 30,
         'requests_per_minute' => 120,
     ],

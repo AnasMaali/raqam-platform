@@ -18,7 +18,7 @@
     $line = collect($days)->values()->map(fn ($d, $i) => round($pad + $step * ($i + 0.5), 1).','.round($y($d['visitors']), 1))->implode(' ');
     $labelEvery = (int) ceil($count / 8);
 @endphp
-<div style="display:grid;gap:1.5rem" data-statistics>
+<div style="display:grid;gap:1.5rem;grid-template-columns:minmax(0,1fr)" data-statistics>
     @if ($r['problem'])
         <p style="color:var(--warning-600,#b45309);font-size:.875rem">{{ $r['problem'] }}</p>
     @endif
@@ -40,7 +40,7 @@
     </div>
 
     <x-filament::section :heading="'المشاهدات والزوار يوماً بيوم ('.$r['from'].' → '.$r['to'].')'">
-        <figure style="margin:0">
+        <figure style="margin:0;min-width:0">
             <svg viewBox="0 0 {{ $w }} {{ $h }}" role="img" aria-label="مشاهدات الصفحات والزوار لكل يوم" style="width:100%;height:auto;display:block" dir="ltr">
                 <line x1="{{ $pad }}" y1="{{ $h - $pad }}" x2="{{ $w - $pad }}" y2="{{ $h - $pad }}" style="stroke:currentColor;opacity:.25" />
                 @foreach ($days as $i => $d)

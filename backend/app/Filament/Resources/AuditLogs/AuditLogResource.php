@@ -113,7 +113,7 @@ class AuditLogResource extends Resource
                 TextEntry::make('user_agent')->label('المتصفح كما أرسله')->placeholder('—')->columnSpanFull()->extraAttributes(['dir' => 'ltr']),
             ]),
             Section::make('التغييرات: قبل وبعد')->schema([
-                RepeatableEntry::make('changes')->hiddenLabel()->contained(false)->columns(['default' => 1, 'md' => 3])->schema([
+                RepeatableEntry::make('changes')->label('الحقول')->hiddenLabel()->contained(false)->columns(['default' => 1, 'md' => 3])->schema([
                     TextEntry::make('field')->label('الحقل')->extraAttributes(['dir' => 'ltr']),
                     TextEntry::make('old_value')->label('قبل')->placeholder('—'),
                     TextEntry::make('new_value')->label('بعد')->placeholder('—'),

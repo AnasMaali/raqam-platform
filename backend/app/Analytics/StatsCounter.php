@@ -16,7 +16,8 @@ use Illuminate\Support\Facades\DB;
  * Nothing is counted for a robot (22.3). Against a visitor who inflates the numbers: the same page within
  * `reload_seconds` counts once; a post counts once per visitor per day; a video once per visitor per day; the same
  * interaction once in `event_gap_seconds`; and beyond `views_per_visitor_day` views, `events_per_visitor_hour`
- * interactions or `not_found_per_visitor_day` missing pages nothing more of that visitor counts that day. A refused hit
+ * interactions or `not_found_per_visitor_day` missing pages nothing more of that visitor counts that day; and one network
+ * brings at most `visitors_per_network_day` visitors a day (a browser name is easy to change). A refused hit
  * is silent: the caller never learns whether it counted.
  *
  * A visit (for sources and devices) opens with a visitor's first view after `visit_minutes` of quiet; its source is the
@@ -38,6 +39,9 @@ final class StatsCounter
         }
         $day = StatsKeys::today();
         $visitor = VisitorDay::fingerprint($day, $ip, $agent);
+        if (! $this->knownOnNetwork($day, $visitor, $ip)) {
+            return false;
+        }
 
         return match ($hit['type']) {
             self::VIEW => $this->view($day, $visitor, $hit, $agent),
@@ -121,6 +125,28 @@ final class StatsCounter
              ON CONFLICT (path) DO UPDATE SET hits = not_found_paths.hits + 1, last_seen_at = greatest(now(), not_found_paths.first_seen_at)',
             [$path],
         );
+
+        return true;
+    }
+
+    /**
+     * The visitor is a network and a browser, so one address could invent visitors by changing its browser name. A
+     * network brings at most `visitors_per_network_day` visitors a day (a shared line or a phone company's address
+     * carries many real people, hence a high ceiling); a new one beyond that is not counted, the ones already seen are.
+     */
+    private function knownOnNetwork(string $day, string $visitor, ?string $ip): bool
+    {
+        $key = StatsKeys::day($day, 'network:'.VisitorDay::network($day, $ip));
+        $redis = StatsKeys::redis();
+        if ((int) $redis->sadd($key, $visitor) === 0) {
+            return true;
+        }
+        $redis->expire($key, StatsKeys::ttl());
+        if ((int) $redis->scard($key) > (int) config('raqam.stats.visitors_per_network_day')) {
+            $redis->srem($key, $visitor);
+
+            return false;
+        }
 
         return true;
     }
