@@ -207,6 +207,23 @@ return [
     ],
 
     /*
+    | Online payment (decision 16), built and switched off (feature `online_payments`, which needs `booking`). The bank
+    | sends the customer back to the site's `return_path`; a payment still pending after `stale_minutes` is asked about
+    | by `payments:reconcile` (every 15 minutes, 16.7), and one still not paid after `expire_hours` is given up. A pending
+    | attempt younger than `reuse_minutes` is handed back instead of opening a new one (16.8). `fake_secret` signs the
+    | test gateway's notifications (never used in production).
+    */
+    'payments' => [
+        'return_path' => '/bookings/payment-return',
+        'stale_minutes' => 10,
+        'reuse_minutes' => 10,
+        'expire_hours' => 24,
+        'requests_per_minute' => 10,
+        'webhook_per_minute' => 120,
+        'fake_secret' => env('PAYMENTS_FAKE_SECRET'),
+    ],
+
+    /*
     | Visit statistics (decision 22), internal only: no Google Analytics, no cookie. The site's server reports each page
     | view, interaction and missing page (POST /api/v1/stats/hits); the counters live in Redis (`redis_connection`, the
     | queue connection, which nothing empties) for `redis_seconds`, and stats:flush writes them into the daily tables every
