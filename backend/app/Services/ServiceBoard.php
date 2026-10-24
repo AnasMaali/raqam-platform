@@ -6,6 +6,7 @@ use App\Api\Presenter;
 use App\Jobs\SendSiteWebhook;
 use App\Models\Post;
 use App\Models\Service;
+use App\Settings\FeatureFlags;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -76,7 +77,7 @@ final class ServiceBoard
 
     public static function bookingOn(): bool
     {
-        return (bool) DB::table('feature_flags')->where('key', 'booking')->value('is_enabled');
+        return FeatureFlags::on('booking');
     }
 
     /** The price as the site shows it (14.2–14.4). The offer, while it lasts, is the price; the regular one is "was". */

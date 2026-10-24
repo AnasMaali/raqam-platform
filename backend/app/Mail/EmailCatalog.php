@@ -117,17 +117,26 @@ final class EmailCatalog
             ],
 
             // Ready and switched off until their systems are (20.5).
+            // The booking messages are on: nothing sends them while the booking feature is off (decision 15).
             'booking_received' => [
-                'name' => 'تأكيد استلام الحجز (غير مفعّل)', 'audience' => 'customer', 'sender' => 'booking', 'active' => false,
+                'name' => 'تأكيد استلام الحجز (الحجز مطفأ)', 'audience' => 'customer', 'sender' => 'booking',
                 'subject' => 'وصلنا طلب حجزك {المرجع}',
                 'body' => '<p>مرحباً {الاسم}،</p><p>وصلنا طلب حجزك لخدمة «{الخدمة}» برقم مرجعي {المرجع}. سنتواصل معك قريباً.</p><p>تابع طلبك من هنا: {الرابط}</p>',
                 'vars' => ['الاسم' => 'text', 'الخدمة' => 'text', 'المرجع' => 'text', 'الرابط' => 'url'],
             ],
+            // The status link is not in it: only its hash is kept (15.9), so only the first message can carry it.
             'booking_status_changed' => [
-                'name' => 'تحديث حالة الحجز (غير مفعّل)', 'audience' => 'customer', 'sender' => 'booking', 'active' => false,
+                'name' => 'تحديث حالة الحجز (الحجز مطفأ)', 'audience' => 'customer', 'sender' => 'booking',
                 'subject' => 'تحديث على حجزك {المرجع}',
-                'body' => '<p>مرحباً {الاسم}،</p><p>صارت حالة حجزك {المرجع}: {الحالة}.</p><p>{الرابط}</p>',
-                'vars' => ['الاسم' => 'text', 'المرجع' => 'text', 'الحالة' => 'text', 'الرابط' => 'url'],
+                'body' => '<p>مرحباً {الاسم}،</p><p>صارت حالة حجزك {المرجع}: {الحالة}.</p><p>تابع حجزك من الرابط الخاص الذي وصلك في رسالة تأكيد الطلب.</p>',
+                'vars' => ['الاسم' => 'text', 'المرجع' => 'text', 'الحالة' => 'text'],
+            ],
+            'admin_booking_received' => [
+                'name' => 'طلب حجز جديد (للإدارة، الحجز مطفأ)', 'audience' => 'admin', 'sender' => 'no_reply',
+                'subject' => 'طلب حجز جديد {المرجع}: {الخدمة}',
+                'body' => '<p>وصل طلب حجز جديد برقم {المرجع}.</p><ul><li>الخدمة: {الخدمة}</li><li>الاسم: {الاسم}</li><li>الشركة: {الشركة}</li><li>البريد: {البريد}</li><li>الهاتف: {الهاتف}</li><li>التواصل المفضّل: {التواصل}</li><li>المواعيد المناسبة: {المواعيد}</li></ul><p>{التفاصيل}</p>',
+                'vars' => ['المرجع' => 'text', 'الخدمة' => 'text', 'الاسم' => 'text', 'الشركة' => 'text', 'البريد' => 'text', 'الهاتف' => 'text',
+                    'التواصل' => 'text', 'المواعيد' => 'text', 'التفاصيل' => 'text'],
             ],
             'payment_receipt' => [
                 'name' => 'إيصال الدفع والفاتورة (غير مفعّل)', 'audience' => 'customer', 'sender' => 'booking', 'active' => false,

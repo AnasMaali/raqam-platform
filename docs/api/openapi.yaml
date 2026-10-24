@@ -77,6 +77,8 @@ tags:
   - name: Chat
   - name: Statistics
   - name: Home
+  - name: Booking
+    description: Built and switched off (decision 15). While the `booking` switch is off every path here is a 404.
 
 paths:
   /home:
@@ -1375,6 +1377,107 @@ paths:
         '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '415': { $ref: '#/components/responses/Invalid' }
         '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /bookings:
+    post:
+      tags: [Booking]
+      summary: Send a booking request (decision 15, switched off)
+      description: |
+        **404 while the `booking` switch is off**, before anything else is checked. **From the website's server only**
+        (`X-Raqam-Site-Token`, `X-Raqam-Visitor-Ip`, `X-Raqam-Visitor-Ua`; 403 `site_only` otherwise). JSON, or
+        multipart/form-data when it carries `attachments[]` (415 otherwise).
+
+        Up to 3 attachments, each a JPEG, PNG, WebP or PDF by its content and at most 10 MB; they are kept private.
+        Turnstile action `booking`. `website` is a honeypot. 3 requests an hour and 10 a day per visitor (an IPv4 address
+        or an IPv6 /64; 429 `too_many`), 10 requests a minute (429). The price and currency of the service at this moment
+        are fixed on the booking. The answer carries the reference and the private status link: the token is shown this
+        once and kept only as a hash; it rides after the `#` of the link so no server log sees it.
+      operationId: sendBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [service, name, phone, email, preferred_contact, details, consent, turnstile_token]
+              properties:
+                service: { type: string, description: "The slug of the service." }
+                name: { type: string, minLength: 2, maxLength: 120 }
+                company: { type: [string, 'null'], maxLength: 160 }
+                phone: { type: string, maxLength: 30, description: "International form, e.g. +970599123456." }
+                email: { type: string, format: email, maxLength: 254 }
+                preferred_contact: { type: string, enum: [phone, whatsapp, email] }
+                preferred_dates: { type: [string, 'null'], maxLength: 500 }
+                details: { type: string, minLength: 10, maxLength: 5000 }
+                consent: { type: boolean, const: true }
+                turnstile_token: { type: string, maxLength: 2048 }
+                website: { type: string, description: "Honeypot: must stay empty." }
+      responses:
+        '202':
+          description: Received.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [received]
+                    properties:
+                      received: { type: boolean, const: true }
+                      reference: { type: string, pattern: '^RQ-[0-9]{4}-[0-9]{5}$' }
+                      token: { type: string, pattern: '^[A-Za-z0-9_-]{43}$' }
+                      url: { type: string, format: uri }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /bookings/track:
+    post:
+      tags: [Booking]
+      summary: The private status page of a booking (15.9, switched off)
+      description: |
+        **404 while the `booking` switch is off.** From the website's server only, JSON only. The token comes in the body
+        (never in a URL). Shows the reference, the service, the current stage and the stages reached; nothing the
+        customer typed and no internal note. A wrong or malformed token is a 404. 20 requests a minute per visitor.
+      operationId: trackBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [token], properties: { token: { type: string } } }
+      responses:
+        '200':
+          description: The booking's progress.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [reference, service, created_at, status, scheduled_for, history]
+                    properties:
+                      reference: { type: string }
+                      service: { type: string }
+                      created_at: { type: string, format: date-time }
+                      status:
+                        type: object
+                        required: [code, name, final]
+                        properties: { code: { type: string }, name: { type: string }, final: { type: boolean } }
+                      scheduled_for: { type: [string, 'null'], format: date-time }
+                      history:
+                        type: array
+                        items:
+                          type: object
+                          required: [code, name, at]
+                          properties: { code: { type: string }, name: { type: string }, at: { type: string, format: date-time } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '415': { $ref: '#/components/responses/Invalid' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /newsletter/subscribe:
     post:
