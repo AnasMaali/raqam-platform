@@ -15,6 +15,12 @@ use Illuminate\Support\Facades\DB;
  */
 final class FeatureFlags
 {
+    /** Whether a feature is switched on now; an unknown key is off. Read from the table every time (no cache to go stale). */
+    public static function on(string $key): bool
+    {
+        return (bool) DB::table('feature_flags')->where('key', $key)->value('is_enabled');
+    }
+
     /** @throws FeatureFlagRefused */
     public function set(string $key, bool $enabled, ?int $userId): void
     {

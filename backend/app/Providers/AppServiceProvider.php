@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Access\Access;
+use App\Access\PermissionCatalog;
 use App\Api\SiteToken;
 use App\Auth\AdminAudit;
 use App\Chat\ChatResponder;
@@ -12,6 +14,7 @@ use App\Filament\Forms\LtrFields;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifySiteOfPostChange;
 use App\Livewire\AdminBell;
+use App\Models\User;
 use App\Panel\SystemFailures;
 use App\Search\SearchSync;
 use App\Support\ProductionChecks;
@@ -26,6 +29,7 @@ use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -101,6 +105,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('contact-form', fn (Request $request) => Limit::perMinute((int) config('raqam.contact.requests_per_minute'))->by('contact-form|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('stats', fn (Request $request) => Limit::perMinute((int) config('raqam.stats.requests_per_minute'))->by('stats|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('service-contact', fn (Request $request) => Limit::perMinute(30)->by('service-contact|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+
+        // The admin team's permissions (2.7) answer every ability written as a permission code (`posts.manage`); any
+        // other ability is left to the rest of the gate.
+        Gate::before(fn ($user, string $ability) => PermissionCatalog::exists($ability) ? app(Access::class)->can($user instanceof User ? $user : null, $ability) : null);
 
         // A job that gave up or a scheduled task that failed reaches the admins (20.4).
         Queue::failing(fn (JobFailed $event) => SystemFailures::job($event));
