@@ -114,6 +114,10 @@ final class SettingsStore
         $setting = Setting::query()->find($key);
 
         if ($setting === null) {
+            // Nothing to keep: an empty value of a setting never stored is not a change (and no empty entry in the audit trail).
+            if ($value === null) {
+                return false;
+            }
             Setting::query()->create([
                 'key' => $key,
                 'value' => $value,

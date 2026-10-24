@@ -148,3 +148,14 @@ test('the settings page is only for signed-in staff', function () {
 
     $this->actingAs(User::factory()->create())->get('/'.config('raqam.admin_path').'/settings')->assertForbidden();
 });
+
+test('an empty value of a setting never stored writes no row and no entry in the audit trail', function () {
+    expect(DB::table('settings')->where('key', 'seo.default_image')->exists())->toBeFalse();
+    $before = DB::table('audit_log')->count();
+
+    saveSettings(['seo.default_image' => '', 'general.logo' => null, 'general.site_name' => 'رَقَم الاقتصادي']);
+
+    expect(DB::table('settings')->whereIn('key', ['seo.default_image', 'general.logo'])->exists())->toBeFalse()
+        ->and(DB::table('audit_log')->count() - $before)->toBe(1)
+        ->and(DB::table('audit_log_changes')->where('audit_id', DB::table('audit_log')->max('id'))->pluck('new_value')->all())->toContain('رَقَم الاقتصادي');
+});

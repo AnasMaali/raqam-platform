@@ -16,6 +16,12 @@ final class VisitorDay
         return substr(hash_hmac('sha256', (TrackingHash::network($ip) ?? 'unknown').'|'.(string) $agent, self::salt($day)), 0, 32);
     }
 
+    /** The network alone (address or IPv6 /64), under the same daily salt: the key of a ceiling, never the address. */
+    public static function network(string $day, ?string $ip): string
+    {
+        return substr(hash_hmac('sha256', 'network|'.(TrackingHash::network($ip) ?? 'unknown'), self::salt($day)), 0, 32);
+    }
+
     public static function salt(string $day): string
     {
         $redis = StatsKeys::redis();

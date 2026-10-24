@@ -40,6 +40,9 @@ stored, not even in a Redis key. Two browsers behind one address (a shared line)
   needs a video the site shows and counts once per visitor, video and day.
 - A missing page: recorded without its query, once per visitor, path and day, at most 30 paths per visitor a day,
   straight into `not_found_paths` (database clock).
+- One network (an address, or an IPv6 /64) brings at most 300 visitors a day: a browser name is easy to change, so
+  without it one address could invent visitors and readings. A shared line or a phone company's address carries many
+  real people, hence the high ceiling; visitors already seen keep counting.
 - The endpoint itself: 120 requests a minute per visitor.
 
 All limits are in `config/raqam.php` (`stats`).

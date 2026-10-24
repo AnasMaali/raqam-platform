@@ -347,3 +347,16 @@ test('a visit that opens on a link from the site itself (a tab left open) is dir
 
     expect(statsHash('sources'))->toBe(['direct' => 1]);
 });
+
+test('one address cannot invent visitors by changing its browser name: a network brings at most its ceiling a day', function () {
+    config(['raqam.stats.visitors_per_network_day' => 3]);
+    $post = livePost();
+    foreach (range(1, 6) as $i) {
+        siteHit(['type' => 'view', 'path' => "/news/{$post}/x", 'post_id' => $post], ip: '203.0.113.99', agent: PERSON_AGENT." build/{$i}");
+    }
+    siteHit(['type' => 'view', 'path' => '/again'], ip: '203.0.113.99', agent: PERSON_AGENT.' build/1');   // one already seen still counts
+    siteHit(['type' => 'view', 'path' => '/again'], ip: '203.0.113.99', agent: PERSON_AGENT.' build/5');   // one refused stays refused
+    siteHit(['type' => 'view', 'path' => "/news/{$post}/x", 'post_id' => $post], ip: '198.51.100.1');       // another network
+
+    expect(visitorsToday())->toBe(4)->and(pageViewsToday())->toBe(5)->and(statsHash('posts'))->toBe([(string) $post => 4]);
+});
