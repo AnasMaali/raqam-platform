@@ -56,7 +56,8 @@ test('every route of the API is in the contract and every path of the contract i
     // Read only, except the counters of what visitors do (they write a count, never content) and the public forms
     // of the site's server (they keep a message for the panel; nothing they send is ever published).
     $counters = ['/ads/impressions', '/services/{slug}/contact', '/contact', '/newsletter/subscribe', '/newsletter/resend', '/newsletter/confirm',
-        '/newsletter/unsubscribe', '/newsletter/brevo-webhook', '/chat/messages', '/stats/hits', '/bookings', '/bookings/track'];
+        '/newsletter/unsubscribe', '/newsletter/brevo-webhook', '/chat/messages', '/stats/hits', '/bookings', '/bookings/track', '/bookings/pay',
+        '/payments/return', '/payments/webhooks/{gateway}'];
     foreach ($spec['paths'] as $template => $path) {
         expect(array_keys($path))->toBe(in_array($template, $counters, true) ? ['post'] : ['get'], $template);
     }

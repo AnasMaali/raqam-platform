@@ -23,6 +23,7 @@ use App\Console\PruneEmailLogCommand;
 use App\Console\PruneRetainedDataCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
+use App\Console\ReconcilePaymentsCommand;
 use App\Console\SearchCreateKeyCommand;
 use App\Console\SearchEvaluateCommand;
 use App\Console\SearchReindexCommand;
@@ -55,7 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
         InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
         NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class,
-        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class])
+        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, ReconcilePaymentsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
         $middleware->alias(['feature' => RequireFeature::class]);

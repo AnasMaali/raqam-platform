@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\CurrencyApiController;
 use App\Http\Controllers\Api\HomeApiController;
 use App\Http\Controllers\Api\NewsletterApiController;
 use App\Http\Controllers\Api\PageApiController;
+use App\Http\Controllers\Api\PaymentApiController;
 use App\Http\Controllers\Api\PeopleApiController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\RedirectLookupController;
@@ -114,4 +115,12 @@ Route::middleware('throttle:stats')->post('/stats/hits', [StatsApiController::cl
 Route::middleware('feature:booking')->group(function () {
     Route::middleware('throttle:booking')->post('/bookings', [BookingApiController::class, 'store']);
     Route::middleware('throttle:booking-track')->post('/bookings/track', [BookingApiController::class, 'track']);
+});
+
+// Online payment (decision 16): built and switched off. While `booking` or `online_payments` is off every route here is a
+// 404. Starting and the customer's return come from the site's server; the notification is the bank's own call.
+Route::middleware('feature:booking,online_payments')->group(function () {
+    Route::middleware('throttle:payments')->post('/bookings/pay', [PaymentApiController::class, 'start']);
+    Route::middleware('throttle:payments')->post('/payments/return', [PaymentApiController::class, 'return']);
+    Route::middleware('throttle:payment-webhooks')->post('/payments/webhooks/{gateway}', [PaymentApiController::class, 'webhook'])->where('gateway', '[a-z0-9_]{1,32}');
 });
