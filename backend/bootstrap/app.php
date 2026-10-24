@@ -7,6 +7,7 @@ use App\Console\BrevoSetupCommand;
 use App\Console\CheckDiskCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\CurrencyFetchCommand;
+use App\Console\FeatureSwitchCommand;
 use App\Console\InstallCharactersCommand;
 use App\Console\InstallChatbotCommand;
 use App\Console\InstallCitiesCommand;
@@ -66,6 +67,8 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     // Online payment (decision 16, switched off).
     ->withCommands([ReconcilePaymentsCommand::class])
+    // The switches the panel shows locked (phase 10 review N1).
+    ->withCommands([FeatureSwitchCommand::class])
     ->withExceptions(function (Exceptions $exceptions): void {
         // The API always answers in the same JSON shape, whatever went wrong.
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());

@@ -75,7 +75,7 @@ test('contact presses are counted per service and button; booking appears only w
     await page.goto(panel('/services'));
     await expect(page.locator('tr').filter({ hasText: 'حلقة بودكاست' }).first()).toContainText('2');
 
-    // Switching booking on from the feature switches shows the button by itself.
+    // Switching booking on (on the server) shows the button by itself.
     app.sql(`UPDATE feature_flags SET is_enabled = true WHERE key = 'booking'`);
     dropCaches(app);
     expect((await api(page, app, '/services/podcast-episode')).data.booking).toEqual({ enabled: true, path: '/services/podcast-episode/book' });
