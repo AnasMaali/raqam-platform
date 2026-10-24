@@ -85,9 +85,15 @@ final class Payments
 
         $gateway = $this->gateways->get($payment->gateway_code);
 
-        return $gateway->checkout(new CheckoutRequest($payment->gateway_order_id, (int) $payment->amount, trim($payment->currency_code),
-            $payment->idempotency_key, mb_substr("حجز {$payment->reference}: {$payment->service}", 0, 120),
-            rtrim((string) config('raqam.site_url'), '/').config('raqam.payments.return_path')));
+        try {
+            return $gateway->checkout(new CheckoutRequest($payment->gateway_order_id, (int) $payment->amount, trim($payment->currency_code),
+                $payment->idempotency_key, mb_substr("حجز {$payment->reference}: {$payment->service}", 0, 120),
+                rtrim((string) config('raqam.site_url'), '/').config('raqam.payments.return_path')));
+        } catch (\Throwable $e) {
+            report($e);   // the attempt stays pending: the next try hands it back with the same key, the reconciliation settles it
+
+            throw new PaymentRefused('gateway_failed', 'تعذّر الوصول إلى البنك الآن؛ حاول بعد قليل.');
+        }
     }
 
     /**
@@ -98,7 +104,12 @@ final class Payments
      */
     public function sync(int $paymentId): string
     {
-        $p = DB::table('payments')->where('id', $paymentId)->first(['status', 'gateway_code', 'gateway_order_id']);
+        $p = DB::table('payments')->where('id', $paymentId)->first(['status', 'gateway_code', 'gateway_order_id', 'booking_id']);
+        if ($p !== null && in_array($p->status, ['failed', 'cancelled'], true)) {
+            $this->lateMoney($paymentId, $p);
+
+            return $p->status;
+        }
         if ($p === null || $p->status !== 'pending') {
             return $p->status ?? 'unknown';
         }
@@ -152,6 +163,19 @@ final class Payments
         SendInvoice::dispatch($invoice)->afterCommit();
 
         return 'captured';
+    }
+
+    /**
+     * An attempt closed here (given up after a day, or failed) that the bank says was paid after all: the money is real,
+     * so the admins are told. The attempt is not reopened; the admin decides (refund, or record it by hand).
+     */
+    private function lateMoney(int $paymentId, object $p): void
+    {
+        if ($this->gateways->get($p->gateway_code)->status($p->gateway_order_id)->state === 'paid') {
+            $reference = DB::table('bookings')->where('id', $p->booking_id)->value('reference');
+            PaymentAlerts::raise('late:'.$paymentId, 'دفعة وصلت لمحاولة مغلقة '.$reference,
+                'البنك يقول إن المحاولة '.$p->gateway_order_id.' دُفعت بعد أن أُغلقت هنا ('.$p->status.'). راجع البنك وقرّر: استرجاع أو تسجيل يدوي.');
+        }
     }
 
     private function close(object $p, string $status, ?string $reason): string

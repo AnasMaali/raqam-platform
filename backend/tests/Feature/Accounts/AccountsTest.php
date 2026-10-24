@@ -343,3 +343,16 @@ test('one address gets one code a minute, whoever asks, and a code cannot make a
     account('POST', '/register/confirm', ['challenge' => $first, 'code' => lastCodeTo('sami@example.com')])->assertStatus(422)->assertJsonPath('error.code', 'exists');
     expect(User::query()->where('user_type', 'customer')->count())->toBe(0);
 });
+
+test('a challenge works only for its own purpose: a reset challenge cannot confirm a registration, nor the reverse', function () {
+    accountsOn();
+    signedUpCustomer();
+    $reset = account('POST', '/password/forgot', ['email' => 'sami@example.com'])->json('data.challenge');
+    account('POST', '/register/confirm', ['challenge' => $reset, 'code' => lastCodeTo('sami@example.com')])->assertStatus(422)->assertJsonPath('error.code', 'expired');
+
+    $this->travel(61)->seconds();
+    $register = account('POST', '/register', ['name' => 'سامي', 'email' => 'new@example.com', 'password' => CUSTOMER_PASSWORD])->json('data.challenge');
+    account('POST', '/password/reset', ['challenge' => $register, 'code' => lastCodeTo('new@example.com'), 'password' => 'a brand new passphrase'])
+        ->assertStatus(422)->assertJsonPath('error.code', 'expired');
+    account('POST', '/password/reset', ['challenge' => $reset, 'code' => lastCodeTo('sami@example.com'), 'password' => 'a brand new passphrase'])->assertOk();
+});

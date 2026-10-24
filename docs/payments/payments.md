@@ -24,6 +24,11 @@ every payment route is a 404 and `payments:reconcile` does nothing.
   admins are alerted; it is refunded only by the admin's decision. It stays `duplicate` after a refund.
 - If the admin moved the booking while the customer was paying, the payment is recorded and the admins are alerted.
 - Amounts are integers in the currency's smallest unit, always with the currency.
+- A notification larger than 64 KB is refused before anything is kept (413). A bank that does not answer is a 503 when
+  starting and "pending" when the customer comes back; the reconciliation settles it.
+- If the bank says an attempt closed here (failed, or given up after a day) was paid after all, the attempt is not
+  reopened and the admins are alerted to decide.
+- `retention:prune` removes notifications with a forged signature after 90 days; real ones stay.
 
 ## Before switching payments on (management)
 

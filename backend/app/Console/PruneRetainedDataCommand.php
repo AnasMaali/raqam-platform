@@ -14,7 +14,7 @@ class PruneRetainedDataCommand extends Command
 {
     protected $signature = 'retention:prune';
 
-    protected $description = 'Delete chatbot conversations and contact messages older than their retention periods';
+    protected $description = 'Delete chatbot conversations, contact messages, spent e-mail codes and forged payment notifications past their retention';
 
     public function handle(): int
     {
@@ -24,7 +24,15 @@ class PruneRetainedDataCommand extends Command
         $conversations = DB::table('bot_conversations')->where('started_at', '<', DB::raw("now() - make_interval(days => {$chatDays})"))->delete();
         $messages = DB::table('contact_messages')->where('created_at', '<', DB::raw("now() - make_interval(days => {$contactDays})"))->delete();
 
+        // E-mail codes (sign-in, newsletter, accounts) are worthless once spent or expired; a day later they go (phase 10 review).
+        $codes = DB::table('verification_codes')->where(fn ($q) => $q->where('expires_at', '<', DB::raw("now() - interval '1 day'"))
+            ->orWhere('consumed_at', '<', DB::raw("now() - interval '1 day'")))->delete();
+        // Notifications whose signature was not the bank's are kept for inquiry, not for ever; real ones stay (16.6).
+        $forgedDays = (int) config('raqam.retention.forged_payment_events_days');
+        $forged = DB::table('payment_events')->where('signature_valid', false)->where('received_at', '<', DB::raw("now() - make_interval(days => {$forgedDays})"))->delete();
+
         $this->info("Deleted {$conversations} chatbot conversations (older than {$chatDays} days) and {$messages} contact messages (older than {$contactDays} days).");
+        $this->info("Deleted {$codes} spent or expired e-mail codes and {$forged} payment notifications with a forged signature.");
 
         return self::SUCCESS;
     }

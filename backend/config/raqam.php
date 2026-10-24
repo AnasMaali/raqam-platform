@@ -220,6 +220,7 @@ return [
         'expire_hours' => 24,
         'requests_per_minute' => 10,
         'webhook_per_minute' => 120,
+        'webhook_max_bytes' => 65536,
         'fake_secret' => env('PAYMENTS_FAKE_SECRET'),
     ],
 
@@ -253,6 +254,7 @@ return [
     'retention' => [
         'chat_conversations_days' => 180,
         'contact_messages_days' => 365,
+        'forged_payment_events_days' => 90,
     ],
 
     /*

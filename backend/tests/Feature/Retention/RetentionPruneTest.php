@@ -62,11 +62,31 @@ test('the periods come from the configuration', function () {
         ->and([$chatOld, $contactOld])->not->toBeEmpty();
 });
 
-test('the defaults are 180 days for conversations and 365 for contact messages', function () {
-    expect(config('raqam.retention'))->toBe(['chat_conversations_days' => 180, 'contact_messages_days' => 365]);
+test('the defaults are 180 days for conversations, 365 for contact messages and 90 for forged payment notifications', function () {
+    expect(config('raqam.retention'))->toBe(['chat_conversations_days' => 180, 'contact_messages_days' => 365, 'forged_payment_events_days' => 90]);
 });
 
 test('retention:prune runs every night', function () {
     $events = collect(app(Schedule::class)->events())->filter(fn ($e) => str_contains($e->command, 'retention:prune'));
     expect($events)->toHaveCount(1)->and($events->first()->expression)->toBe('40 2 * * *');
+});
+
+test('spent and expired e-mail codes go after a day, and notifications with a forged signature after 90 days (phase 10 review F4)', function () {
+    $code = fn (string $created, string $expires, ?string $consumed = null) => DB::table('verification_codes')->insertGetId(['purpose' => 'account_verify',
+        'email' => 'a@example.com', 'code_hash' => 'h', 'created_at' => DB::raw("now() - interval '{$created}'"), 'expires_at' => DB::raw("now() + interval '{$expires}'"),
+        'consumed_at' => $consumed ? DB::raw("now() - interval '{$consumed}'") : null]);
+    $expiredLong = $code('2 days', '-47 hours');            // expired more than a day ago
+    $expiredLately = $code('130 minutes', '-2 hours');      // expired, but less than a day ago
+    $spentLong = $code('2 days', '1 hour', '25 hours');     // used more than a day ago (still unexpired on paper)
+    $fresh = $code('5 minutes', '5 minutes');
+    ensure('payment_gateways', ['code' => 'fake', 'name_ar' => 'بوابة تجريبية']);
+    $event = fn (string $id, bool $valid, string $age) => DB::table('payment_events')->insertGetId(['gateway_code' => 'fake', 'gateway_event_id' => $id,
+        'event_type' => 't', 'signature_valid' => $valid, 'payload' => '{}', 'received_at' => DB::raw("now() - interval '{$age}'")]);
+    $forgedOld = $event('invalid-1', false, '91 days');
+    $forgedNew = $event('invalid-2', false, '89 days');
+    $realOld = $event('ev-1', true, '400 days');
+
+    $this->artisan('retention:prune')->assertSuccessful();
+    expect(DB::table('verification_codes')->orderBy('id')->pluck('id')->all())->toBe([$expiredLately, $fresh])
+        ->and(DB::table('payment_events')->orderBy('id')->pluck('id')->all())->toBe([$forgedNew, $realOld]);
 });

@@ -26,7 +26,7 @@ class PaymentApiController extends ApiController
             $url = $payments->start($request->json('token'), $request->json()->all());
         } catch (PaymentRefused $e) {
             return $this->error(match ($e->reason) {
-                'not_payable' => 404, 'already_paid' => 409, 'off' => 404, 'no_gateway' => 503, default => 422
+                'not_payable' => 404, 'already_paid' => 409, 'off' => 404, 'no_gateway', 'gateway_failed' => 503, default => 422
             },
                 $e->reason, $e->getMessage())->withHeaders(['Cache-Control' => 'no-store']);
         }
@@ -46,7 +46,12 @@ class PaymentApiController extends ApiController
         if ($payment === null) {
             return $this->notFound()->withHeaders(['Cache-Control' => 'no-store']);
         }
-        $status = $payments->sync((int) $payment->id);
+        try {
+            $status = $payments->sync((int) $payment->id);
+        } catch (\Throwable $e) {
+            report($e);   // the bank did not answer: the customer sees "pending", the reconciliation settles it
+            $status = 'pending';
+        }
         $shown = match ($status) {
             'captured', 'duplicate', 'refunded', 'partially_refunded', 'authorized' => 'paid', 'pending' => 'pending', default => 'not_paid'
         };
@@ -57,6 +62,10 @@ class PaymentApiController extends ApiController
     /** POST /payments/webhooks/{gateway}: kept always, acted on once, and only when signed by the bank. */
     public function webhook(Request $request, string $gateway, PaymentNotifications $notifications): JsonResponse
     {
+        // Every notification is kept, so an oversized one is refused before anything is written (a bank's is a few KB).
+        if (strlen($request->getContent()) > (int) config('raqam.payments.webhook_max_bytes')) {
+            return $this->error(413, 'too_large', 'الإشعار أكبر من المسموح.');
+        }
         try {
             $result = $notifications->receive($gateway, $request);
         } catch (PaymentRefused) {
