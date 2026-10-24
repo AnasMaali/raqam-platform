@@ -13,6 +13,7 @@ use App\Console\InstallCitiesCommand;
 use App\Console\InstallEmailTemplatesCommand;
 use App\Console\InstallHomeLayoutCommand;
 use App\Console\InstallPagesCommand;
+use App\Console\InstallPermissionsCommand;
 use App\Console\InstallServicesCommand;
 use App\Console\InstallSynonymsCommand;
 use App\Console\NewsletterStatsCommand;
@@ -55,7 +56,7 @@ return Application::configure(basePath: dirname(__DIR__))
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
         InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
         NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class,
-        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class])
+        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, InstallPermissionsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
         $middleware->alias(['feature' => RequireFeature::class]);
