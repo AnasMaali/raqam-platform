@@ -45,8 +45,8 @@ test('it is written to the audit log, without the password', function () {
         ->and($row->actor_user_id)->toBeNull()                    // done from the command line
         ->and($row->subject_table)->toBe('users')->and($row->subject_id)->toBe($user->id)
         ->and($row->ip_hash)->toBeNull();
-    expect(DB::table('audit_log_changes')->where('audit_id', $row->id)->pluck('new_value', 'field')->all())
-        ->toBe(['role' => 'admin', 'created_with' => 'admin:create']);
+    expect(DB::table('audit_log_changes')->where('audit_id', $row->id)->orderBy('field')->pluck('new_value', 'field')->all())
+        ->toBe(['created_with' => 'admin:create', 'role' => 'admin']);
     expect(json_encode([DB::table('audit_log')->get(), DB::table('audit_log_changes')->get()]))->not->toContain(GOOD_PASSWORD);
 });
 

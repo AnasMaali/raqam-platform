@@ -193,7 +193,7 @@ test('contact presses are counted per service and channel, once per 30 seconds, 
     $this->travel(31)->seconds();
     pressContact($s->slug, 'whatsapp')->assertNoContent();
 
-    expect(DB::table('service_contact_clicks_daily')->where('service_id', $s->id)->pluck('clicks', 'channel')->all())->toBe(['whatsapp' => 2, 'phone' => 1])
+    expect(DB::table('service_contact_clicks_daily')->where('service_id', $s->id)->orderBy('channel')->pluck('clicks', 'channel')->all())->toBe(['phone' => 1, 'whatsapp' => 2])
         ->and(DB::table('service_contact_clicks_daily')->value('stat_date'))->toBe(now('Asia/Hebron')->toDateString());
 
     pressContact($s->slug, 'sms')->assertStatus(422);

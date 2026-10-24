@@ -38,7 +38,7 @@ test('the weekly check marks a private video, a deleted video, and keeps a healt
 
     expect(Artisan::call('videos:check-availability'))->toBe(0);
 
-    $state = DB::table('youtube_videos')->pluck('availability', 'youtube_id')->all();
+    $state = DB::table('youtube_videos')->orderBy('youtube_id')->pluck('availability', 'youtube_id')->all();
     expect($state)->toBe(['aaaaaaaaaaa' => 'ok', 'bbbbbbbbbbb' => 'private', 'ccccccccccc' => 'removed'])
         ->and(DB::table('youtube_videos')->whereNull('last_checked_at')->count())->toBe(0);
 });

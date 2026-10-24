@@ -151,7 +151,7 @@ test('starting opens one attempt with its own key; starting again soon hands bac
 
     ageRows('payments', '11 minutes');
     $second = startPayment($token)->json('data.redirect_url');
-    expect($second)->not->toBe($first)->and(DB::table('payments')->where('booking_id', $booking)->pluck('attempt_no')->all())->toBe([1, 2]);
+    expect($second)->not->toBe($first)->and(DB::table('payments')->where('booking_id', $booking)->orderBy('attempt_no')->pluck('attempt_no')->all())->toBe([1, 2]);
 });
 
 // --- Paid only when the bank says so (16.5) --------------------------------------------------------------------------
