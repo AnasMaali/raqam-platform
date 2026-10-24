@@ -196,6 +196,12 @@ describe('bookings', function () {
             ->toThrow(QueryException::class, "Booking {$full} already has 3 attachments");
     });
 
+    test('a booking contact may lose its phone (an anonymised account), but never a wrong one', function () {
+        expect(DB::table('customers')->insertGetId(['name' => 'عميل محذوف', 'email' => 'deleted-customer-1@deleted.invalid']))->toBeInt();
+        expect(rejected(fn () => DB::table('customers')->insert(['name' => 'س', 'email' => 's@example.com', 'phone' => '0599123456'])))
+            ->toThrow(QueryException::class, 'phone_e164');
+    });
+
     test('a booking price comes with its currency', function () {
         expect(rejected(fn () => insertBooking(['currency_code' => null])))
             ->toThrow(QueryException::class, '"bookings_check"');

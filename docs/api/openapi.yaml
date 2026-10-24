@@ -79,6 +79,14 @@ tags:
   - name: Home
   - name: Booking
     description: Built and switched off (decision 15). While the `booking` switch is off every path here is a 404.
+  - name: Accounts
+    description: |
+      Customer accounts, built and switched off (decision 17). While `customer_accounts` is off every path here is a 404.
+      From the website's server only (`X-Raqam-Site-Token` + `X-Raqam-Visitor-Ip`; 403 `site_only`), JSON only. Signed-in
+      paths carry the session as `Authorization: Bearer <token>` (401 `signed_out` without a live one). Codes are 6 digits,
+      bound to the `challenge` they were sent for: 10 minutes to confirm an address, 60 to reset a password, 5 tries.
+      Refusals are 422 with an Arabic message (`bad_code`, `expired`, `bad_credentials`, `exists`, `open_booking`,
+      `same_password`), 429 `too_many`. 30 requests a minute per visitor.
 
 paths:
   /home:
@@ -1753,7 +1761,346 @@ paths:
         '304': { $ref: '#/components/responses/NotModified' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /account/register:
+    post:
+      tags: [Accounts]
+      summary: "Register (17.2); nothing is stored until the code is entered"
+      operationId: accountRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { name: { type: string }, email: { type: string }, phone: { type: [string, 'null'] }, password: { type: string, minLength: 10, maxLength: 128 }, turnstile_token: { type: string } } }
+      responses:
+        '202':
+          description: A challenge; a code was sent if the address has no account.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, properties: { challenge: { type: string } } } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/register/resend:
+    post:
+      tags: [Accounts]
+      summary: "A new code for a registration (a minute apart)"
+      operationId: accountRegisterResend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { challenge: { type: string } } }
+      responses:
+        '202':
+          description: The same challenge.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/register/confirm:
+    post:
+      tags: [Accounts]
+      summary: "Enter the code: the account is made and signed in"
+      operationId: accountRegisterConfirm
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { challenge: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' } } }
+      responses:
+        '201':
+          description: The session token.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, properties: { token: { type: string } } } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/login:
+    post:
+      tags: [Accounts]
+      summary: "Sign in (17.4): one general message, the admin limits"
+      operationId: accountLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { email: { type: string }, password: { type: string } } }
+      responses:
+        '200':
+          description: The session token.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, properties: { token: { type: string } } } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/password/forgot:
+    post:
+      tags: [Accounts]
+      summary: "Ask for a reset code (17.5); the same answer for any address"
+      operationId: accountPasswordForgot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { email: { type: string }, turnstile_token: { type: string } } }
+      responses:
+        '202':
+          description: A challenge.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/password/reset:
+    post:
+      tags: [Accounts]
+      summary: "Reset the password with the code (once, within an hour); every session ends"
+      operationId: accountPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { challenge: { type: string }, code: { type: string }, password: { type: string, minLength: 10, maxLength: 128 } } }
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/logout:
+    post:
+      tags: [Accounts]
+      summary: "Sign out this session"
+      operationId: accountLogout
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/profile:
+    get:
+      tags: [Accounts]
+      summary: "The profile (17.6)"
+      operationId: accountProfile
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+    patch:
+      tags: [Accounts]
+      summary: "Change name and phone"
+      operationId: accountProfileUpdate
+      security: [{ customerSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { name: { type: string }, phone: { type: [string, 'null'] } } }
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/password:
+    post:
+      tags: [Accounts]
+      summary: "Change the password (current one needed); other sessions end, a new token is returned"
+      operationId: accountPasswordChange
+      security: [{ customerSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { current_password: { type: string }, password: { type: string, minLength: 10, maxLength: 128 } } }
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account:
+    delete:
+      tags: [Accounts]
+      summary: "Delete the account (17.7): refused while a booking is open; the booking contact becomes anonymous"
+      operationId: accountDelete
+      security: [{ customerSession: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, properties: { password: { type: string } } }
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/saved:
+    get:
+      tags: [Accounts]
+      summary: "Saved items still public (17.9)"
+      operationId: accountSaved
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: array, items: { type: object } } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/saved/{post}:
+    put:
+      tags: [Accounts]
+      summary: "Save a public item"
+      operationId: accountSave
+      parameters:
+        - { name: post, in: path, required: true, schema: { type: integer } }
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+    delete:
+      tags: [Accounts]
+      summary: "Remove a saved item"
+      operationId: accountUnsave
+      parameters:
+        - { name: post, in: path, required: true, schema: { type: integer } }
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/follows:
+    get:
+      tags: [Accounts]
+      summary: "Followed categories and sections still public (17.10)"
+      operationId: accountFollows
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/follows/{kind}/{id}:
+    put:
+      tags: [Accounts]
+      summary: "Follow a public category or section"
+      operationId: accountFollow
+      parameters:
+        - { name: kind, in: path, required: true, schema: { type: string, enum: [category, section] } }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+    delete:
+      tags: [Accounts]
+      summary: "Stop following"
+      operationId: accountUnfollow
+      parameters:
+        - { name: kind, in: path, required: true, schema: { type: string, enum: [category, section] } }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /account/bookings:
+    get:
+      tags: [Accounts]
+      summary: "«حجوزاتي» (17.8): bookings made while signed in; 404 while booking is off"
+      operationId: accountBookings
+      security: [{ customerSession: [] }]
+      responses:
+        '200':
+          description: Done.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: array, items: { type: object } } } }
+        '401': { description: Not signed in., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
 components:
+  securitySchemes:
+    customerSession:
+      type: http
+      scheme: bearer
+      description: A customer's session token (customer accounts, switched off).
   parameters:
     Page:
       name: page

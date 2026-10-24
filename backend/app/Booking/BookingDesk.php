@@ -49,12 +49,13 @@ final class BookingDesk
     /**
      * @param  array<string, mixed>  $input  service, name, company, phone, email, preferred_contact, preferred_dates, details, consent, turnstile_token, website
      * @param  list<UploadedFile>  $files
+     * @param  int|null  $userId  the signed-in customer (17.8); a booking is never linked afterwards (2.6)
      * @return array{reference: string, token: string, url: string}|null null when the honeypot caught a robot (nothing is kept)
      *
      * @throws ValidationException
      * @throws BookingRefused
      */
-    public function submit(array $input, array $files, string $visitorIp): ?array
+    public function submit(array $input, array $files, string $visitorIp, ?int $userId = null): ?array
     {
         if (! FeatureFlags::on('booking')) {
             throw new BookingRefused('off', 'الحجز الإلكتروني غير متاح.');
@@ -80,14 +81,14 @@ final class BookingDesk
         }
 
         $token = BookingLink::newToken();
-        $booking = DB::transaction(function () use ($clean, $service, $attachments, $token, $visitorIp) {
+        $booking = DB::transaction(function () use ($clean, $service, $attachments, $token, $visitorIp, $userId) {
             [$customerId, $note] = $this->customer($clean);
             [$amount, $currency] = $this->price($service);
             $row = DB::selectOne(
-                'INSERT INTO bookings (service_id, customer_id, preferred_contact, preferred_dates, details, price_amount, currency_code,
+                'INSERT INTO bookings (service_id, customer_id, user_id, preferred_contact, preferred_dates, details, price_amount, currency_code,
                                        access_token_hash, admin_notes, consent_at, ip_hash)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?) RETURNING id, reference',
-                [$service->id, $customerId, $clean['preferred_contact'], $clean['preferred_dates'], $clean['details'], $amount, $currency,
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now(), ?) RETURNING id, reference',
+                [$service->id, $customerId, $userId, $clean['preferred_contact'], $clean['preferred_dates'], $clean['details'], $amount, $currency,
                     BookingLink::hash($token), $note, TrackingHash::of(TrackingHash::network($visitorIp))],
             );
             foreach ($attachments as $file) {

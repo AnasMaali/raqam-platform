@@ -102,6 +102,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('stats', fn (Request $request) => Limit::perMinute((int) config('raqam.stats.requests_per_minute'))->by('stats|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('booking', fn (Request $request) => Limit::perMinute((int) config('raqam.booking.requests_per_minute'))->by('booking|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('booking-track', fn (Request $request) => Limit::perMinute((int) config('raqam.booking.track_per_minute'))->by('booking-track|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('accounts', fn (Request $request) => Limit::perMinute((int) config('raqam.accounts.requests_per_minute'))->by('accounts|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('service-contact', fn (Request $request) => Limit::perMinute(30)->by('service-contact|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
 
         // A job that gave up or a scheduled task that failed reaches the admins (20.4).

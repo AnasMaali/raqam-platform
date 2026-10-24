@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Accounts\CustomerSessions;
 use App\Api\SiteToken;
 use App\Booking\BookingDesk;
 use App\Booking\BookingRefused;
 use App\Booking\BookingTracker;
+use App\Settings\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,7 +18,7 @@ use Illuminate\Http\Request;
  */
 class BookingApiController extends ApiController
 {
-    public function store(Request $request, BookingDesk $desk): JsonResponse
+    public function store(Request $request, BookingDesk $desk, CustomerSessions $sessions): JsonResponse
     {
         $multipart = str_starts_with((string) $request->header('Content-Type'), 'multipart/form-data');
         if (! $request->isJson() && ! $multipart) {
@@ -29,7 +31,9 @@ class BookingApiController extends ApiController
         $input = $multipart ? $request->except('attachments') : $request->json()->all();
         $files = $multipart ? $request->file('attachments', []) : [];
         try {
-            $booking = $desk->submit($input, is_array($files) ? array_values($files) : [$files], $visitor);
+            // Signed in (customer accounts on): the booking belongs to the account too (17.8).
+            $userId = FeatureFlags::on('customer_accounts') ? $sessions->user($request->bearerToken())?->id : null;
+            $booking = $desk->submit($input, is_array($files) ? array_values($files) : [$files], $visitor, $userId);
         } catch (BookingRefused $e) {
             return $this->error(match ($e->reason) {
                 'too_many' => 429, 'off' => 404, default => 422

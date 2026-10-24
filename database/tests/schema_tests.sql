@@ -238,6 +238,9 @@ VALUES (1, 'حلقة بودكاست', 'حلقة-بودكاست', 'استضافة
 
 -- ---------------------------------------------------------------- bookings
 INSERT INTO customers (name, email, phone) VALUES ('سامي', 'sami@example.com', '+970599123456');
+INSERT INTO customers (name, email) VALUES ('عميل محذوف', 'deleted-customer-1@deleted.invalid');
+SELECT pg_temp.expect_eq('customers: an anonymised contact keeps no phone',
+  (SELECT count(*)::text FROM customers WHERE phone IS NULL), '1');
 INSERT INTO bookings (service_id, customer_id, preferred_contact, details, price_amount, currency_code,
                       access_token_hash, consent_at)
 SELECT s.id, c.id, 'whatsapp', 'تفاصيل', s.price_amount, s.currency_code, repeat('1', 64), now()

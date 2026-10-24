@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountApiController;
 use App\Http\Controllers\Api\AdApiController;
 use App\Http\Controllers\Api\AwarenessApiController;
 use App\Http\Controllers\Api\BookingApiController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\TaxonomyApiController;
 use App\Http\Controllers\Api\VideoApiController;
 use App\Http\Controllers\Api\WeatherApiController;
 use App\Http\Middleware\ApiResponseCache;
+use App\Http\Middleware\RequireCustomer;
 use Illuminate\Support\Facades\Route;
 
 // Read-only content API, /api/v1 (contract: docs/api/openapi.yaml). Published content only.
@@ -114,4 +116,30 @@ Route::middleware('throttle:stats')->post('/stats/hits', [StatsApiController::cl
 Route::middleware('feature:booking')->group(function () {
     Route::middleware('throttle:booking')->post('/bookings', [BookingApiController::class, 'store']);
     Route::middleware('throttle:booking-track')->post('/bookings/track', [BookingApiController::class, 'track']);
+});
+
+// Customer accounts (decision 17): built and switched off. While `customer_accounts` is off every route here is a 404.
+// From the site's server only; signed-in routes carry the customer's session as a bearer token.
+Route::middleware(['feature:customer_accounts', 'throttle:accounts'])->prefix('account')->group(function () {
+    Route::post('/register', [AccountApiController::class, 'register']);
+    Route::post('/register/resend', [AccountApiController::class, 'resend']);
+    Route::post('/register/confirm', [AccountApiController::class, 'confirm']);
+    Route::post('/login', [AccountApiController::class, 'login']);
+    Route::post('/password/forgot', [AccountApiController::class, 'forgot']);
+    Route::post('/password/reset', [AccountApiController::class, 'reset']);
+
+    Route::middleware(RequireCustomer::class)->group(function () {
+        Route::post('/logout', [AccountApiController::class, 'logout']);
+        Route::get('/profile', [AccountApiController::class, 'profile']);
+        Route::patch('/profile', [AccountApiController::class, 'updateProfile']);
+        Route::post('/password', [AccountApiController::class, 'password']);
+        Route::delete('/', [AccountApiController::class, 'destroy']);
+        Route::get('/saved', [AccountApiController::class, 'saved']);
+        Route::put('/saved/{post}', [AccountApiController::class, 'save'])->where('post', '[0-9]{1,18}');
+        Route::delete('/saved/{post}', [AccountApiController::class, 'unsave'])->where('post', '[0-9]{1,18}');
+        Route::get('/follows', [AccountApiController::class, 'follows']);
+        Route::put('/follows/{kind}/{id}', [AccountApiController::class, 'follow'])->where(['kind' => 'category|section', 'id' => '[0-9]{1,9}']);
+        Route::delete('/follows/{kind}/{id}', [AccountApiController::class, 'unfollow'])->where(['kind' => 'category|section', 'id' => '[0-9]{1,9}']);
+        Route::get('/bookings', [AccountApiController::class, 'bookings'])->middleware('feature:booking');
+    });
 });

@@ -144,17 +144,24 @@ final class EmailCatalog
                 'body' => '<p>مرحباً {الاسم}،</p><p>استلمنا دفعتك للحجز {المرجع}. الفاتورة رقم {الفاتورة} مرفقة.</p>',
                 'vars' => ['الاسم' => 'text', 'المرجع' => 'text', 'الفاتورة' => 'text'],
             ],
+            // The account messages are on: nothing sends them while customer accounts are off (decision 17).
             'account_verify_code' => [
-                'name' => 'رمز تأكيد حساب العميل (غير مفعّل)', 'audience' => 'customer', 'sender' => 'no_reply', 'active' => false,
+                'name' => 'رمز تأكيد حساب العميل (الحسابات مطفأة)', 'audience' => 'customer', 'sender' => 'no_reply', 'locked' => true,
                 'subject' => 'رمز تأكيد حسابك في رَقَم',
                 'body' => '<p>رمز تأكيد حسابك:</p><p>{الرمز}</p><p>صالح لمدة {الدقائق} دقيقة.</p>',
                 'vars' => ['الرمز' => 'code', 'الدقائق' => 'text'], 'required' => ['الرمز'],
             ],
             'password_reset_code' => [
-                'name' => 'رمز استعادة كلمة المرور (غير مفعّل)', 'audience' => 'customer', 'sender' => 'no_reply', 'active' => false,
+                'name' => 'رمز استعادة كلمة المرور (الحسابات مطفأة)', 'audience' => 'customer', 'sender' => 'no_reply', 'locked' => true,
                 'subject' => 'رمز استعادة كلمة المرور',
                 'body' => '<p>رمز استعادة كلمة المرور:</p><p>{الرمز}</p><p>صالح لمدة {الدقائق} دقيقة ولمرة واحدة. إن لم تطلبه فتجاهل الرسالة.</p>',
                 'vars' => ['الرمز' => 'code', 'الدقائق' => 'text'], 'required' => ['الرمز'],
+            ],
+            'account_password_changed' => [
+                'name' => 'تنبيه تغيير كلمة مرور حساب العميل (الحسابات مطفأة)', 'audience' => 'customer', 'sender' => 'no_reply', 'locked' => true,
+                'subject' => 'تم تغيير كلمة مرور حسابك في رَقَم',
+                'body' => '<p>مرحباً {الاسم}،</p><p>تم تغيير كلمة مرور حسابك وتسجيل الخروج من كل الأجهزة.</p><p><strong>إذا لم تكن أنت فاستعد كلمة المرور فوراً وتواصل معنا.</strong></p>',
+                'vars' => ['الاسم' => 'text'],
             ],
         ];
     }
