@@ -11,7 +11,7 @@ class FeatureSwitchCommand extends Command
 {
     protected $signature = 'feature:switch {key : The feature, e.g. booking} {state : on or off}';
 
-    protected $description = 'Switch a feature on or off from the server (the only way for the ones the panel shows locked)';
+    protected $description = 'Switch a feature on or off from the server (the only way to turn on the ones the panel cannot)';
 
     public function handle(FeatureFlags $flags): int
     {

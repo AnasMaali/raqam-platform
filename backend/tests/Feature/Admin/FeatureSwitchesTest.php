@@ -103,34 +103,66 @@ test('features cannot be created or deleted from the panel', function () {
         ->and(array_keys($resource::getPages()))->toBe(['index']);
 });
 
-// --- Locked in the panel until their site pages exist (phase 10 review N1) --------------------------------------------
+// --- Turned on only from the server until their site pages exist; switched off from the panel too (phase 10 review N1) --
 
-test('booking, payments, customer accounts and roles are the switches only the server flips', function () {
+test('booking, payments, customer accounts and roles are the switches only the server turns on', function () {
     expect(FeatureFlags::SERVER_ONLY)->toEqualCanonicalizing(['booking', 'online_payments', 'customer_accounts', 'multi_admin']);
 });
 
-test('the panel cannot flip them, on or off, and nothing is saved or audited', function () {
+test('the panel cannot turn them on, and nothing is saved or audited', function () {
     foreach (FeatureFlags::SERVER_ONLY as $key) {
         expect(fn () => $this->flags->set($key, true, $this->admin->id))->toThrow(FeatureFlagRefused::class, 'من السيرفر فقط');
     }
-    DB::table('feature_flags')->where('key', 'customer_accounts')->update(['is_enabled' => true]);
-    expect(fn () => $this->flags->set('customer_accounts', false, $this->admin->id))->toThrow(FeatureFlagRefused::class, 'من السيرفر فقط');
 
-    expect(DB::table('feature_flags')->whereIn('key', FeatureFlags::SERVER_ONLY)->where('is_enabled', true)->pluck('key')->all())->toBe(['customer_accounts'])
+    expect(DB::table('feature_flags')->whereIn('key', FeatureFlags::SERVER_ONLY)->where('is_enabled', true)->count())->toBe(0)
         ->and(DB::table('audit_log')->where('action', 'settings')->count())->toBe(0);
 });
 
-test('on the screen their switches are locked, the others are not, and a forged flip changes nothing', function () {
+test('the panel can switch them off in an emergency, audited, payments before booking', function () {
+    foreach (['booking', 'online_payments', 'customer_accounts', 'multi_admin'] as $key) {
+        $this->flags->set($key, true, null, fromServer: true);
+    }
+
+    expect(fn () => $this->flags->set('booking', false, $this->admin->id))->toThrow(FeatureFlagRefused::class, 'تعتمد عليه: «الدفع الإلكتروني»');
+    expect(FeatureFlag::find('booking')->is_enabled)->toBeTrue();
+
+    foreach (['online_payments', 'booking', 'customer_accounts', 'multi_admin'] as $key) {
+        $this->flags->set($key, false, $this->admin->id);
+    }
+
+    expect(DB::table('feature_flags')->whereIn('key', FeatureFlags::SERVER_ONLY)->where('is_enabled', true)->count())->toBe(0)
+        ->and(FeatureFlag::find('booking')->updated_by)->toBe($this->admin->id)
+        ->and(DB::table('audit_log_changes')->where('new_value', 'false')->where('field', 'like', 'feature.%')->count())->toBe(4);
+    // Once off, the panel cannot turn it back on.
+    expect(fn () => $this->flags->set('booking', true, $this->admin->id))->toThrow(FeatureFlagRefused::class, 'من السيرفر فقط');
+});
+
+test('on the screen their switches are locked while off and free while on; a forged flip on changes nothing', function () {
+    $this->flags->set('customer_accounts', true, null, fromServer: true);
     $component = Livewire::test(ListFeatureFlags::class);
     $column = $component->instance()->getTable()->getColumn('is_enabled');
     foreach (FeatureFlag::all() as $flag) {
-        expect($column->record($flag)->isDisabled())->toBe(in_array($flag->key, FeatureFlags::SERVER_ONLY, true), $flag->key);
+        $locked = in_array($flag->key, FeatureFlags::SERVER_ONLY, true) && $flag->key !== 'customer_accounts';
+        expect($column->record($flag)->isDisabled())->toBe($locked, $flag->key)
+            ->and($column->getTooltip())->toBe($locked ? 'يُشغَّل من السيرفر فقط' : null, $flag->key);
     }
 
     $component->call('updateTableColumnState', 'is_enabled', 'booking', true)
         ->call('updateTableColumnState', 'is_enabled', 'multi_admin', true);
+    expect(DB::table('feature_flags')->whereIn('key', ['booking', 'multi_admin'])->where('is_enabled', true)->count())->toBe(0);
 
-    expect(DB::table('feature_flags')->whereIn('key', FeatureFlags::SERVER_ONLY)->where('is_enabled', true)->count())->toBe(0);
+    $component->call('updateTableColumnState', 'is_enabled', 'customer_accounts', false);
+    expect(FeatureFlag::find('customer_accounts')->is_enabled)->toBeFalse();
+});
+
+test('on the screen, booking cannot be switched off while payments are on, and says why', function () {
+    $this->flags->set('booking', true, null, fromServer: true);
+    $this->flags->set('online_payments', true, null, fromServer: true);
+
+    $component = Livewire::test(ListFeatureFlags::class)->call('updateTableColumnState', 'is_enabled', 'booking', false)->assertNotified();
+
+    expect($component->effects['returns'][0]['error'] ?? null)->toContain('عطّلها أولاً')
+        ->and(FeatureFlag::find('booking')->is_enabled)->toBeTrue();
 });
 
 test('feature:switch on the server flips them, audited, with the same dependency rule', function () {

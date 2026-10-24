@@ -59,8 +59,9 @@ class FeatureFlagResource extends Resource
                     ->formatStateUsing(fn (?string $state) => $state ? FeatureFlag::query()->whereKey($state)->value('description_ar') : '—')
                     ->wrap(),
                 ToggleColumn::make('is_enabled')->label('مفعّلة')
-                    ->disabled(fn (FeatureFlag $record) => in_array($record->key, FeatureFlags::SERVER_ONLY, true))
-                    ->tooltip(fn (FeatureFlag $record) => in_array($record->key, FeatureFlags::SERVER_ONLY, true) ? 'يُشغَّل من السيرفر فقط' : null)
+                    // Off, they wait for the server; on, the switch stays here as an emergency stop.
+                    ->disabled(fn (FeatureFlag $record) => ! $record->is_enabled && in_array($record->key, FeatureFlags::SERVER_ONLY, true))
+                    ->tooltip(fn (FeatureFlag $record) => ! $record->is_enabled && in_array($record->key, FeatureFlags::SERVER_ONLY, true) ? 'يُشغَّل من السيرفر فقط' : null)
                     ->updateStateUsing(function (FeatureFlag $record, bool $state) {
                         try {
                             app(FeatureFlags::class)->set($record->key, $state, Filament::auth()->id());
