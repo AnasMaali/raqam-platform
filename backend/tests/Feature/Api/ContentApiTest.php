@@ -50,21 +50,30 @@ function publish(string $kind = 'news', array $extra = []): Post
 test('every route of the API is in the contract and every path of the contract is a route', function () {
     $spec = Yaml::parseFile(base_path('../docs/api/openapi.yaml'));
     $documented = collect($spec['paths'])->keys()->map(fn ($p) => '/api/v1'.preg_replace('/\{(\w+)\}/', '{$1}', $p))->sort()->values()->all();
-    $actual = collect(app('router')->getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with($r->uri(), 'api/v1'))->map(fn ($r) => '/'.$r->uri())->sort()->values()->all();
+    $actual = collect(app('router')->getRoutes()->getRoutes())->filter(fn ($r) => str_starts_with($r->uri(), 'api/v1'))->map(fn ($r) => '/'.$r->uri())->unique()->sort()->values()->all();
 
     expect($actual)->toBe($documented);
+    // A signed-in customer's own data (decision 17, switched off): the only routes that change something of a person.
+    $account = ['/account/register' => ['post'], '/account/register/resend' => ['post'], '/account/register/confirm' => ['post'], '/account/login' => ['post'],
+        '/account/password/forgot' => ['post'], '/account/password/reset' => ['post'], '/account/logout' => ['post'], '/account/profile' => ['get', 'patch'],
+        '/account/password' => ['post'], '/account' => ['delete'], '/account/saved' => ['get'], '/account/saved/{post}' => ['put', 'delete'],
+        '/account/follows' => ['get'], '/account/follows/{kind}/{id}' => ['put', 'delete'], '/account/bookings' => ['get']];
+    $allowed = function (string $path) use ($account, &$counters) {
+        return $account[$path] ?? (in_array($path, $counters, true) ? ['post'] : ['get']);
+    };
     // Read only, except the counters of what visitors do (they write a count, never content) and the public forms
     // of the site's server (they keep a message for the panel; nothing they send is ever published).
     $counters = ['/ads/impressions', '/services/{slug}/contact', '/contact', '/newsletter/subscribe', '/newsletter/resend', '/newsletter/confirm',
         '/newsletter/unsubscribe', '/newsletter/brevo-webhook', '/chat/messages', '/stats/hits', '/bookings', '/bookings/track', '/bookings/pay',
         '/payments/return', '/payments/webhooks/{gateway}'];
     foreach ($spec['paths'] as $template => $path) {
-        expect(array_keys($path))->toBe(in_array($template, $counters, true) ? ['post'] : ['get'], $template);
+        expect(array_keys($path))->toBe($allowed($template), $template);
     }
     foreach (app('router')->getRoutes()->getRoutes() as $route) {
         if (str_starts_with($route->uri(), 'api/v1')) {
             $path = substr('/'.$route->uri(), 7);
-            expect($route->methods())->toBe(in_array($path, $counters, true) ? ['POST'] : ['GET', 'HEAD'], $path);
+            $methods = array_values(array_diff(array_map('strtolower', $route->methods()), ['head']));
+            expect($methods)->toHaveCount(1)->and($allowed($path))->toContain($methods[0]);
         }
     }
 });
