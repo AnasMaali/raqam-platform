@@ -211,6 +211,15 @@ describe('payments and refunds', function () {
             ->toThrow(QueryException::class, '"payments_one_success_per_booking_uq"');
     });
 
+    test('a second payment of a paid booking is kept as a duplicate, which needs its payment time', function () {
+        $booking = insertBooking();
+        insertPayment($booking);
+
+        expect(insertPayment($booking, ['status' => 'duplicate']))->toBeInt();
+        expect(rejected(fn () => insertPayment($booking, ['status' => 'duplicate', 'paid_at' => null])))
+            ->toThrow(QueryException::class, '"payments_check"');
+    });
+
     test('a failed attempt does not block a new payment', function () {
         $booking = insertBooking();
         insertPayment($booking, ['status' => 'failed', 'paid_at' => null, 'failure_reason' => 'declined']);

@@ -50,3 +50,6 @@ Schedule::command('stats:prune')->dailyAt('02:50')->withoutOverlapping();
 
 // The audit trail and the sign-in attempts keep two years (22.17); the database refuses anything younger.
 Schedule::command('audit:prune')->dailyAt('03:10')->withoutOverlapping();
+
+// Online payment (16.7, dormant): stuck payments are asked about every 15 minutes; nothing happens while payments are off.
+Schedule::command('payments:reconcile')->everyFifteenMinutes()->withoutOverlapping();

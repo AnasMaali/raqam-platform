@@ -353,7 +353,8 @@ CREATE TABLE payments (                                   -- one row per attempt
   currency_code           char(3)     NOT NULL REFERENCES currencies (code) ON DELETE RESTRICT,
   status                  varchar(20) NOT NULL DEFAULT 'pending' CHECK (status IN (
                             'pending', 'authorized', 'captured', 'failed',
-                            'cancelled', 'refunded', 'partially_refunded')),
+                            'cancelled', 'refunded', 'partially_refunded',
+                            'duplicate')),       -- money taken for a booking already paid; refunded only by the admin's decision
   idempotency_key         varchar(80) NOT NULL UNIQUE,          -- 16.8
   failure_reason          varchar(500),
   paid_at                 timestamptz,
@@ -361,7 +362,7 @@ CREATE TABLE payments (                                   -- one row per attempt
   updated_at              timestamptz NOT NULL DEFAULT now(),
   UNIQUE (booking_id, attempt_no),
   UNIQUE (gateway_code, gateway_transaction_id),
-  CHECK (status NOT IN ('captured', 'refunded', 'partially_refunded') OR paid_at IS NOT NULL),
+  CHECK (status NOT IN ('captured', 'refunded', 'partially_refunded', 'duplicate') OR paid_at IS NOT NULL),
   CHECK (status <> 'failed' OR failure_reason IS NOT NULL)
 );
 -- A booking can be successfully paid only once.

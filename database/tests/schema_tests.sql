@@ -269,6 +269,11 @@ SELECT id, 'fake', 1, 'ORD-1', 12345, 'USD', 'captured', 'bk1-a1', now() FROM bo
 SELECT pg_temp.expect_fail('payments: second successful payment for one booking',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key, paid_at)
     SELECT id, 'fake', 2, 'ORD-2', 12345, 'USD', 'captured', 'bk1-a2', now() FROM bookings LIMIT 1$$);
+INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key, paid_at)
+SELECT id, 'fake', 4, 'ORD-4', 12345, 'USD', 'duplicate', 'bk1-a4', now() FROM bookings LIMIT 1;
+SELECT pg_temp.expect_fail('payments: a duplicate payment was paid',
+  $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key)
+    SELECT id, 'fake', 5, 'ORD-5', 12345, 'USD', 'duplicate', 'bk1-a5' FROM bookings LIMIT 1$$);
 SELECT pg_temp.expect_fail('payments: same idempotency key twice',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, idempotency_key)
     SELECT id, 'fake', 3, 'ORD-3', 12345, 'USD', 'bk1-a1' FROM bookings LIMIT 1$$);

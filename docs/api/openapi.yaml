@@ -77,6 +77,8 @@ tags:
   - name: Chat
   - name: Statistics
   - name: Home
+  - name: Payments
+    description: Built and switched off (decision 16). While `booking` or `online_payments` is off every path here is a 404.
   - name: Booking
     description: Built and switched off (decision 15). While the `booking` switch is off every path here is a 404.
 
@@ -1478,6 +1480,90 @@ paths:
         '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
         '415': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /bookings/pay:
+    post:
+      tags: [Payments]
+      summary: Start paying a booking (16, switched off)
+      description: |
+        **404 unless `booking` and `online_payments` are on.** From the website's server only, JSON only. `token` is the
+        booking's private token. Only a booking waiting for payment, with a fixed price, can be paid (404 `not_payable`);
+        a paid one is 409 `already_paid`. **No card detail is ever sent here**: a field that looks like one (card, pan,
+        cvv, cvc, expiry) is refused with 422 `card_data`; the card is typed on the bank's page. A pending attempt younger
+        than 10 minutes is handed back instead of opening another. 10 requests a minute per visitor.
+      operationId: startPayment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [token], properties: { token: { type: string } } }
+      responses:
+        '200':
+          description: The bank's payment page.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, required: [redirect_url], properties: { redirect_url: { type: string, format: uri } } } } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Already paid., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '422': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503': { description: No payment gateway is active., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /payments/return:
+    post:
+      tags: [Payments]
+      summary: The customer is back from the bank (16.5, switched off)
+      description: |
+        **404 unless `booking` and `online_payments` are on.** From the website's server only, JSON only. The server asks
+        the bank about the order; nothing the browser brings back is believed. `status` is `paid`, `pending` or `not_paid`.
+      operationId: paymentReturn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [order_id], properties: { order_id: { type: string, maxLength: 64 } } }
+      responses:
+        '200':
+          description: What the bank says now.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [status, reference]
+                    properties: { status: { type: string, enum: [paid, pending, not_paid] }, reference: { type: string } }
+        '403': { description: Not the site's server., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '415': { $ref: '#/components/responses/Invalid' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /payments/webhooks/{gateway}:
+    post:
+      tags: [Payments]
+      summary: A bank's notification (16.6, switched off)
+      description: |
+        **404 unless `booking` and `online_payments` are on**, and for a gateway that is not connected. Called by the bank.
+        Every notification is kept; one without a valid signature is 401 and changes nothing; a valid one is acted on once,
+        by asking the bank about the order again. 120 requests a minute per address.
+      operationId: paymentWebhook
+      parameters:
+        - { name: gateway, in: path, required: true, schema: { type: string, pattern: '^[a-z0-9_]{1,32}$' } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, description: The bank's own message. }
+      responses:
+        '200':
+          description: Received.
+          content:
+            application/json:
+              schema: { type: object, required: [data], properties: { data: { type: object, required: [received], properties: { received: { type: boolean, const: true } } } } }
+        '401': { description: Invalid signature., content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
   /newsletter/subscribe:
     post:

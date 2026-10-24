@@ -138,11 +138,24 @@ final class EmailCatalog
                 'vars' => ['المرجع' => 'text', 'الخدمة' => 'text', 'الاسم' => 'text', 'الشركة' => 'text', 'البريد' => 'text', 'الهاتف' => 'text',
                     'التواصل' => 'text', 'المواعيد' => 'text', 'التفاصيل' => 'text'],
             ],
+            // The payment messages are on: nothing sends them while online payments are off (decision 16).
             'payment_receipt' => [
-                'name' => 'إيصال الدفع والفاتورة (غير مفعّل)', 'audience' => 'customer', 'sender' => 'booking', 'active' => false,
+                'name' => 'إيصال الدفع والفاتورة (الدفع مطفأ)', 'audience' => 'customer', 'sender' => 'booking',
                 'subject' => 'إيصال دفع الحجز {المرجع}',
                 'body' => '<p>مرحباً {الاسم}،</p><p>استلمنا دفعتك للحجز {المرجع}. الفاتورة رقم {الفاتورة} مرفقة.</p>',
                 'vars' => ['الاسم' => 'text', 'المرجع' => 'text', 'الفاتورة' => 'text'],
+            ],
+            'payment_refunded' => [
+                'name' => 'إشعار استرجاع مبلغ (الدفع مطفأ)', 'audience' => 'customer', 'sender' => 'booking',
+                'subject' => 'استرجاع مبلغ من دفعة الحجز {المرجع}',
+                'body' => '<p>مرحباً {الاسم}،</p><p>أعدنا لك {المبلغ} من دفعتك للحجز {المرجع}. يصل المبلغ إلى بطاقتك حسب مواعيد البنك.</p>',
+                'vars' => ['الاسم' => 'text', 'المرجع' => 'text', 'المبلغ' => 'text'],
+            ],
+            'admin_payment_alert' => [
+                'name' => 'تنبيه: دفعة تحتاج مراجعة (الدفع مطفأ)', 'audience' => 'admin', 'sender' => 'no_reply',
+                'subject' => 'تنبيه دفع: {الموضوع}',
+                'body' => '<p>{الموضوع}</p><p>{التفاصيل}</p>',
+                'vars' => ['الموضوع' => 'text', 'التفاصيل' => 'text'],
             ],
             'account_verify_code' => [
                 'name' => 'رمز تأكيد حساب العميل (غير مفعّل)', 'audience' => 'customer', 'sender' => 'no_reply', 'active' => false,

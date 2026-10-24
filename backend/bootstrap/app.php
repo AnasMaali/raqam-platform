@@ -24,6 +24,7 @@ use App\Console\PruneEmailLogCommand;
 use App\Console\PruneRetainedDataCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
+use App\Console\ReconcilePaymentsCommand;
 use App\Console\SearchCreateKeyCommand;
 use App\Console\SearchEvaluateCommand;
 use App\Console\SearchReindexCommand;
@@ -63,6 +64,8 @@ return Application::configure(basePath: dirname(__DIR__))
         // A switched-off system answers 404 before a request limit counts the request.
         $middleware->prependToPriorityList(ThrottleRequests::class, RequireFeature::class);
     })
+    // Online payment (decision 16, switched off).
+    ->withCommands([ReconcilePaymentsCommand::class])
     ->withExceptions(function (Exceptions $exceptions): void {
         // The API always answers in the same JSON shape, whatever went wrong.
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());
