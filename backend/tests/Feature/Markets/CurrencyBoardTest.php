@@ -43,7 +43,8 @@ function boardRow(string $code): object
 function audited(string $table): Collection
 {
     return DB::table('audit_log')->join('audit_log_changes', 'audit_log_changes.audit_id', '=', 'audit_log.id')
-        ->where('audit_log.subject_table', $table)->orderBy('audit_log.id')->get();
+        // The fields of one entry have no order of their own: sorted by name, so the order is the same on every run.
+        ->where('audit_log.subject_table', $table)->orderBy('audit_log.id')->orderBy('audit_log_changes.field')->get();
 }
 
 // ---- spreads ---------------------------------------------------------------------------------------------
@@ -149,7 +150,7 @@ test('a new manual rate ends the current one at the same instant (no overlap), a
     DB::table('rate_overrides')->update(['valid_from' => DB::raw("valid_from - interval '1 minute'"), 'valid_until' => DB::raw("valid_until - interval '1 minute'")]);
     Livewire::test(ManageCurrencies::class)->callAction(TestAction::make('endManual')->table(RateBoardCurrency::find('USD')))->assertNotified();
     expect(boardRow('USD')->is_manual)->toBeFalse()
-        ->and(audited('rate_overrides')->pluck('field')->all())->toBe(['currency_code', 'buy_rate', 'sell_rate', 'valid_until', 'valid_until', 'currency_code', 'buy_rate', 'sell_rate', 'valid_until', 'valid_until']);
+        ->and(audited('rate_overrides')->pluck('field')->all())->toBe(['buy_rate', 'currency_code', 'sell_rate', 'valid_until', 'valid_until', 'buy_rate', 'currency_code', 'sell_rate', 'valid_until', 'valid_until']);
 });
 
 test('ending a manual rate after the server clock stepped back still keeps the end after the start', function () {

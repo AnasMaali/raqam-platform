@@ -3,6 +3,7 @@
 namespace App\Panel;
 
 use App\Ads\AdReport;
+use App\Analytics\StatsReport;
 use App\Mail\SystemMail;
 use App\Mail\TemplatedEmail;
 use App\Support\ArabicNormalizer;
@@ -10,9 +11,9 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 
 /**
- * The weekly summary for the admins (20.12), over the seven Palestine days before the day it runs: new subscribers,
- * how the ads did, the chatbot's unanswered questions and the new contact messages. Visits and the most read come with
- * the statistics phase. Everything that came from outside (a visitor's question, a campaign name) is escaped here,
+ * The weekly summary for the admins (20.12), over the seven Palestine days before the day it runs: visits and sources,
+ * the most read, new subscribers, how the ads did, the chatbot's unanswered questions and the new contact messages
+ * (the visit figures come from the statistics, 22). Everything that came from outside (a visitor's question, a campaign name) is escaped here,
  * because the summary goes into the e-mail as a ready block.
  */
 final class WeeklyDigest
@@ -40,8 +41,23 @@ final class WeeklyDigest
 
         $messages = (int) DB::table('contact_messages')->whereBetween('created_at', [$start, $end])->count();
 
-        $html = self::heading('الزيارات والأكثر قراءة').self::para('تُضاف مع مرحلة الإحصائيات.')
-            .self::heading('النشرة البريدية').self::para('مشتركون جدد: '.$subscribers.' — المجموع الآن: '.$totalSubscribers)
+        $stats = StatsReport::for('custom', $from->toDateString(), $today->subDay()->toDateString())->data;
+        $visits = $stats['totals'];
+        $html = self::heading('الزيارات').self::para('مشاهدات الصفحات: '.$visits['page_views'].' — الزوار: '.$visits['visitors'].' — الزيارات: '.$visits['visits']);
+        if ($stats['sources'] !== []) {
+            $html .= self::para('أهم المصادر: '.implode('، ', array_map(fn (array $s) => $s['name'].' '.$s['share'].'%', array_slice($stats['sources'], 0, 3))));
+        }
+        $html .= self::heading('الأكثر قراءة');
+        if ($stats['posts'] === []) {
+            $html .= self::para('لا قراءات هذا الأسبوع.');
+        } else {
+            $html .= '<ol>';
+            foreach (array_slice($stats['posts'], 0, 5) as $post) {
+                $html .= '<li>'.e($post['title']).' ('.$post['count'].')</li>';
+            }
+            $html .= '</ol>';
+        }
+        $html .= self::heading('النشرة البريدية').self::para('مشتركون جدد: '.$subscribers.' — المجموع الآن: '.$totalSubscribers)
             .self::heading('الإعلانات');
         if ($ads->isEmpty()) {
             $html .= self::para('لا مشاهدات للإعلانات هذا الأسبوع.');
@@ -69,7 +85,7 @@ final class WeeklyDigest
             'from' => $from->toDateString(), 'to' => $today->subDay()->toDateString(),
             'label' => $from->format('Y-m-d').' – '.$today->subDay()->format('Y-m-d'),
             'html' => $html,
-            'numbers' => ['subscribers' => $subscribers, 'unanswered' => $unanswered->count(), 'messages' => $messages, 'campaigns' => $ads->count()],
+            'numbers' => ['page_views' => $visits['page_views'], 'visitors' => $visits['visitors'], 'subscribers' => $subscribers, 'unanswered' => $unanswered->count(), 'messages' => $messages, 'campaigns' => $ads->count()],
         ];
     }
 

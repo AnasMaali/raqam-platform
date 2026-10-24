@@ -42,3 +42,11 @@ Schedule::command('admin:weekly-digest')->timezone('Asia/Hebron')->weeklyOn(6, '
 // Newsletter (19.6, 19.10): the weekly draft on the admin's day and time (checked every quarter hour), Brevo's numbers hourly.
 Schedule::command('newsletter:weekly-draft')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('newsletter:refresh-stats')->hourlyAt(20)->withoutOverlapping();
+
+// Statistics (22.1, 22.13): the Redis counters reach the daily tables every hour (safe to repeat); the list of missing pages
+// keeps the raw retention period (90 days by default), the daily figures stay for ever.
+Schedule::command('stats:flush')->hourlyAt(5)->withoutOverlapping();
+Schedule::command('stats:prune')->dailyAt('02:50')->withoutOverlapping();
+
+// The audit trail and the sign-in attempts keep two years (22.17); the database refuses anything younger.
+Schedule::command('audit:prune')->dailyAt('03:10')->withoutOverlapping();

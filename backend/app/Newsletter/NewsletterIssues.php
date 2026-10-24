@@ -180,8 +180,9 @@ final class NewsletterIssues
         $posts = Post::query()->live()->whereIn('id', $ids)->get()->sortBy(fn (Post $p) => $ids->search($p->id))->values();
         $site = rtrim((string) config('raqam.site_url'), '/');
 
+        // The tag names the source of the visit (22.6): a mail app sends no referrer.
         $items = collect($this->presenter->summaries($posts))->map(fn (array $p) => [
-            'title' => $p['title'], 'excerpt' => $p['excerpt'], 'url' => $site.$p['path'],
+            'title' => $p['title'], 'excerpt' => $p['excerpt'], 'url' => $site.$p['path'].'?utm_source=newsletter',
             'image' => data_get($p, 'cover.variants.md.jpeg.url') ?? data_get($p, 'cover.url'), 'alt' => (string) data_get($p, 'cover.alt', ''),
         ])->all();
 

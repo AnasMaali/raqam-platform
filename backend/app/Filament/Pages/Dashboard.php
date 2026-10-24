@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Ads\AdAlerts;
+use App\Analytics\StatsReport;
 use App\Jobs\SendSiteWebhook;
 use App\Models\ContactMessage;
 use App\Panel\AdminAlerts;
@@ -18,19 +19,13 @@ use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 
 /**
- * The panel's home (21.4): the shape only. Each card says which phase fills it with real numbers.
+ * The panel's home (21.4): alerts, the outside connections, today's visits and most read, campaigns, messages.
  */
 class Dashboard extends BaseDashboard
 {
     protected static ?string $title = 'الرئيسية';
 
     protected static ?string $navigationLabel = 'الرئيسية';
-
-    /** @var array<string, string> card title => where its numbers come from */
-    private const CARDS = [
-        'زيارات اليوم' => 'تظهر مع مرحلة الإحصائيات.',
-        'الأكثر قراءة' => 'تظهر مع مرحلة الإحصائيات.',
-    ];
 
     protected function getHeaderActions(): array
     {
@@ -77,9 +72,16 @@ class Dashboard extends BaseDashboard
         $cards[] = Section::make('التنبيهات ('.AdminAlerts::unreadCount($userId).' غير مقروءة)')->schema($unread === []
             ? [Text::make('لا تنبيهات جديدة.')->color('gray')]
             : array_values(array_map(fn ($n) => Text::make($n->title), $unread)));
-        foreach (self::CARDS as $title => $note) {
-            $cards[] = Section::make($title)->schema([Text::make($note)->color('gray')]);
-        }
+        // 21.4: today's visits (live) and the most read today, from the statistics (22).
+        $today = StatsReport::for('1')->data;
+        $cards[] = Section::make('زيارات اليوم')->schema([
+            Text::make('مشاهدات الصفحات: '.number_format($today['totals']['page_views'])),
+            Text::make('الزوار: '.number_format($today['totals']['visitors']).' — الزيارات: '.number_format($today['totals']['visits'])),
+            Text::make('التفاصيل في «الإحصائيات».')->color('gray'),
+        ]);
+        $cards[] = Section::make('الأكثر قراءة اليوم')->schema($today['posts'] === []
+            ? [Text::make('لا قراءات بعد اليوم.')->color('gray')]
+            : array_map(fn (array $p) => Text::make($p['title'].' — '.number_format($p['count'])), array_slice($today['posts'], 0, 5)));
 
         // 21.15: every outside connection, keys shown only as set or not set.
         $connections = [];

@@ -2,6 +2,7 @@
 
 namespace App\Content;
 
+use App\Analytics\MissingPages;
 use App\Audit\AuditLogger;
 use Illuminate\Support\Facades\DB;
 
@@ -58,6 +59,7 @@ final class RedirectManager
 
     private function put(string $from, ?string $to, int $status, ?int $userId): void
     {
+        MissingPages::resolve($from);
         $existing = DB::table('redirects')->where('from_path', $from)->first();
 
         if ($existing === null) {
