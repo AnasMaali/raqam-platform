@@ -76,13 +76,13 @@ test('an update records the old and the new value of the changed field only', fu
 test('a delete is recorded, and so are a soft delete and a restore', function () {
     $category = AuditedCategory::create(['name_ar' => 'طاقة', 'slug' => 'energy']);
     $category->delete();
-    expect(DB::table('audit_log')->pluck('action')->all())->toBe(['create', 'delete']);
+    expect(DB::table('audit_log')->orderBy('id')->pluck('action')->all())->toBe(['create', 'delete']);
 
     $user = AuditedUser::create(['user_type' => 'staff', 'name' => 'X', 'email' => 'x@raqam.ps', 'password_hash' => 'x']);
     $user->delete();
     $user->restore();
 
-    expect(DB::table('audit_log')->where('subject_table', 'users')->pluck('action')->all())->toBe(['create', 'delete', 'restore']);
+    expect(DB::table('audit_log')->where('subject_table', 'users')->orderBy('id')->pluck('action')->all())->toBe(['create', 'delete', 'restore']);
 });
 
 test('a password hash or any secret is never written to the log, only that it changed', function () {

@@ -95,7 +95,7 @@ test('an unknown e-mail is cleared too and logged without the address itself', f
 
     $row = DB::table('audit_log')->sole();
     expect($row->subject_id)->toBeNull()->and($row->subject_table)->toBeNull();
-    expect(DB::table('audit_log_changes')->where('audit_id', $row->id)->pluck('new_value', 'field')->all())
-        ->toBe(['sign_in_limits' => 'cleared', 'email_sha256' => hash('sha256', 'ghost@raqam.ps')]);
+    expect(DB::table('audit_log_changes')->where('audit_id', $row->id)->orderBy('field')->pluck('new_value', 'field')->all())
+        ->toBe(['email_sha256' => hash('sha256', 'ghost@raqam.ps'), 'sign_in_limits' => 'cleared']);
     expect(json_encode(DB::table('audit_log_changes')->get()))->not->toContain('ghost@raqam.ps');
 });

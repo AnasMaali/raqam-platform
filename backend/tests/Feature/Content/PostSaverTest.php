@@ -555,7 +555,7 @@ test('trash and restore are audited and announce the change', function () {
     $this->saver->trash($post);
     $this->saver->restore(Post::withTrashed()->find($post->id));
 
-    expect(DB::table('audit_log')->where('subject_table', 'posts')->where('subject_id', $post->id)->pluck('action')->all())->toBe(['create', 'delete', 'restore']);
+    expect(DB::table('audit_log')->where('subject_table', 'posts')->where('subject_id', $post->id)->orderBy('id')->pluck('action')->all())->toBe(['create', 'delete', 'restore']);
     Event::assertDispatched(PostChanged::class, fn ($e) => $e->postId === $post->id && $e->change === 'trashed');
 });
 

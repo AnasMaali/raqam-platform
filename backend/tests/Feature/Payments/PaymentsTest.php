@@ -3,12 +3,18 @@
 use App\Booking\BookingLink;
 use App\Booking\BookingStatuses;
 use App\Models\User;
+use App\Payments\CheckoutRequest;
+use App\Payments\GatewayNotification;
+use App\Payments\GatewayPayment;
+use App\Payments\GatewayRefund;
 use App\Payments\Gateways;
 use App\Payments\Gateways\FakeGateway;
+use App\Payments\PaymentGateway;
 use App\Payments\PaymentRefused;
 use App\Payments\Payments;
 use App\Payments\Refunds;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -145,7 +151,7 @@ test('starting opens one attempt with its own key; starting again soon hands bac
 
     ageRows('payments', '11 minutes');
     $second = startPayment($token)->json('data.redirect_url');
-    expect($second)->not->toBe($first)->and(DB::table('payments')->where('booking_id', $booking)->pluck('attempt_no')->all())->toBe([1, 2]);
+    expect($second)->not->toBe($first)->and(DB::table('payments')->where('booking_id', $booking)->orderBy('attempt_no')->pluck('attempt_no')->all())->toBe([1, 2]);
 });
 
 // --- Paid only when the bank says so (16.5) --------------------------------------------------------------------------
@@ -379,4 +385,67 @@ test('the test gateway never works in production, and an unconnected bank cannot
     expect(fn () => app(Gateways::class)->active())->toThrow(PaymentRefused::class, 'بوابة الدفع هذه غير مربوطة بعد.');
     DB::table('payment_gateways')->update(['is_active' => false]);
     expect(fn () => app(Gateways::class)->active())->toThrow(PaymentRefused::class, 'لا توجد بوابة دفع مفعّلة.');
+});
+
+// --- Review findings (phase 10 security review) --------------------------------------------------------------------
+
+test('F1: a notification larger than 64 KB is refused before anything is kept', function () {
+    paymentsOn();
+    $body = json_encode(['id' => 'ev-big', 'type' => 'payment.updated', 'order_id' => 'Px', 'pad' => str_repeat('a', 70_000)]);
+    test()->flushHeaders()->call('POST', '/api/v1/payments/webhooks/fake', [], [], [], ['CONTENT_TYPE' => 'application/json',
+        'HTTP_X_FAKE_SIGNATURE' => hash_hmac('sha256', $body, 'fake-gateway-secret')], $body)->assertStatus(413)->assertJsonPath('error.code', 'too_large');
+    expect(DB::table('payment_events')->count())->toBe(0);
+});
+
+test('F2: money the bank took for an attempt already closed here is never lost: the admins are told', function () {
+    paymentsOn();
+    [, $token] = bookingAwaitingPayment();
+    startPayment($token);
+    $order = lastOrder();
+    ageRows('payments', '25 hours', $order);
+    $this->artisan('payments:reconcile')->assertSuccessful();
+    expect(DB::table('payments')->value('status'))->toBe('cancelled');
+
+    FakeGateway::pay($order);   // the customer finished on the bank's page after all
+    bankNotifies('ev-late', $order)->assertOk();
+    expect(DB::table('payments')->value('status'))->toBe('cancelled')   // a closed attempt is not reopened
+        ->and(collect(sentEmailsTo('admin@raqam.example'))->map->getSubject()->implode('|'))->toContain('دفعة وصلت لمحاولة مغلقة');
+});
+
+test('F3: a bank that does not answer is a clear 503 when starting, and "pending" when coming back; nothing breaks', function () {
+    paymentsOn();
+    [, $token] = bookingAwaitingPayment();
+    startPayment($token);
+    $order = lastOrder();
+    app()->bind(FakeGateway::class, fn () => new class implements PaymentGateway
+    {
+        public function code(): string
+        {
+            return 'fake';
+        }
+
+        public function checkout(CheckoutRequest $request): string
+        {
+            throw new RuntimeException('connection refused');
+        }
+
+        public function status(string $orderId): GatewayPayment
+        {
+            throw new RuntimeException('connection refused');
+        }
+
+        public function notification(Request $request): ?GatewayNotification
+        {
+            return null;
+        }
+
+        public function refund(string $orderId, int $amount, string $currency, string $idempotencyKey): GatewayRefund
+        {
+            throw new RuntimeException('down');
+        }
+    });
+
+    startPayment($token)->assertStatus(503)->assertJsonPath('error.code', 'gateway_failed')->assertJsonMissingPath('error.details');
+    returnFromBank($order)->assertOk()->assertJsonPath('data.status', 'pending');
+    expect(DB::table('payments')->value('status'))->toBe('pending');
 });
