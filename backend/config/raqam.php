@@ -287,4 +287,22 @@ return [
         ],
     ],
 
+    /*
+    | Customer accounts (decision 17), built and switched off (feature `customer_accounts`). E-mail codes: 6 digits, 10
+    | minutes to confirm an address, an hour to reset a password (17.5), 5 tries, one a minute and 3 an hour / 6 a day per
+    | address. Sign-in shares the admin's limits (`raqam.auth.attempts_*`). Sessions last `session_days` at most.
+    */
+    'accounts' => [
+        'verify_minutes' => 10,
+        'reset_minutes' => 60,
+        'code_attempts' => 5,
+        'resend_seconds' => 60,
+        'codes_per_email_hour' => 3,
+        'codes_per_email_day' => 6,
+        'requests_per_visitor_hour' => 10,
+        'confirms_per_visitor_hour' => 20,
+        'requests_per_minute' => 30,
+        'session_days' => 30,
+        'timebox_ms' => 300,
+    ],
 ];
