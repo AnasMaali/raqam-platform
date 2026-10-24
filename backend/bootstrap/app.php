@@ -56,13 +56,15 @@ return Application::configure(basePath: dirname(__DIR__))
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
         InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
         NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class,
-        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, ReconcilePaymentsCommand::class])
+        PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
         $middleware->alias(['feature' => RequireFeature::class]);
         // A switched-off system answers 404 before a request limit counts the request.
         $middleware->prependToPriorityList(ThrottleRequests::class, RequireFeature::class);
     })
+    // Online payment (decision 16, switched off).
+    ->withCommands([ReconcilePaymentsCommand::class])
     ->withExceptions(function (Exceptions $exceptions): void {
         // The API always answers in the same JSON shape, whatever went wrong.
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());
