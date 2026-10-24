@@ -144,13 +144,13 @@ final class EmailCatalog
                 'body' => '<p>مرحباً {الاسم}،</p><p>استلمنا دفعتك للحجز {المرجع}. الفاتورة رقم {الفاتورة} مرفقة.</p>',
                 'vars' => ['الاسم' => 'text', 'المرجع' => 'text', 'الفاتورة' => 'text'],
             ],
-            // The account messages are on: nothing sends them while customer accounts are off (decision 17).
             'account_verify_code' => [
                 'name' => 'رمز تأكيد حساب العميل (الحسابات مطفأة)', 'audience' => 'customer', 'sender' => 'no_reply', 'locked' => true,
                 'subject' => 'رمز تأكيد حسابك في رَقَم',
                 'body' => '<p>رمز تأكيد حسابك:</p><p>{الرمز}</p><p>صالح لمدة {الدقائق} دقيقة.</p>',
                 'vars' => ['الرمز' => 'code', 'الدقائق' => 'text'], 'required' => ['الرمز'],
             ],
+            // The account messages are locked on: nothing sends them while customer accounts are off (decision 17).
             'password_reset_code' => [
                 'name' => 'رمز استعادة كلمة المرور (الحسابات مطفأة)', 'audience' => 'customer', 'sender' => 'no_reply', 'locked' => true,
                 'subject' => 'رمز استعادة كلمة المرور',

@@ -111,13 +111,6 @@ Route::middleware('throttle:chat')->post('/chat/messages', [ChatApiController::c
 // limit per visitor.
 Route::middleware('throttle:stats')->post('/stats/hits', [StatsApiController::class, 'hit']);
 
-// Online booking (decision 15): built and switched off. While `booking` is off every route here is a 404, before the
-// request limit or anything else looks at the request. From the site's server only.
-Route::middleware('feature:booking')->group(function () {
-    Route::middleware('throttle:booking')->post('/bookings', [BookingApiController::class, 'store']);
-    Route::middleware('throttle:booking-track')->post('/bookings/track', [BookingApiController::class, 'track']);
-});
-
 // Customer accounts (decision 17): built and switched off. While `customer_accounts` is off every route here is a 404.
 // From the site's server only; signed-in routes carry the customer's session as a bearer token.
 Route::middleware(['feature:customer_accounts', 'throttle:accounts'])->prefix('account')->group(function () {
@@ -142,4 +135,11 @@ Route::middleware(['feature:customer_accounts', 'throttle:accounts'])->prefix('a
         Route::delete('/follows/{kind}/{id}', [AccountApiController::class, 'unfollow'])->where(['kind' => 'category|section', 'id' => '[0-9]{1,9}']);
         Route::get('/bookings', [AccountApiController::class, 'bookings'])->middleware('feature:booking');
     });
+});
+
+// Online booking (decision 15): built and switched off. While `booking` is off every route here is a 404, before the
+// request limit or anything else looks at the request. From the site's server only.
+Route::middleware('feature:booking')->group(function () {
+    Route::middleware('throttle:booking')->post('/bookings', [BookingApiController::class, 'store']);
+    Route::middleware('throttle:booking-track')->post('/bookings/track', [BookingApiController::class, 'track']);
 });
