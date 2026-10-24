@@ -7,11 +7,13 @@ on:
       - "database/**"
       - "backend/app/Support/ArabicNormalizer.php"
       - ".github/workflows/database.yml"
+      - ".github/scripts/**"
   pull_request:
     paths:
       - "database/**"
       - "backend/app/Support/ArabicNormalizer.php"
       - ".github/workflows/database.yml"
+      - ".github/scripts/**"
 
 permissions:
   contents: read
@@ -24,7 +26,7 @@ jobs:
   schema:
     name: Schema, constraints & Arabic normaliser
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     services:
       postgres:
@@ -45,23 +47,40 @@ jobs:
       PGPASSWORD: postgres
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
+        timeout-minutes: 10
         with:
           php-version: "8.4"
           extensions: mbstring
           coverage: none
 
+      - name: Month (cache key of the system packages)
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: System packages cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/apt-archives
+          key: apt-database-${{ runner.os }}-${{ steps.month.outputs.month }}-${{ hashFiles('.github/workflows/database.yml') }}
+          restore-keys: apt-database-${{ runner.os }}-
+
       - name: Install PostgreSQL client
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+        timeout-minutes: 15
+        run: .github/scripts/apt-install.sh postgresql-client
 
       - name: Check raqam_schema.sql is up to date
+        timeout-minutes: 2
         run: |
           cat database/schema/*.sql > /tmp/expected.sql
           diff -q /tmp/expected.sql database/raqam_schema.sql \
             || { echo "::error::Run: cat database/schema/*.sql > database/raqam_schema.sql"; exit 1; }
 
       - name: Build schema and run all database tests
+        timeout-minutes: 8
         run: ./database/run_tests.sh

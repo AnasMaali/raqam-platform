@@ -191,6 +191,15 @@ return [
     ],
 
     /*
+    | How long visitors' own words are kept (decision 2026-10-24), deleted every night by retention:prune: chatbot
+    | conversations from the day they began, contact messages from the day they arrived.
+    */
+    'retention' => [
+        'chat_conversations_days' => 180,
+        'contact_messages_days' => 365,
+    ],
+
+    /*
     | The public website's address (https://raqam.ps): links in e-mails and the newsletter point there.
     */
     'site_url' => env('SITE_URL'),

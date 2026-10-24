@@ -41,8 +41,9 @@ test('a source that answered is working; one failing says since when and why', f
 });
 
 test('no key appears on the home, not even a part of it', function () {
-    $keys = ['raqam.youtube.key' => 'yt-AbCdEfGh12345678', 'raqam.weather.key' => 'ow-ZyXwVu98765432', 'raqam.search.key' => 'ms-QwErTy13579246',
-        'mail.mailers.smtp.password' => 'smtp-PaSsWoRd24680'];
+    // Every start and end has letters beyond a-f: a random token on the page (hex) can hold any run of digits, not these.
+    $keys = ['raqam.youtube.key' => 'yt-AbCdEfGh1234WxYz', 'raqam.weather.key' => 'ow-ZyXwVu9876QrSt', 'raqam.search.key' => 'ms-QwErTy1357UvKp',
+        'mail.mailers.smtp.password' => 'smtp-PaSsWoRd246JkLm'];
     config($keys + ['mail.default' => 'smtp', 'raqam.search.host' => 'http://127.0.0.1:9']);
     Http::fake();
 

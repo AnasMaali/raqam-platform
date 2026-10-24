@@ -18,6 +18,7 @@ use App\Console\NewsletterStatsCommand;
 use App\Console\NewsletterWeeklyDraftCommand;
 use App\Console\PruneDevicesCommand;
 use App\Console\PruneEmailLogCommand;
+use App\Console\PruneRetainedDataCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
 use App\Console\SearchCreateKeyCommand;
@@ -47,7 +48,8 @@ return Application::configure(basePath: dirname(__DIR__))
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
         CurrencyFetchCommand::class, WeatherFetchCommand::class, InstallCitiesCommand::class, InstallServicesCommand::class,
         InstallEmailTemplatesCommand::class, PruneEmailLogCommand::class, AdEndingAlertsCommand::class, CheckDiskCommand::class, WeeklyDigestCommand::class,
-        NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class])
+        NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class,
+        PruneRetainedDataCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
     })

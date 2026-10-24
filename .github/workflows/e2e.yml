@@ -8,12 +8,14 @@ on:
       - "e2e/**"
       - "database/schema/**"
       - ".github/workflows/e2e.yml"
+      - ".github/scripts/**"
   pull_request:
     paths:
       - "backend/**"
       - "e2e/**"
       - "database/schema/**"
       - ".github/workflows/e2e.yml"
+      - ".github/scripts/**"
 
 permissions:
   contents: read
@@ -26,7 +28,7 @@ jobs:
   playwright:
     name: Playwright (real browser, own database per test)
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    timeout-minutes: 50
 
     services:
       postgres:
@@ -58,55 +60,118 @@ jobs:
       DB_PASSWORD: raqam
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        timeout-minutes: 5
 
       - name: Set up PHP 8.4
         uses: shivammathur/setup-php@v2
+        timeout-minutes: 10
         with:
           php-version: "8.4"
           extensions: pgsql, pdo_pgsql, redis, mbstring, intl, bcmath, gd, fileinfo
           tools: composer:v2
           coverage: none
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
+        timeout-minutes: 10
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: e2e/package-lock.json
 
+      - name: Month (cache key of the system packages)
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: System packages cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/apt-archives
+          key: apt-e2e-${{ runner.os }}-${{ steps.month.outputs.month }}-${{ hashFiles('.github/workflows/e2e.yml', 'e2e/package-lock.json') }}
+          restore-keys: apt-e2e-${{ runner.os }}-
+
       - name: Command line clients used by the tests
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client redis-tools ffmpeg
+        timeout-minutes: 15
+        run: .github/scripts/apt-install.sh postgresql-client redis-tools ffmpeg
 
       - name: Create the app role
+        timeout-minutes: 2
         env:
           PGUSER: postgres
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE ROLE raqam LOGIN CREATEDB PASSWORD 'raqam'"
 
+      - name: Composer cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/composer
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+          restore-keys: composer-
+
       - name: Install the back end
+        timeout-minutes: 15
         working-directory: backend
         run: |
-          composer install --no-interaction --no-progress --prefer-dist
+          TRY_SECONDS=400 ../.github/scripts/retry.sh composer install --no-interaction --no-progress --prefer-dist
           cp .env.example .env
           php artisan key:generate
 
+      - name: Meilisearch binary cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/meilisearch-1.54.3
+          key: meilisearch-1.54.3-${{ runner.os }}
+
       - name: Meilisearch v1.54.3 binary (the tests start their own engines)
+        timeout-minutes: 8
         working-directory: backend
-        run: ./scripts/ci-meilisearch.sh --binary-only
+        run: MEILI_DIR="$HOME/.cache/meilisearch-1.54.3" ./scripts/ci-meilisearch.sh --binary-only
 
       - name: Install the browser tests
+        timeout-minutes: 10
+        working-directory: e2e
+        run: TRY_SECONDS=300 ../.github/scripts/retry.sh npm ci --no-audit --no-fund
+
+      - name: Playwright version (cache key of the browser)
+        id: playwright
+        working-directory: e2e
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Browser cache
+        id: browser-cache
+        uses: actions/cache@v6
+        timeout-minutes: 5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 15
+        working-directory: e2e
+        run: TRY_SECONDS=400 ../.github/scripts/retry.sh npx playwright install chromium
+
+      # The system libraries the browser needs, through the same cached, time-limited installer.
+      - name: Chromium's system libraries
+        timeout-minutes: 15
         working-directory: e2e
         run: |
-          npm ci
-          npx playwright install --with-deps chromium
+          deps=$(npx playwright install-deps --dry-run chromium | sed -n 's/^  *\([a-z0-9][a-z0-9.+-]*\)$/\1/p' | tr '\n' ' ')
+          echo "Missing: ${deps:-none}"
+          ../.github/scripts/apt-install.sh $deps
 
       - name: Run them
+        timeout-minutes: 30
         working-directory: e2e
         run: npx playwright test
 
       - name: Keep the report of a failed run
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
+        timeout-minutes: 5
         with:
           name: playwright-report
           path: |

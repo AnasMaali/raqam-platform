@@ -73,7 +73,8 @@ test('the list shows prices, offers and contact presses of the last 30 days; dra
         ['service_id' => $a->id, 'channel' => 'phone', 'stat_date' => now('Asia/Hebron')->subDays(40)->toDateString(), 'clicks' => 100],
     ]);
 
-    Livewire::test(ListServices::class)->assertSee('99.99 $')->assertSee('كان 123.45 $')->assertSee('السعر عند التواصل')->assertSee('7')->assertDontSee('107');
+    Livewire::test(ListServices::class)->assertSee('99.99 $')->assertSee('كان 123.45 $')->assertSee('السعر عند التواصل')
+        ->assertTableColumnStateSet('presses', 7, $a);
 
     $before = (int) Cache::get('services:version', 0);
     Livewire::test(ListServices::class)->call('reorderTable', [$b->id, $a->id]);

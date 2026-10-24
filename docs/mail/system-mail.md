@@ -60,6 +60,8 @@ Decisions 20.1–20.13 of the requirements log. Everything here works without an
   e-mail). The admins get the bell and an e-mail (reply-to = the sender), at most 20 e-mails an hour.
 - The sender gets an automatic reply that carries only their name, and **one address gets at most one reply in
   24 hours, whoever asks**, so the form cannot be used to flood a stranger's mailbox.
+- A message is kept **365 days** from its arrival, then `retention:prune` (every night at 02:40) deletes it
+  (`raqam.retention.contact_messages_days`).
 
 ## Environment
 

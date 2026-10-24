@@ -33,6 +33,8 @@ Schedule::command('weather:fetch --due')->everyMinute()->withoutOverlapping();
 // System e-mail and alerts (decision 20): the log keeps 90 days (20.9); the 3-day warning of a campaign (13.9); the disk
 // (20.4); the weekly summary for the admins (20.12), Saturday morning in Palestine.
 Schedule::command('emails:prune')->dailyAt('02:30')->withoutOverlapping();
+// Chatbot conversations after 180 days and contact messages after 365 (decision 2026-10-24).
+Schedule::command('retention:prune')->dailyAt('02:40')->withoutOverlapping();
 Schedule::command('ads:ending-alerts')->hourly()->withoutOverlapping();
 Schedule::command('system:check-disk')->hourly()->withoutOverlapping();
 Schedule::command('admin:weekly-digest')->timezone('Asia/Hebron')->weeklyOn(6, '09:00')->withoutOverlapping();
