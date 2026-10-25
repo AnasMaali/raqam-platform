@@ -485,3 +485,36 @@ test('the team page lists the writers the admin put on it, in the admin\'s order
 
     expect(array_column($body['data'], 'slug'))->toBe(['editor', 'chief']);
 });
+
+test('initiatives can be listed by state, and each carries its state in the list (5.5)', function () {
+    $org = Organization::create(['name' => 'غرفة تجارة نابلس', 'slug' => 'chamber']);
+    $ongoing = publish('initiative', ['initiative' => ['initiative_name' => 'مبادرة جارية', 'organizer_organization_id' => $org->id, 'status' => 'ongoing']]);
+    $ended = publish('initiative', ['initiative' => ['initiative_name' => 'مبادرة منتهية', 'organizer_organization_id' => $org->id, 'status' => 'ended']]);
+    publish('news');
+
+    $list = api('/posts?section=initiatives&initiative_status=ended')->assertOk()->json();
+    validateAgainstPath($list, '/posts');
+
+    expect(array_column($list['data'], 'id'))->toBe([$ended->id])
+        ->and($list['data'][0]['facts'])->toBe(['initiative_name' => 'مبادرة منتهية', 'status' => 'ended'])
+        ->and(array_column(api('/posts?initiative_status=ongoing')->json('data'), 'id'))->toBe([$ongoing->id])
+        ->and(collect(api('/posts?kind=news')->json('data'))->pluck('facts')->unique()->all())->toBe([null]);
+    api('/posts?initiative_status=paused')->assertStatus(422);
+});
+
+test('the history section can be read as a timeline: era, then year, oldest first (5.4)', function () {
+    $ottoman = Era::create(['name_ar' => 'العثماني', 'sort_order' => 1]);
+    $mandate = Era::create(['name_ar' => 'الانتداب', 'sort_order' => 2]);
+    $late = publish('history', ['history' => ['era_id' => $mandate->id, 'year_from' => 1930], 'published_at' => now()->subDay()]);
+    $early = publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1850], 'published_at' => now()->subDays(3)]);
+    $middle = publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1900], 'published_at' => now()->subDays(2)]);
+
+    $timeline = api('/posts?section=history&order=timeline')->assertOk()->json();
+    validateAgainstPath($timeline, '/posts');
+
+    expect(array_column($timeline['data'], 'id'))->toBe([$early->id, $middle->id, $late->id])
+        ->and($timeline['data'][0]['facts'])->toMatchArray(['era' => ['id' => $ottoman->id, 'name' => 'العثماني'], 'year_from' => 1850])
+        ->and(array_column(api('/posts?section=history')->json('data'), 'id'))->toBe([$late->id, $middle->id, $early->id])   // without it: newest published first
+        ->and($timeline['links']['next'])->toBeNull();
+    expect(api('/posts?section=history&order=timeline&page=1')->json('links.prev'))->toBeNull();
+});

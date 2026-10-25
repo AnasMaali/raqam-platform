@@ -223,6 +223,16 @@ paths:
           in: query
           description: Only posts that are breaking right now (`1`).
           schema: { type: string, enum: ['1'] }
+        - name: initiative_status
+          in: query
+          description: Only initiatives in this state (5.5).
+          schema: { type: string, enum: [ongoing, ended] }
+        - name: order
+          in: query
+          description: |
+            `latest` (default, newest first) or `timeline` (5.4): history items by era, then year, oldest first; items with no
+            place on the timeline come after them. Use with `section=history`.
+          schema: { type: string, enum: [latest, timeline], default: latest }
       responses:
         '200':
           description: One page of posts.
@@ -2934,12 +2944,16 @@ components:
         slug: { type: string }
     Organization:
       type: object
-      required: [id, name, slug, website]
+      required: [id, name, slug, website, sector, city, founded_year, logo]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         website: { type: [string, 'null'] }
+        sector: { oneOf: [{ type: 'null' }, { type: object, required: [name, slug], properties: { name: { type: string }, slug: { type: string } } }], description: 'Sector (5.2, 5.3).' }
+        city: { oneOf: [{ type: 'null' }, { type: object, required: [name, slug], properties: { name: { type: string }, slug: { type: string } } }] }
+        founded_year: { type: [integer, 'null'] }
+        logo: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
     HomeBlock:
       type: object
       required: [id, type, title]
@@ -3041,7 +3055,7 @@ components:
         items: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/PostSummary' } }
     PostSummary:
       type: object
-      required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
+      required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor, facts]
       properties:
         id: { type: integer }
         kind: { $ref: '#/components/schemas/Kind' }
@@ -3066,6 +3080,24 @@ components:
         sponsor:
           description: Present for sponsored content, which must be shown with a clear label.
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }]
+        facts:
+          description: |
+            What a list needs of two kinds without opening each item: a history item's era and years (5.4, the timeline) and an
+            initiative's name and state (5.5). Null for every other kind.
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              required: [era, period_label, year_from, year_to]
+              properties:
+                era: { oneOf: [{ type: 'null' }, { type: object, required: [id, name], properties: { id: { type: integer }, name: { type: string } } }] }
+                period_label: { type: [string, 'null'] }
+                year_from: { type: [integer, 'null'] }
+                year_to: { type: [integer, 'null'] }
+            - type: object
+              required: [initiative_name, status]
+              properties:
+                initiative_name: { type: string }
+                status: { enum: [ongoing, ended] }
         views:
           description: |
             How many times the post was read, all time (22.12). **Only present when the admin shows view counts**
