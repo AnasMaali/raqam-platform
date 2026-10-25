@@ -175,7 +175,8 @@ SELECT pg_temp.expect_fail('playlist: same position twice is refused at commit',
 
 -- ---------------------------------------------------------------- currency
 INSERT INTO exchange_rates (currency_code, provider_code, mid_rate, effective_at) VALUES
-  ('USD', 'bank_of_israel', 3.60, now() - interval '1 day'),
+  -- yesterday by the Palestine calendar (24 hours back is still today in the last hour of a 25-hour day)
+  ('USD', 'bank_of_israel', 3.60, ((now() AT TIME ZONE 'Asia/Hebron')::date - 1 + time '12:00') AT TIME ZONE 'Asia/Hebron'),
   ('USD', 'bank_of_israel', 3.75, now());
 SELECT pg_temp.expect_eq('rate_board: buy = mid - 0.5%',
   (SELECT buy_rate::text FROM rate_board WHERE currency_code = 'USD'), '3.731250');
