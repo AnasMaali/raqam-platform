@@ -85,6 +85,9 @@ test('a price on request has no Offer in the structured data, and "from" states 
 
 test('a special offer shows until its end and then the regular price comes back by itself', function () {
     $s = apiService(['offer' => true, 'sale_price' => '99.99', 'sale_ends_at' => now()->addMinutes(2)->format('Y-m-d H:i:s')]);
+    // The end on the database clock, which measures it: a PHP time cut to the second could be up to a second later (CI saw 121).
+    DB::table('services')->where('id', $s->id)->update(['sale_ends_at' => DB::raw("now() + interval '2 minutes'")]);
+    Cache::increment('services:version');
     $price = api('/services/'.rawurlencode($s->slug))->json('data.price');
     expect($price)->toMatchArray(['amount' => '99.99', 'text' => '99.99 ₪ للحلقة'])
         ->and($price['offer'])->toMatchArray(['was' => '123.45', 'was_text' => '123.45 ₪'])
