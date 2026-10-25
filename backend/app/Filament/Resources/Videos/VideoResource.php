@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Videos;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Resources\Videos\Pages\CreateVideo;
@@ -160,6 +161,7 @@ class VideoResource extends Resource
                         : $query->whereIn('videos.id', DB::table('youtube_videos')->where('availability', (string) $data['value'])->select('video_id'))),
                 TrashedFilter::make()->label('المحذوفة'),
             ])
+            ->toolbarActions([BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('الفيديو المستخدم في مادة منشورة لا يُحذف نهائياً؛ يبقى في السلة ويمكن استرجاعه.'),

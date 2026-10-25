@@ -1,5 +1,7 @@
 <?php
 
+use App\Weather\OpenWeatherSource;
+
 return [
 
     /*
@@ -133,6 +135,10 @@ return [
         'key' => env('OPENWEATHER_API_KEY'),
         // Browser tests only: a stand-in for https://api.openweathermap.org. Production refuses to start with it set.
         'api_base' => env('OPENWEATHER_API_BASE'),
+        // The sources the code knows (12.13), by data_providers code; the one in use is chosen on the weather screen.
+        'sources' => [
+            'openweathermap' => OpenWeatherSource::class,
+        ],
     ],
 
     'site_webhook' => [
@@ -175,6 +181,8 @@ return [
         'window_minutes' => 60,
         'disk_min_free_percent' => 10,
         'disk_min_free_gb' => 2,
+        // Failed sign-ins to the panel in the last hour that make an alert (24.15).
+        'failed_signins_per_hour' => 20,
         // The disk the check looks at; the storage folder by default (tests point it elsewhere).
         'disk_path' => env('ALERTS_DISK_PATH'),
     ],

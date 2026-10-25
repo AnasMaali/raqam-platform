@@ -19,6 +19,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -80,6 +81,7 @@ class SectionResource extends Resource
                 TextColumn::make('slug')->label('العنوان')->formatStateUsing(fn (string $state) => '/'.$state),
                 IconColumn::make('is_visible')->label('ظاهر')->boolean(),
             ])
+            ->filters([TernaryFilter::make('is_visible')->label('ظاهر')])
             ->recordActions([EditAction::make()->label('تعديل')]);
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Categories;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\SeoSection;
 use App\Filament\Resources\Categories\Pages\CreateCategory;
@@ -24,6 +25,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -85,6 +87,12 @@ class CategoryResource extends Resource
                 IconColumn::make('is_highlighted')->label('مميز')->boolean(),
                 IconColumn::make('is_active')->label('ظاهر')->boolean(),
             ])
+            ->filters([
+                TernaryFilter::make('is_active')->label('ظاهر'),
+                TernaryFilter::make('top')->label('رئيسي (ليس فرعياً)')
+                    ->queries(true: fn ($query) => $query->whereNull('parent_id'), false: fn ($query) => $query->whereNotNull('parent_id')),
+            ])
+            ->toolbarActions([...BulkRecords::toggle('is_active', 'إظهار المحدد', 'إخفاء المحدد'), BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('إذا كان في القوائم أو الصفحة الرئيسية فسيُزال منها. الأفضل إخفاؤه بدل حذفه.')

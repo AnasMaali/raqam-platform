@@ -45,7 +45,7 @@ test('the site settings carry the name, logo, contact, social accounts, default 
     $logo = insertMedia(['alt_text' => 'شعار رَقَم']);
     app(SettingsStore::class)->save([
         'general.site_name' => 'رَقَم', 'general.logo' => (string) $logo, 'contact.phone' => '+970599123456', 'contact.whatsapp' => '+970599000111',
-        'contact.whatsapp_message' => 'مرحباً رَقَم', 'contact.email' => 'info@raqam.example', 'contact.address' => 'نابلس',
+        'contact.whatsapp_message' => 'مرحباً رَقَم', 'contact.email' => 'info@raqam.example', 'contact.address' => 'نابلس', 'contact.map_url' => 'https://maps.example/raqam',
         'seo.title_suffix' => ' | رَقَم', 'seo.default_description' => 'منصة اقتصادية', 'seo.default_image' => (string) $logo,
     ], ['facebook' => 'https://facebook.com/raqam', 'x' => 'https://x.com/raqam'], $this->admin->id);
     DB::table('site_social_links')->insert(['platform_code' => 'tiktok', 'url' => 'https://tiktok.com/@raqam', 'is_visible' => false]);
@@ -55,7 +55,7 @@ test('the site settings carry the name, logo, contact, social accounts, default 
 
     expect($data['name'])->toBe('رَقَم')
         ->and($data['logo']['id'])->toBe($logo)
-        ->and($data['contact'])->toMatchArray(['phone' => '+970599123456', 'email' => 'info@raqam.example', 'address' => 'نابلس'])
+        ->and($data['contact'])->toMatchArray(['phone' => '+970599123456', 'email' => 'info@raqam.example', 'address' => 'نابلس', 'map_url' => 'https://maps.example/raqam'])
         ->and($data['contact']['whatsapp_url'])->toBe('https://wa.me/970599000111?text='.rawurlencode('مرحباً رَقَم'))
         ->and(array_column($data['social'], 'platform'))->toBe(['facebook', 'x'])   // the hidden one is left out, platform order kept
         ->and($data['seo'])->toMatchArray(['title_suffix' => '| رَقَم', 'default_description' => 'منصة اقتصادية'])

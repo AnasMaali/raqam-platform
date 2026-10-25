@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Audit\Audited;
+use App\Content\KeepsOldAddresses;
 use App\Jobs\SendSiteWebhook;
 use App\Models\Concerns\HasSeoMeta;
 use App\Navigation\MenuBoard;
 use App\Seo\IndexNow;
+use App\Seo\SitePaths;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -15,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Page extends Model
 {
-    use Audited, HasSeoMeta;
+    use Audited, HasSeoMeta, KeepsOldAddresses;
 
     protected $fillable = ['title', 'slug', 'body', 'is_published', 'updated_by'];
 
@@ -49,5 +51,11 @@ class Page extends Model
     protected function auditIgnored(): array
     {
         return ['updated_at', 'created_at', 'body'];
+    }
+
+    /** Its public page (23.3); a changed slug leaves a 301 behind, a deletion a 410 (23.6). */
+    public static function addressFor(string $slug): string
+    {
+        return SitePaths::page($slug);
     }
 }

@@ -24,3 +24,9 @@ browser. `App\Auth\LoginAttempts` writes every sign-in outcome to `login_attempt
 than `audit.retention_days` when that is longer; never younger. It runs in a transaction with
 `SET LOCAL raqam.audit_prune = 'on'`, the only way the trigger lets rows go, and the trigger still refuses any row younger
 than two years.
+
+## Every panel write is covered
+
+`AuditCoverageTest` fails when a panel screen's model neither uses the `Audited` trait nor is named with the service that
+audits its writes (newsletter issues, missing pages, subscribers, synonyms) or the reason it needs none (read-only logs, the
+admin's own bell). Missing pages marked handled or reopened are audited by path (`resolved_path` / `reopened_path`).

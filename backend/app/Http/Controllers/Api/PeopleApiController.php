@@ -16,6 +16,15 @@ class PeopleApiController extends ApiController
         return $this->pageOf($p, collect($p->items())->map(fn ($a) => $this->presenter->author($a))->all());
     }
 
+    /** The «فريق العمل» page (28): every active writer the admin put on it, in the admin's order. */
+    public function team(): JsonResponse
+    {
+        $rows = DB::table('authors')->whereNull('deleted_at')->where('is_active', true)->whereNotNull('team_sort_order')->orderBy('team_sort_order')->orderBy('name')->get();
+        $this->presenter->preload($rows->pluck('photo_media_id'));
+
+        return response()->json(['data' => $rows->map(fn ($a) => $this->presenter->author($a))->all()]);
+    }
+
     public function author(string $slug): JsonResponse
     {
         $a = DB::table('authors')->whereNull('deleted_at')->where('is_active', true)->where('slug', $slug)->first();

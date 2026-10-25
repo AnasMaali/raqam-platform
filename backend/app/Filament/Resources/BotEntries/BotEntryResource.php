@@ -4,6 +4,7 @@ namespace App\Filament\Resources\BotEntries;
 
 use App\Chat\BotLibrary;
 use App\Chat\KnowledgeBase;
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\BotEntries\Pages\CreateBotEntry;
 use App\Filament\Resources\BotEntries\Pages\EditBotEntry;
@@ -25,6 +26,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -114,6 +116,8 @@ class BotEntryResource extends Resource
                 TextColumn::make('action_type')->label('الإجراء')->formatStateUsing(fn (string $state) => BotLibrary::ACTIONS[$state] ?? $state),
                 IconColumn::make('is_active')->label('مفعّل')->boolean(),
             ])
+            ->filters([SelectFilter::make('action_type')->label('الإجراء')->options(BotLibrary::ACTIONS)])
+            ->toolbarActions([BulkRecords::delete(fn (BotEntry $record) => $record->faq_id === null)->after(fn () => KnowledgeBase::changed())])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->visible(fn (BotEntry $record) => $record->faq_id === null)

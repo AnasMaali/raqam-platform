@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Redirects;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Redirects\Pages\ManageRedirects;
 use App\Models\Redirect;
@@ -86,6 +87,7 @@ class RedirectResource extends Resource
                 TextColumn::make('last_hit_at')->label('آخر زيارة')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable(),
             ])
             ->filters([SelectFilter::make('status_code')->label('النوع')->options(self::STATUSES)])
+            ->toolbarActions([BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل')->mutateDataUsing(fn (array $data) => (int) $data['status_code'] === 410 ? [...$data, 'to_path' => null] : $data),
                 DeleteAction::make()->label('حذف'),

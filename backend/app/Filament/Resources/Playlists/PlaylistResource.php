@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Playlists;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Forms\SeoSection;
@@ -27,6 +28,8 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
 
@@ -85,6 +88,8 @@ class PlaylistResource extends Resource
                 TextColumn::make('videos_count')->label('الفيديوهات')->state(fn (Playlist $p) => DB::table('playlist_videos')->where('playlist_id', $p->id)->count()),
                 IconColumn::make('is_visible')->label('ظاهرة')->boolean(),
             ])
+            ->filters([TernaryFilter::make('is_visible')->label('ظاهرة'), SelectFilter::make('section_id')->label('القسم')->options(fn () => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all())])
+            ->toolbarActions([...BulkRecords::toggle('is_visible', 'إظهار المحدد', 'إخفاء المحدد'), BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('تُحذف القائمة فقط؛ الفيديوهات تبقى في المكتبة.'),

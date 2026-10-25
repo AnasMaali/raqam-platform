@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
@@ -54,7 +55,7 @@ class FeatureFlagResource extends Resource
             ->defaultSort('key')
             ->paginated(false)
             ->columns([
-                TextColumn::make('description_ar')->label('الميزة')->wrap(),
+                TextColumn::make('description_ar')->label('الميزة')->searchable()->wrap(),
                 TextColumn::make('depends_on')->label('تتطلب')
                     ->formatStateUsing(fn (?string $state) => $state ? FeatureFlag::query()->whereKey($state)->value('description_ar') : '—')
                     ->wrap(),
@@ -74,6 +75,7 @@ class FeatureFlagResource extends Resource
                         return $state;
                     }),
             ])
+            ->filters([TernaryFilter::make('is_enabled')->label('مفعّلة')])
             ->recordActions([])
             ->toolbarActions([]);
     }

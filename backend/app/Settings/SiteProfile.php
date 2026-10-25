@@ -16,7 +16,7 @@ final class SiteProfile
     /** The settings this answer is made of: a change to any of them changes every page. */
     public const SETTINGS = [
         'general.site_name', 'general.logo', 'contact.phone', 'contact.whatsapp', 'contact.whatsapp_message', 'contact.email',
-        'contact.address', 'seo.title_suffix', 'seo.default_description', 'seo.default_image',
+        'contact.address', 'contact.map_url', 'seo.title_suffix', 'seo.default_description', 'seo.default_image',
     ];
 
     /** The switches the website acts on (21.14). The others (multi_admin, chatbot_ai) are the panel's business. */
@@ -44,6 +44,7 @@ final class SiteProfile
                 'whatsapp_url' => $whatsapp ? 'https://wa.me/'.ltrim($whatsapp, '+').($message ? '?text='.rawurlencode($message) : '') : null,
                 'email' => $value('contact.email'),
                 'address' => $value('contact.address'),
+                'map_url' => $value('contact.map_url'),
             ],
             'social' => DB::table('site_social_links')->join('social_platforms', 'social_platforms.code', '=', 'site_social_links.platform_code')
                 ->where('site_social_links.is_visible', true)->orderBy('site_social_links.sort_order')->orderBy('social_platforms.sort_order')

@@ -223,6 +223,16 @@ paths:
           in: query
           description: Only posts that are breaking right now (`1`).
           schema: { type: string, enum: ['1'] }
+        - name: initiative_status
+          in: query
+          description: Only initiatives in this state (5.5).
+          schema: { type: string, enum: [ongoing, ended] }
+        - name: order
+          in: query
+          description: |
+            `latest` (default, newest first) or `timeline` (5.4): history items by era, then year, oldest first; items with no
+            place on the timeline come after them. Use with `section=history`.
+          schema: { type: string, enum: [latest, timeline], default: latest }
       responses:
         '200':
           description: One page of posts.
@@ -497,6 +507,26 @@ paths:
                   data: { $ref: '#/components/schemas/Author' }
         '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /team:
+    get:
+      tags: [People]
+      summary: The team page (28), every member in the admin's order
+      description: The active writers the admin put on the «فريق العمل» page, ordered by `team_order`, all on one page.
+      operationId: team
+      responses:
+        '200':
+          description: The team.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Author' } }
+        '304': { $ref: '#/components/responses/NotModified' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /guests:
@@ -2893,10 +2923,11 @@ components:
             additionalProperties: { $ref: '#/components/schemas/MediaVariant' }
     Kind:
       type: object
-      required: [code, name]
+      required: [code, name, schema_type]
       properties:
         code: { $ref: '#/components/schemas/KindCode' }
         name: { type: string }
+        schema_type: { type: string, description: 'The schema.org type of its JSON-LD (23.9): NewsArticle, OpinionNewsArticle, ReportageNewsArticle or Article.', example: NewsArticle }
     CategoryRef:
       type: object
       required: [id, name, slug]
@@ -2913,12 +2944,16 @@ components:
         slug: { type: string }
     Organization:
       type: object
-      required: [id, name, slug, website]
+      required: [id, name, slug, website, sector, city, founded_year, logo]
       properties:
         id: { type: integer }
         name: { type: string }
         slug: { type: string }
         website: { type: [string, 'null'] }
+        sector: { oneOf: [{ type: 'null' }, { type: object, required: [name, slug], properties: { name: { type: string }, slug: { type: string } } }], description: 'Sector (5.2, 5.3).' }
+        city: { oneOf: [{ type: 'null' }, { type: object, required: [name, slug], properties: { name: { type: string }, slug: { type: string } } }] }
+        founded_year: { type: [integer, 'null'] }
+        logo: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
     HomeBlock:
       type: object
       required: [id, type, title]
@@ -2955,7 +2990,7 @@ components:
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }]
         contact:
           type: object
-          required: [phone, whatsapp, whatsapp_message, whatsapp_url, email, address]
+          required: [phone, whatsapp, whatsapp_message, whatsapp_url, email, address, map_url]
           properties:
             phone: { type: [string, 'null'], example: '+970599123456' }
             whatsapp: { type: [string, 'null'] }
@@ -2963,6 +2998,7 @@ components:
             whatsapp_url: { type: [string, 'null'], description: 'https://wa.me/… with the ready message.' }
             email: { type: [string, 'null'], format: email }
             address: { type: [string, 'null'] }
+            map_url: { type: [string, 'null'], description: 'The place on a map (a share link), for the contact page (28).' }
         social:
           type: array
           items:
@@ -3019,7 +3055,7 @@ components:
         items: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/PostSummary' } }
     PostSummary:
       type: object
-      required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
+      required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor, facts]
       properties:
         id: { type: integer }
         kind: { $ref: '#/components/schemas/Kind' }
@@ -3044,6 +3080,24 @@ components:
         sponsor:
           description: Present for sponsored content, which must be shown with a clear label.
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }]
+        facts:
+          description: |
+            What a list needs of two kinds without opening each item: a history item's era and years (5.4, the timeline) and an
+            initiative's name and state (5.5). Null for every other kind.
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              required: [era, period_label, year_from, year_to]
+              properties:
+                era: { oneOf: [{ type: 'null' }, { type: object, required: [id, name], properties: { id: { type: integer }, name: { type: string } } }] }
+                period_label: { type: [string, 'null'] }
+                year_from: { type: [integer, 'null'] }
+                year_to: { type: [integer, 'null'] }
+            - type: object
+              required: [initiative_name, status]
+              properties:
+                initiative_name: { type: string }
+                status: { enum: [ongoing, ended] }
         views:
           description: |
             How many times the post was read, all time (22.12). **Only present when the admin shows view counts**
