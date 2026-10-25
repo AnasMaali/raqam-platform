@@ -206,7 +206,7 @@ test.describe('the panel', () => {
     test('the search statistics show what was searched, never an e-mail or a phone number', async ({ page, app, adminPassword }) => {
         await signIn(page, app, adminPassword);
         for (const q of ['أسعار الذهب', 'أسعار الذهب', 'كلمة لا توجد', 'someone@example.com', '0599123456']) {
-            await page.request.get(`${app.url}/api/v1/search?${new URLSearchParams({ q, track: '1' })}`);
+            await page.request.get(`${app.url}/api/v1/search?${new URLSearchParams({ q, track: '1' })}`, { headers: { 'X-Raqam-Site-Token': 'e2e-site-token' } });
         }
 
         await page.goto(panel('/search-statistics'));

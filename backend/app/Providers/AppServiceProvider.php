@@ -33,6 +33,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 
@@ -53,10 +54,24 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Bootstrap any application services.
      */
+    /**
+     * Every address the back end writes (ad click links in a cached answer, signed links, redirects) starts with APP_URL over
+     * https, whatever Host header a request carried: a forged Host cannot end up in a shared cache (security review).
+     */
+    public static function pinUrls(): void
+    {
+        URL::forceRootUrl((string) config('app.url'));
+        URL::forceScheme('https');
+    }
+
     public function boot(): void
     {
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+
+        if ($this->app->isProduction()) {
+            self::pinUrls();
+        }
 
         // The sign-in code page is a bare route, not a panel page, so Filament does not register it. Without
         // a name Livewire cannot find it again when the page posts back to /livewire/update (419).
@@ -70,6 +85,8 @@ class AppServiceProvider extends ServiceProvider
         // The preview page and the upload endpoint of Livewire: 60 a minute per visitor (an unnamed throttle keys on a bare hash of the address).
         RateLimiter::for('per-visitor', fn (Request $request) => Limit::perMinute(60)->by(TrackingHash::visitor($request->ip())));
         config(['livewire.temporary_file_upload.middleware' => 'throttle:per-visitor']);
+        // An SVG chosen in a panel form is never previewed as itself: the media library cleans it first (security review).
+        config(['livewire.temporary_file_upload.preview_mimes' => array_values(array_diff((array) config('livewire.temporary_file_upload.preview_mimes'), ['svg']))]);
 
         // The largest file the media library accepts (an image); the library itself checks each type's own limit.
         config(['livewire.temporary_file_upload.rules' => ['required', 'file', 'max:'.(int) (max(config('media.limits.image_upload'), config('media.limits.video')) / 1024)]]);

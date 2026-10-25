@@ -26,7 +26,7 @@ beforeEach(function () {
     Storage::fake('media_local_public');
     Bus::fake([GenerateMediaVariants::class]);
     ensurePostKinds();
-    config(['raqam.search.key' => '']);   // the database search; the engine is used where a test says so
+    config(['raqam.search.key' => '', 'raqam.api.site_token' => 'search-site-token']);   // the database search; the engine is used where a test says so
     $this->user = User::factory()->staff()->create();
     $this->cover = app(MediaUploader::class)->store(uploadFile(imageBytes(300, 200)), 'c.jpg', ['alt_text' => 'غلاف'], null)->asset;
     $this->category = Category::query()->whereNull('parent_id')->first();
@@ -45,7 +45,9 @@ function item(string $title, array $extra = [], string $kind = 'news'): Post
 
 function searchApi(array $query, array $headers = [])
 {
-    // Headers set for one request must not stay on the next.
+    // Headers set for one request must not stay on the next. Statistics come from the site's server: track=1 goes with its token.
+    $headers += isset($query['track']) ? ['X-Raqam-Site-Token' => 'search-site-token'] : [];
+
     return test()->flushHeaders()->withHeaders($headers)->getJson('/api/v1/search?'.http_build_query($query));
 }
 
@@ -301,4 +303,21 @@ test('the limit counters in Redis hold no raw address, neither the caller\'s nor
             $connection->del(str_replace((string) config('database.redis.options.prefix'), '', (string) $key));
         }
     }
+});
+
+test('only the site\'s server can count a search: track=1 without its token records nothing', function () {
+    $this->flushHeaders()->getJson('/api/v1/search?q='.rawurlencode('أسعار الذهب').'&track=1')->assertOk();
+    $this->flushHeaders()->withHeaders(['X-Raqam-Site-Token' => 'wrong'])->getJson('/api/v1/search?q='.rawurlencode('أسعار الذهب').'&track=1')->assertOk();
+
+    expect(DB::table('search_terms')->count())->toBe(0);
+    searchApi(['q' => 'أسعار الذهب', 'track' => '1']);
+    expect(DB::table('search_terms')->count())->toBe(1);
+});
+
+test('text that is not UTF-8 is refused before anything reads it, never a server error', function (string $url) {
+    $this->get($url)->assertStatus(422)->assertJsonPath('error.code', 'invalid');
+})->with(['/api/v1/search?q=%FF%FE', '/api/v1/videos?section=%FF', '/api/v1/redirects/lookup?path=/%FF', '/api/v1/posts?tag=%C3%28', '/api/v1/search?%FF=1']);
+
+test('a JSON body that is not UTF-8 is refused too', function () {
+    $this->call('POST', '/api/v1/contact', [], [], [], ['CONTENT_TYPE' => 'application/json'], "{\"name\": \"\xFF\"}")->assertStatus(422);
 });

@@ -1,0 +1,14 @@
+# Secret scanning (decision 24.12), run by CI on every push over the whole history.
+# The default rules apply everywhere. The only exception: made-up keys in the test suite, which are written to look fake
+# (test-, fake, example, 0123456789 …). A real key in a test file, or a key anywhere else, still fails the scan.
+title = "raqam"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Made-up keys in the tests"
+condition = "AND"
+paths = ['''^backend/tests/''']
+regexTarget = "match"
+regexes = ['''(?i)(test|fake|dummy|example|never-to-be-seen|0123456789|1234567890|abcdefgh|zyxwvu|qwerty|13579|7f3a9c|a1b2c3d4|secret-123456)''']

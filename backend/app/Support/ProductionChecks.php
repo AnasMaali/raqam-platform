@@ -75,6 +75,10 @@ final class ProductionChecks
                 $failures[] = 'BREVO_WEBHOOK_TOKEN must be set (at least 32 characters).';
             }
         }
+        // Every address the back end writes starts with it (AppServiceProvider::pinUrls).
+        if (! str_starts_with((string) config('app.url'), 'https://')) {
+            $failures[] = 'APP_URL must be the https:// address of the back end.';
+        }
         if (! str_starts_with((string) config('raqam.site_url'), 'https://')) {
             $failures[] = 'SITE_URL must be the https:// address of the website.';
         }
@@ -99,6 +103,13 @@ final class ProductionChecks
         // Search must run on the engine in production; PostgreSQL is only the fallback for when it is down (10.11).
         if (blank(config('raqam.search.key')) || preg_match('/^[a-z0-9_]{2,40}$/', (string) config('raqam.search.prefix')) !== 1) {
             $failures[] = 'MEILISEARCH_KEY (a scoped key from search:create-key) and MEILISEARCH_PREFIX must be set.';
+        }
+
+        // Secrets that guard the forms, the sign-in codes and the visitor HMACs must not be guessable (security review).
+        foreach (['API_SITE_TOKEN' => 'raqam.api.site_token', 'ADMIN_CODE_KEY' => 'raqam.auth.code_key', 'TRACKING_HASH_KEY' => 'raqam.tracking_key'] as $name => $setting) {
+            if (filled(config($setting)) && strlen((string) config($setting)) < 32) {
+                $failures[] = "{$name} must be at least 32 characters.";
+            }
         }
 
         foreach ([
