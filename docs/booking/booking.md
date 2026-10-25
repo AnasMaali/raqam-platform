@@ -31,3 +31,10 @@ once on, the panel can switch them off as an emergency stop (payments first, the
 - One address gets at most 3 confirmation mails a day, whoever asks (`raqam.booking.confirmations_per_address_day`).
 - The status-change mail cannot carry the link (only its hash exists); it points to the first message.
 - The booking mails are switched on in the template catalogue: nothing sends them while the feature is off.
+
+## The admin's side (15.10, switched off)
+
+`App\Booking\BookingInbox`, for the panel screen that comes with booking: the list (stage, service, Palestine days, a
+search on reference, name or e-mail), one booking with its customer, service, stages and attachments, the planned date
+(Palestine time, can be cleared), the published item it led to (live items only) and dated internal notes that are added,
+never replaced. Every write is audited; the stage still moves only through `BookingStatuses`.

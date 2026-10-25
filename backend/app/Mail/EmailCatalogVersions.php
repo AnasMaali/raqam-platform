@@ -19,6 +19,7 @@ final class EmailCatalogVersions
         'admin_video_unavailable' => ['18f5e73437adc1e9594191e87341cfec8d8283e5379e0ca9bcfced59f263dd57'],
         'admin_job_failed' => ['3eb7e078f7bf67cb480f94e07aa5022c79c673e8b3295708ffdcb846d2e6d9c7'],
         'admin_disk_space' => ['97d732f37dcb8dccb50e6a3b7ac8a441af9b3839a983ba718af15a697a0717cf'],
+        'admin_failed_signins' => ['81a0809d89f42bbf9db08aabe76185d8e5f81862892731b35522aeacdf54dece'],
         'admin_ad_ending' => ['810a338e454b4f2591c1afcf127207b14589bb4cc47c181b6c9e931e365d7454'],
         'admin_weekly_digest' => ['f5968d254ea52e152438c19fae4a1bae26a889be239c09d738688cd3face1db1'],
         'booking_received' => ['8693e64bf6666e395100b033521d10f8e839934d3a47912ca8b4d64f33207f68', '873ca7b03ba56fbf52caed3bcc1544d0a2673a0a12869b86a1cbebc132d97ccc'],

@@ -17,6 +17,8 @@ class PostApiController extends ApiController
             'kind' => ['nullable', 'in:news,report,opinion,infographic,episode,story,product,history,initiative,roundtable,awareness'],
             'category' => $slug, 'tag' => $slug, 'section' => $slug, 'author' => $slug, 'guest' => $slug,
             'featured' => ['nullable', 'in:1'], 'breaking' => ['nullable', 'in:1'],
+            // 5.5: initiatives by their state; 5.4: the history timeline, oldest era and year first.
+            'initiative_status' => ['nullable', 'in:ongoing,ended'], 'order' => ['nullable', 'in:latest,timeline'],
         ]);
 
         $posts = Post::query()->live()
@@ -29,7 +31,13 @@ class PostApiController extends ApiController
             ->when($q['guest'] ?? null, fn ($b, $v) => $b->whereIn('id', DB::table('post_guests')->join('guests', 'guests.id', '=', 'post_guests.guest_id')->where('guests.slug', $v)->whereNull('guests.deleted_at')->select('post_id')))
             ->when($q['featured'] ?? null, fn ($b) => $b->where('is_featured', true))
             ->when($q['breaking'] ?? null, fn ($b) => $b->where('breaking_until', '>', now()))
-            ->orderByDesc('published_at')->orderByDesc('id')
+            ->when($q['initiative_status'] ?? null, fn ($b, $v) => $b->whereIn('id', DB::table('initiatives')->where('status', $v)->select('post_id')))
+            ->when(($q['order'] ?? 'latest') === 'timeline',
+                // Items without a place on the timeline (other kinds) come after it, newest first as usual.
+                // Sub-selects, not joins: the visibility rules name their columns without the table.
+                fn ($b) => $b->orderByRaw('(SELECT e.sort_order FROM history_entries h JOIN eras e ON e.id = h.era_id WHERE h.post_id = posts.id) NULLS LAST')
+                    ->orderByRaw('(SELECT h.year_from FROM history_entries h WHERE h.post_id = posts.id) NULLS LAST')->orderBy('published_at')->orderBy('id'),
+                fn ($b) => $b->orderByDesc('published_at')->orderByDesc('id'))
             ->paginate(self::PER_PAGE, page: (int) ($q['page'] ?? 1));
 
         return $this->pageOf($posts, $this->presenter->summaries(collect($posts->items())), array_diff_key($q, ['page' => 1]));

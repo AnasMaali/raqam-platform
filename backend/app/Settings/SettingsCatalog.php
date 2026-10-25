@@ -24,6 +24,8 @@ final class SettingsCatalog
             'contact.email' => ['group' => 'التواصل', 'label' => 'البريد الإلكتروني للتواصل', 'type' => 'email'],
             'contact.email_subject' => ['group' => 'التواصل', 'label' => 'عنوان رسالة البريد الجاهز', 'type' => 'string', 'hint' => 'يُضاف إليه اسم الخدمة تلقائياً، مثل: استفسار عن خدمة: حلقة بودكاست'],
             'contact.address' => ['group' => 'التواصل', 'label' => 'العنوان', 'type' => 'string'],
+            'contact.map_url' => ['group' => 'التواصل', 'label' => 'رابط الموقع على الخريطة', 'type' => 'url',
+                'hint' => 'رابط مشاركة المكان من خرائط جوجل أو OpenStreetMap؛ يظهر في صفحة «اتصل بنا» (28).'],
             'mail.no_reply' => ['group' => 'البريد', 'label' => 'عنوان رسائل النظام (no-reply@)', 'type' => 'email', 'hint' => 'رموز الدخول والتنبيهات. فارغ = عنوان MAIL_FROM_ADDRESS'],
             'mail.info' => ['group' => 'البريد', 'label' => 'عنوان التواصل (info@)', 'type' => 'email', 'hint' => 'الرد التلقائي على «اتصل بنا»'],
             'mail.ads' => ['group' => 'البريد', 'label' => 'عنوان الإعلانات (ads@)', 'type' => 'email'],

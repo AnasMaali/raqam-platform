@@ -13,6 +13,7 @@ use App\Payments\PaymentGateway;
 use App\Payments\PaymentRefused;
 use App\Payments\Payments;
 use App\Payments\Refunds;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -448,4 +449,10 @@ test('F3: a bank that does not answer is a clear 503 when starting, and "pending
     startPayment($token)->assertStatus(503)->assertJsonPath('error.code', 'gateway_failed')->assertJsonMissingPath('error.details');
     returnFromBank($order)->assertOk()->assertJsonPath('data.status', 'pending');
     expect(DB::table('payments')->value('status'))->toBe('pending');
+});
+
+test('the scheduler asks about stuck payments every 15 minutes, never twice at once (16.7)', function () {
+    $task = collect(app(Schedule::class)->events())->first(fn ($e) => str_contains($e->command, 'payments:reconcile'));
+
+    expect($task)->not->toBeNull()->and($task->expression)->toBe('*/15 * * * *')->and($task->withoutOverlapping)->toBeTrue();
 });

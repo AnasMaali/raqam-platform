@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\BotQuickReplies;
 
 use App\Chat\KnowledgeBase;
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\BotQuickReplies\Pages\ManageBotQuickReplies;
 use App\Models\BotQuickReply;
@@ -18,6 +19,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
 
@@ -71,11 +73,14 @@ class BotQuickReplyResource extends Resource
         return $table
             ->reorderable('sort_order')->defaultSort('sort_order')
             ->columns([
-                TextColumn::make('label_ar')->label('الزر'),
+                TextColumn::make('label_ar')->label('الزر')->searchable(),
                 TextColumn::make('action_type')->label('عند الضغط')->formatStateUsing(fn (string $state) => self::ACTIONS[$state] ?? $state),
                 IconColumn::make('is_root')->label('عند الفتح')->boolean(),
                 IconColumn::make('is_active')->label('مفعّل')->boolean(),
             ])
+            ->filters([TernaryFilter::make('is_active')->label('مفعّل'), TernaryFilter::make('is_root')->label('عند الفتح')])
+            ->toolbarActions([...array_map(fn ($a) => $a->after(fn () => KnowledgeBase::changed()), BulkRecords::toggle('is_active', 'تفعيل المحدد', 'إيقاف المحدد')),
+                BulkRecords::delete()->after(fn () => KnowledgeBase::changed())])
             ->recordActions([
                 EditAction::make()->label('تعديل')->mutateDataUsing(fn (array $data) => self::clean($data))->after(fn () => KnowledgeBase::changed()),
                 DeleteAction::make()->label('حذف')->after(fn () => KnowledgeBase::changed()),

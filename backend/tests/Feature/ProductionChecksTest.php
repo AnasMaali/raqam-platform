@@ -98,3 +98,11 @@ test('the shipped defaults already satisfy the session checks, and .env.example 
         ->and($example)->not->toHaveKeys(['SESSION_SECURE_COOKIE', 'SESSION_SAME_SITE', 'SESSION_COOKIE', 'SESSION_HTTP_ONLY'])
         ->and($example['SESSION_DOMAIN'])->toBe('null');
 });
+
+test('production refuses any password hashing but Argon2id (24.6)', function () {
+    productionConfig(['hashing.driver' => 'bcrypt']);
+    expect(ProductionChecks::failures())->toContain('HASH_DRIVER must be argon2id (passwords are hashed with Argon2id).');
+
+    productionConfig(['hashing.driver' => 'argon2id']);
+    expect(implode("\n", ProductionChecks::failures()))->not->toContain('HASH_DRIVER');
+});

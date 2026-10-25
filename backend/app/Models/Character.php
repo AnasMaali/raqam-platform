@@ -3,15 +3,17 @@
 namespace App\Models;
 
 use App\Audit\Audited;
+use App\Content\KeepsOldAddresses;
 use App\Jobs\SendSiteWebhook;
 use App\Models\Concerns\HasSeoMeta;
+use App\Seo\SitePaths;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** An awareness character (decision 7): a name, a role, a colour and up to five poses, each with a picture and maybe an animation state. */
 class Character extends Model
 {
-    use Audited, HasSeoMeta;
+    use Audited, HasSeoMeta, KeepsOldAddresses;
 
     protected $fillable = ['name_ar', 'slug', 'role_ar', 'description', 'accent_color', 'rive_media_id', 'seo_meta_id', 'sort_order', 'is_active'];
 
@@ -70,5 +72,11 @@ class Character extends Model
     public function rive(): BelongsTo
     {
         return $this->belongsTo(MediaAsset::class, 'rive_media_id');
+    }
+
+    /** Its public page (23.3); a changed slug leaves a 301 behind, a deletion a 410 (23.6). */
+    public static function addressFor(string $slug): string
+    {
+        return SitePaths::character($slug);
     }
 }

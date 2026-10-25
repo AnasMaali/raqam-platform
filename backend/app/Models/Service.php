@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Audit\Audited;
+use App\Content\KeepsOldAddresses;
 use App\Models\Concerns\HasSeoMeta;
+use App\Seo\SitePaths;
 use App\Services\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -18,7 +20,7 @@ use Illuminate\Support\Facades\DB;
 class Service extends Model
 {
     use Audited { auditChanges as baseAuditChanges; }
-    use HasSeoMeta, SoftDeletes;
+    use HasSeoMeta, KeepsOldAddresses, SoftDeletes;
 
     public const MODES = ['fixed' => 'سعر ثابت', 'from' => 'يبدأ من', 'on_request' => 'السعر عند التواصل'];
 
@@ -79,5 +81,11 @@ class Service extends Model
         $after = self::priceLine($this->getAttributes());
 
         return ['price' => [$before, $after]] + $changes;
+    }
+
+    /** Its public page (23.3); a changed slug leaves a 301 behind, a deletion a 410 (23.6). */
+    public static function addressFor(string $slug): string
+    {
+        return SitePaths::service($slug);
     }
 }

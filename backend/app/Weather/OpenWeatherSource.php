@@ -17,12 +17,17 @@ use JsonException;
  * Nothing in an answer is trusted: numbers are read as text and checked against physical ranges, the condition code
  * must be a known one (or fall back to its group), times must be near our own clock.
  */
-final class OpenWeatherSource
+final class OpenWeatherSource implements WeatherSource
 {
     private const MAX_BYTES = 262144;
 
     /** Forecast slots: the free plan sends 40 (5 days × 8); more is a broken answer. */
     private const MAX_SLOTS = 60;
+
+    public function code(): string
+    {
+        return 'openweathermap';
+    }
 
     public function configured(): bool
     {

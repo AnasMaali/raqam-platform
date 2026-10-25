@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Faqs;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Faqs\Pages\CreateFaq;
 use App\Filament\Resources\Faqs\Pages\EditFaq;
@@ -18,6 +19,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -66,6 +68,12 @@ class FaqResource extends Resource
                 TextColumn::make('question')->label('السؤال')->searchable()->wrap(),
                 IconColumn::make('is_published')->label('منشور')->boolean(),
             ])
+            ->filters([
+                TernaryFilter::make('is_published')->label('منشور'),
+                TernaryFilter::make('general')->label('عام (ليس لخدمة)')
+                    ->queries(true: fn ($query) => $query->whereNull('service_id'), false: fn ($query) => $query->whereNotNull('service_id')),
+            ])
+            ->toolbarActions([...BulkRecords::toggle('is_published', 'نشر المحدد', 'إلغاء نشر المحدد'), BulkRecords::delete()])
             ->recordActions([EditAction::make()->label('تعديل'), DeleteAction::make()->label('حذف')->modalDescription('يُحذف من صفحة الأسئلة الشائعة ومن الشات بوت.')]);
     }
 

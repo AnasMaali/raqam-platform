@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Keeps old addresses working (decisions 23.2, 23.6): a changed slug becomes a 301 from the old address to the
- * new one, and a post deleted for good leaves a 410 ("gone") behind. Chains are never built: whatever pointed at
+ * new one, and a post (or any other page) deleted for good leaves a 410 ("gone") behind. Chains are never built: whatever pointed at
  * the old address is pointed at the new one, and an address that is live again stops being a redirect.
  */
 final class RedirectManager
@@ -16,13 +16,29 @@ final class RedirectManager
     /** The slug of a post changed: its old address now leads to the new one. */
     public function slugChanged(string $kind, int $id, string $oldSlug, string $newSlug, ?int $userId): void
     {
-        if ($oldSlug === $newSlug) {
+        if ($oldSlug !== $newSlug) {
+            $this->moved(PostPath::for($kind, $id, $oldSlug), PostPath::for($kind, $id, $newSlug), $userId);
+        }
+    }
+
+    /** A post was deleted for good: its addresses answer "gone" (410). */
+    public function gone(string $kind, int $id, string $slug, ?int $userId): void
+    {
+        $this->pathsGone([PostPath::for($kind, $id, $slug), PostPath::bare($kind, $id)], $userId);
+    }
+
+    /** The post is back (restored from the trash before it was purged): its addresses are live again. */
+    public function revived(string $kind, int $id, string $slug): void
+    {
+        $this->pathsRevived([PostPath::for($kind, $id, $slug), PostPath::bare($kind, $id)]);
+    }
+
+    /** Any page of the site moved (a post, a category, a tag …, 23.6): the old address leads to the new one, without chains. */
+    public function moved(string $old, string $new, ?int $userId): void
+    {
+        if ($old === $new) {
             return;
         }
-
-        $old = PostPath::for($kind, $id, $oldSlug);
-        $new = PostPath::for($kind, $id, $newSlug);
-
         DB::transaction(function () use ($old, $new, $userId) {
             // The new address is live now, so it cannot also be a redirect.
             DB::table('redirects')->where('from_path', $new)->delete();
@@ -34,27 +50,23 @@ final class RedirectManager
         });
     }
 
-    /** A post was deleted for good: its addresses answer "gone" (410). */
-    public function gone(string $kind, int $id, string $slug, ?int $userId): void
+    /** Pages that are gone for good answer 410, and so do the old addresses that led to them. @param list<string> $paths */
+    public function pathsGone(array $paths, ?int $userId): void
     {
-        DB::transaction(function () use ($kind, $id, $slug, $userId) {
-            $paths = [PostPath::for($kind, $id, $slug), PostPath::bare($kind, $id)];
-
-            // Old addresses that led here are gone as well.
+        DB::transaction(function () use ($paths, $userId) {
             foreach (DB::table('redirects')->where('status_code', 301)->whereIn('to_path', $paths)->pluck('from_path') as $from) {
                 $paths[] = $from;
             }
-
             foreach (array_unique($paths) as $path) {
                 $this->put($path, null, 410, $userId);
             }
         });
     }
 
-    /** The post is back (restored from the trash before it was purged): its addresses are live again. */
-    public function revived(string $kind, int $id, string $slug): void
+    /** Addresses that are live again stop answering 410. @param list<string> $paths */
+    public function pathsRevived(array $paths): void
     {
-        DB::table('redirects')->whereIn('from_path', [PostPath::for($kind, $id, $slug), PostPath::bare($kind, $id)])->where('status_code', 410)->delete();
+        DB::table('redirects')->whereIn('from_path', $paths)->where('status_code', 410)->delete();
     }
 
     private function put(string $from, ?string $to, int $status, ?int $userId): void

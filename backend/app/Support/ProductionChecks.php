@@ -79,6 +79,11 @@ final class ProductionChecks
             $failures[] = 'SITE_URL must be the https:// address of the website.';
         }
 
+        // Decision 24.6: the hashing driver lives in config/hashing.php, but HASH_DRIVER could still override it.
+        if (config('hashing.driver') !== 'argon2id') {
+            $failures[] = 'HASH_DRIVER must be argon2id (passwords are hashed with Argon2id).';
+        }
+
         if (filled(config('raqam.indexnow.endpoint_override'))) {
             $failures[] = 'INDEXNOW_ENDPOINT is for browser tests only and must not be set.';
         }

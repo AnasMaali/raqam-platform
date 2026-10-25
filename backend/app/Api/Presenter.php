@@ -83,20 +83,21 @@ final class Presenter
     public function summaries(Collection $posts): array
     {
         $this->preload($posts->pluck('cover_media_id'));
-        $kinds = DB::table('post_kinds')->pluck('name_ar', 'code');
+        $kinds = DB::table('post_kinds')->get(['code', 'name_ar', 'schema_org_type'])->keyBy('code');
         $categories = DB::table('categories')->whereIn('id', $posts->pluck('category_id')->filter())->get()->keyBy('id');
         $authors = DB::table('post_authors')->join('authors', 'authors.id', '=', 'post_authors.author_id')->whereNull('authors.deleted_at')
             ->whereIn('post_id', $posts->pluck('id'))->orderBy('post_authors.sort_order')->get(['post_id', 'authors.id', 'authors.name', 'authors.slug'])->groupBy('post_id');
         $sponsors = DB::table('organizations')->whereIn('id', $posts->pluck('sponsor_organization_id')->filter())->get()->keyBy('id');
+        $facts = $this->listFacts($posts);
         // 22.12: the number of readings only when the admin shows it; otherwise the field is not sent at all.
         $views = ViewCounts::shown() ? ViewCounts::totals($posts->pluck('id')) : null;
 
-        return $posts->map(function (Post $p) use ($kinds, $categories, $authors, $sponsors, $views) {
+        return $posts->map(function (Post $p) use ($kinds, $categories, $authors, $sponsors, $views, $facts) {
             $c = $categories->get($p->category_id);
             $s = $sponsors->get($p->sponsor_organization_id);
 
             return ($views === null ? [] : ['views' => $views[$p->id] ?? 0]) + [
-                'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code] ?? $p->kind_code],
+                'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code]->name_ar ?? $p->kind_code, 'schema_type' => $kinds[$p->kind_code]->schema_org_type ?? 'Article'],
                 'title' => $p->title, 'subtitle' => $p->subtitle, 'excerpt' => $p->excerpt, 'slug' => $p->slug,
                 'path' => PostPath::for($p->kind_code, $p->id, $p->slug),
                 'published_at' => $this->iso($p->published_at), 'updated_at' => $this->iso($p->updated_at),
@@ -106,13 +107,48 @@ final class Presenter
                 'is_featured' => (bool) $p->is_featured, 'is_breaking' => $p->isBreaking(),
                 'breaking_until' => $p->isBreaking() ? $this->iso($p->breaking_until) : null,
                 'sponsor' => $s ? $this->organization($s) : null,
+                'facts' => $facts[$p->id] ?? null,
             ];
         })->values()->all();
     }
 
+    /**
+     * What a list needs of two kinds to be filtered and drawn without opening every item (5.4, 5.5): a history item's era
+     * and years (the timeline), an initiative's name and state (ongoing/ended). Null for the other kinds.
+     *
+     * @param  Collection<int, Post>  $posts
+     * @return array<int, array<string, mixed>>
+     */
+    private function listFacts(Collection $posts): array
+    {
+        $facts = [];
+        $history = DB::table('history_entries')->leftJoin('eras', 'eras.id', '=', 'history_entries.era_id')
+            ->whereIn('post_id', $posts->where('kind_code', 'history')->pluck('id'))
+            ->get(['post_id', 'eras.id as era_id', 'eras.name_ar as era_name', 'period_label', 'history_entries.year_from', 'history_entries.year_to']);
+        foreach ($history as $h) {
+            $facts[$h->post_id] = ['era' => $h->era_id ? ['id' => (int) $h->era_id, 'name' => $h->era_name] : null, 'period_label' => $h->period_label,
+                'year_from' => $h->year_from === null ? null : (int) $h->year_from, 'year_to' => $h->year_to === null ? null : (int) $h->year_to];
+        }
+        foreach (DB::table('initiatives')->whereIn('post_id', $posts->where('kind_code', 'initiative')->pluck('id'))->get(['post_id', 'initiative_name', 'status']) as $i) {
+            $facts[$i->post_id] = ['initiative_name' => $i->initiative_name, 'status' => $i->status];
+        }
+
+        return $facts;
+    }
+
     public function organization(object $o): array
     {
-        return ['id' => (int) $o->id, 'name' => $o->name, 'slug' => $o->slug, 'website' => $o->website];
+        $sector = $o->sector_id ? DB::table('sectors')->where('id', $o->sector_id)->first(['name_ar', 'slug']) : null;
+        $city = $o->city_id ? DB::table('cities')->where('id', $o->city_id)->first(['name_ar', 'slug']) : null;
+
+        return [
+            'id' => (int) $o->id, 'name' => $o->name, 'slug' => $o->slug, 'website' => $o->website,
+            // 5.2, 5.3: what a success story or a Made in Nablus product shows of its company.
+            'sector' => $sector ? ['name' => $sector->name_ar, 'slug' => $sector->slug] : null,
+            'city' => $city ? ['name' => $city->name_ar, 'slug' => $city->slug] : null,
+            'founded_year' => $o->founded_year === null ? null : (int) $o->founded_year,
+            'logo' => $this->media($o->logo_media_id ?? null),
+        ];
     }
 
     public function detail(Post $post): array

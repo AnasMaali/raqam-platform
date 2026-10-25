@@ -28,6 +28,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\ColorColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\DB;
 
@@ -105,6 +106,7 @@ class CharacterResource extends Resource
                 TextColumn::make('cards')->label('البطاقات')->state(fn (Character $c) => DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')->where('character_poses.character_id', $c->id)->count()),
                 IconColumn::make('is_active')->label('ظاهرة')->boolean(),
             ])
+            ->filters([TernaryFilter::make('is_active')->label('ظاهرة')])
             ->recordActions([EditAction::make()->label('تعديل')]);
     }
 

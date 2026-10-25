@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tags;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\SeoSection;
 use App\Filament\Resources\Tags\Pages\CreateTag;
@@ -19,6 +20,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +70,12 @@ class TagResource extends Resource
                 TextColumn::make('name_ar')->label('الاسم')->searchable(query: fn (Builder $query, string $search) => $query->whereRaw('search_name ILIKE \'%\' || normalize_ar(?) || \'%\'', [$search])),
                 TextColumn::make('posts_count')->label('عدد المواد')->sortable()->numeric(),
             ])
+            ->filters([
+                TernaryFilter::make('used')->label('مستعمل في مواد')
+                    ->queries(true: fn ($query) => $query->whereExists(fn ($q) => $q->selectRaw('1')->from('post_tags')->whereColumn('post_tags.tag_id', 'tags.id')),
+                        false: fn ($query) => $query->whereNotExists(fn ($q) => $q->selectRaw('1')->from('post_tags')->whereColumn('post_tags.tag_id', 'tags.id'))),
+            ])
+            ->toolbarActions([BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('يُزال الوسم من كل المواد التي تستعمله.'),

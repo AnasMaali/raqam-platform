@@ -19,6 +19,7 @@ use Filament\Schemas\Components\Text;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -82,7 +83,7 @@ class NewsletterIssueResource extends Resource
             ->defaultSort('week_start', 'desc')
             ->columns([
                 TextColumn::make('week_start')->label('الأسبوع')->date('Y-m-d'),
-                TextColumn::make('subject')->label('العنوان')->limit(60),
+                TextColumn::make('subject')->label('العنوان')->limit(60)->searchable(),
                 TextColumn::make('status')->label('الحالة')->badge()
                     ->color(fn (string $state) => match ($state) {
                         'sent' => 'success', 'sent_to_brevo' => 'warning', default => 'gray'
@@ -96,6 +97,7 @@ class NewsletterIssueResource extends Resource
                     return $s ? $s['opens'].' / '.$s['clicks'] : '—';
                 }),
             ])
+            ->filters([SelectFilter::make('status')->label('الحالة')->options(NewsletterIssues::STATUSES)])
             ->recordActions([EditAction::make()->label('مراجعة')]);
     }
 

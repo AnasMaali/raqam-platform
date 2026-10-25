@@ -33,6 +33,7 @@ use App\Console\SearchSetupCommand;
 use App\Console\SearchSyncDueCommand;
 use App\Console\StatsFlushCommand;
 use App\Console\StatsPruneCommand;
+use App\Console\WatchSignInFailuresCommand;
 use App\Console\WeatherFetchCommand;
 use App\Console\WeeklyDigestCommand;
 use App\Http\Middleware\RequireFeature;
@@ -69,6 +70,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([ReconcilePaymentsCommand::class])
     // The switches only the server turns on (phase 10 review N1).
     ->withCommands([FeatureSwitchCommand::class])
+    // Many failed sign-ins in an hour alert the admins (24.15).
+    ->withCommands([WatchSignInFailuresCommand::class])
     // Every listener is registered by hand in AppServiceProvider. With discovery on as well, a class in app/Listeners ran
     // twice for each event (two webhooks for every post change).
     ->withEvents(discover: false)

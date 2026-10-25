@@ -20,6 +20,7 @@ use Filament\Schemas\Components\Text;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +66,7 @@ class AdPlacementResource extends Resource
             ]))
             ->paginated(false)
             ->columns([
-                TextColumn::make('name_ar')->label('المكان'),
+                TextColumn::make('name_ar')->label('المكان')->searchable(),
                 TextColumn::make('desktop')->label('كمبيوتر')->state(fn (AdPlacement $p) => ($s = $p->size('desktop')) ? "{$s['width']}×{$s['height']}" : '—')->extraAttributes(['dir' => 'ltr']),
                 TextColumn::make('mobile')->label('جوال')->state(fn (AdPlacement $p) => ($s = $p->size('mobile')) ? "{$s['width']}×{$s['height']}" : '—')->extraAttributes(['dir' => 'ltr']),
                 TextColumn::make('on')->label('يظهر')->badge()
@@ -76,6 +77,7 @@ class AdPlacementResource extends Resource
                     ->state(fn (AdPlacement $p) => $p->empty_behavior === 'hide' ? 'يختفي' : ($p->houseAd?->is_active ? '«أعلن معنا»' : '«أعلن معنا» (بلا صورة: يختفي)')),
                 IconColumn::make('lazy_load')->label('تحميل كسول')->boolean(),
             ])
+            ->filters([TernaryFilter::make('is_enabled')->label('يعمل')])
             ->recordActions([self::editAction()]);
     }
 

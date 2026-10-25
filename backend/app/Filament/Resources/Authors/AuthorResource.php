@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Authors;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Forms\MediaSelect;
@@ -96,6 +97,7 @@ class AuthorResource extends Resource
                 TernaryFilter::make('is_active')->label('فعّال'),
                 TrashedFilter::make()->label('المحذوفون'),
             ])
+            ->toolbarActions([BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('تبقى مواده محفوظة ويمكن استرجاعه لاحقاً.'),
