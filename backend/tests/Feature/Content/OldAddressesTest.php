@@ -17,8 +17,12 @@ uses(RefreshDatabase::class);
 
 function redirectsNow(): array
 {
-    return DB::table('redirects')->orderBy('from_path')->get(['from_path', 'to_path', 'status_code'])
+    // Sorted here, byte by byte: the database's collation orders "new-one" and "newer-one" differently on CI.
+    $rows = DB::table('redirects')->get(['from_path', 'to_path', 'status_code'])
         ->map(fn ($r) => $r->from_path.' '.$r->status_code.' '.($r->to_path ?? '-'))->all();
+    sort($rows, SORT_STRING);
+
+    return $rows;
 }
 
 dataset('addressed', [
