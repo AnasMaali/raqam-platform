@@ -44,9 +44,12 @@ function board(string $currency): object
     return DB::selectOne('select buy_rate::text, sell_rate::text, mid_rate::text, previous_rate::text, change_pct::text, is_manual, is_pegged from rate_board where currency_code = ?', [$currency]);
 }
 
+// Yesterday by the Palestine calendar: "now() - interval '1 day'" is still today in the last hour of a 25-hour day.
+const HEBRON_YESTERDAY_NOON = "((now() AT TIME ZONE 'Asia/Hebron')::date - 1 + time '12:00') AT TIME ZONE 'Asia/Hebron'";
+
 beforeEach(function () {
     ensureRateBoard();
-    insertRate('USD', 3.60, "now() - interval '1 day'");
+    insertRate('USD', 3.60, HEBRON_YESTERDAY_NOON);
     insertRate('USD', 3.75);
 });
 
@@ -65,6 +68,25 @@ test('a second rate on the same day is not the previous day', function () {
     insertRate('USD', 3.70, "now() - interval '1 second'");
 
     expect(board('USD'))->previous_rate->toBe('3.6000000000');
+});
+
+test('the previous publication day follows the Palestine calendar on the days the clocks change (25 and 23 hours)', function () {
+    $previousAt = function (string ...$times): ?string {
+        DB::table('exchange_rates')->where('currency_code', 'USD')->delete();
+        foreach ($times as $i => $at) {
+            insertRate('USD', 3.0 + $i / 10, "'{$at}'::timestamptz");
+        }
+
+        return board('USD')->previous_rate;
+    };
+
+    // 24 October 2026 has 25 hours (01:59:59 EEST → 01:00 EET). 00:30 and 23:30 are the same day, 24 hours apart.
+    expect($previousAt('2026-10-23 12:00+03', '2026-10-24 00:30+03', '2026-10-24 23:30+02'))->toBe('3.0000000000')
+        // Just after that midnight, 24 hours back is still the 24th: the day before is the 24th.
+        ->and($previousAt('2026-10-23 12:00+03', '2026-10-24 01:30+02', '2026-10-25 00:30+02'))->toBe('3.1000000000');
+    // 28 March 2026 has 23 hours (01:59:59 EET → 03:00 EEST). Just after the next midnight, 24 hours back is the 27th.
+    expect($previousAt('2026-03-27 12:00+02', '2026-03-28 23:30+03', '2026-03-29 00:30+03'))->toBe('3.1000000000')
+        ->and($previousAt('2026-03-27 12:00+02', '2026-03-28 01:30+02', '2026-03-28 23:30+03'))->toBe('3.0000000000');
 });
 
 test('a manual override wins while it is valid', function () {

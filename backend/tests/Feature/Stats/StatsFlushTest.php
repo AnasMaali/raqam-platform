@@ -2,6 +2,7 @@
 
 use App\Analytics\StatsFlusher;
 use App\Analytics\StatsKeys;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -113,6 +114,18 @@ test('yesterday is transferred too, so the last hour of a day is never lost', fu
     $this->artisan('stats:flush')->assertSuccessful();
 
     expect(dailyRows($yesterday)['site'])->toBe([1, 1]);
+});
+
+test('on the nights the clocks change, the last hour of the day still lands on that day (25 and 23 hours)', function () {
+    // 24 October 2026 has 25 hours, 28 March 2026 has 23: a hit at 23:50, flushed at 00:05 the next day.
+    foreach ([['2026-10-24 23:50', '2026-10-25 00:05', '2026-10-24'], ['2026-03-28 23:50', '2026-03-29 00:05', '2026-03-28']] as [$late, $flushed, $day]) {
+        $this->travelTo(CarbonImmutable::parse($late, 'Asia/Hebron'));
+        siteHit(['type' => 'view', 'path' => '/late-'.$day]);
+        expect(StatsKeys::today())->toBe($day);
+
+        app(StatsFlusher::class)->flush(CarbonImmutable::parse($flushed, 'Asia/Hebron'));
+        expect(dailyRows($day)['site'])->toBe([1, 1], $day);
+    }
 });
 
 test('rows of a post or video that was deleted meanwhile, or of an unknown counter, are left out', function () {

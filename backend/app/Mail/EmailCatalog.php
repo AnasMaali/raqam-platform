@@ -4,8 +4,8 @@ namespace App\Mail;
 
 /**
  * Every message the platform sends (decision 20), with the text it starts with. The admin edits the subject and the
- * body of each one from the panel (20.7); the row in email_templates is made from here the first time it is needed,
- * and never overwritten afterwards.
+ * body of each one from the panel (20.7); the row in email_templates is made from here the first time it is needed.
+ * A text changed here reaches the rows nobody edited through emails:install, once its hash is added to EmailCatalogVersions.
  *
  * A variable is written {name} in the subject or the body. Its kind says how its value goes in:
  *  - text: escaped, line breaks kept (anything a visitor typed is text);
