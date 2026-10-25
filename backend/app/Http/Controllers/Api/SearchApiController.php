@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Api\Presenter;
+use App\Api\SiteToken;
 use App\Models\Post;
 use App\Models\Video;
 use App\Search\Highlighter;
@@ -61,8 +62,9 @@ class SearchApiController extends ApiController
 
         $results = $this->searcher->search($query);
 
-        // Counted when the site says the visitor settled on this search (Enter, the results page), not per key.
-        if (($q['track'] ?? null) === '1' && $query->page === 1) {
+        // Counted when the site says the visitor settled on this search (Enter, the results page), not per key; only the
+        // site's own server (its token) can say so, so nobody else can fill or skew the statistics (phase 10b review).
+        if (($q['track'] ?? null) === '1' && $query->page === 1 && SiteToken::valid($request)) {
             SearchStats::record($query->text, $results->isEmpty());
         }
 

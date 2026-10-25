@@ -1,0 +1,38 @@
+name: Dependency audit
+
+# Known vulnerabilities in every package, once a month even when nothing is pushed (24.13: automatic check + monthly
+# update). A failed run shows on the repository's Actions page and e-mails the owner.
+on:
+  schedule:
+    - cron: "17 6 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: composer audit + npm audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+          coverage: none
+
+      - name: PHP packages
+        working-directory: backend
+        run: composer audit --no-interaction --locked --abandoned=report
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Browser-test packages
+        working-directory: e2e
+        run: npm audit --audit-level=low

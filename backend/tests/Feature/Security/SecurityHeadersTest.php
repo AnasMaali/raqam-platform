@@ -3,6 +3,7 @@
 use App\Content\PostPreview;
 use App\Models\Post;
 use App\Models\User;
+use App\Providers\AppServiceProvider;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -60,4 +61,17 @@ test('a header an endpoint chose for itself is kept (the preview page says no-re
 
     expect($response->headers->get('Referrer-Policy'))->toBe('no-referrer')
         ->and($response->headers->get('Content-Security-Policy'))->toContain("default-src 'none'")->toContain("frame-ancestors 'none'");
+});
+
+test('in production every address the back end writes starts with APP_URL over https, whatever Host a request carried', function () {
+    config(['app.url' => 'https://api.raqam.example']);
+    AppServiceProvider::pinUrls();
+
+    $this->withHeaders(['Host' => 'evil.example'])->get('/up');
+    expect(route('ads.click', ['campaign' => 1, 'placement' => 'top_banner', 'signature' => str_repeat('a', 32)]))->toStartWith('https://api.raqam.example/api/v1/ads/click/')
+        ->and(url('/x'))->toBe('https://api.raqam.example/x');
+});
+
+test('a file chosen in a panel form is never previewed as SVG (security review)', function () {
+    expect(config('livewire.temporary_file_upload.preview_mimes'))->not->toContain('svg')->toContain('png');
 });

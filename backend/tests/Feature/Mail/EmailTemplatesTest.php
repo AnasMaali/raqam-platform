@@ -200,3 +200,9 @@ test('a template row is made the first time it is needed, so a message never wai
     expect(DB::table('email_templates')->pluck('key')->all())->toBe(['visitor_contact_reply'])
         ->and(DB::table('email_log')->value('status'))->toBe('sent');
 });
+
+test('no template lists the same shipped text twice', function () {
+    foreach (EmailCatalogVersions::HASHES as $key => $hashes) {
+        expect(array_unique($hashes))->toHaveCount(count($hashes), $key);
+    }
+});

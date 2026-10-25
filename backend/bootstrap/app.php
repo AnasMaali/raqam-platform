@@ -25,6 +25,7 @@ use App\Console\PruneEmailLogCommand;
 use App\Console\PruneRetainedDataCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
+use App\Console\RaqamInstallCommand;
 use App\Console\ReconcilePaymentsCommand;
 use App\Console\SearchCreateKeyCommand;
 use App\Console\SearchEvaluateCommand;
@@ -36,6 +37,7 @@ use App\Console\StatsPruneCommand;
 use App\Console\WatchSignInFailuresCommand;
 use App\Console\WeatherFetchCommand;
 use App\Console\WeeklyDigestCommand;
+use App\Http\Middleware\RejectMalformedText;
 use App\Http\Middleware\RequireFeature;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -62,6 +64,8 @@ return Application::configure(basePath: dirname(__DIR__))
         PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, InstallPermissionsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+        // Text that is not UTF-8 is refused before anything reads it (phase 10b security review).
+        $middleware->api(prepend: [RejectMalformedText::class]);
         $middleware->alias(['feature' => RequireFeature::class]);
         // A switched-off system answers 404 before a request limit counts the request.
         $middleware->prependToPriorityList(ThrottleRequests::class, RequireFeature::class);
@@ -72,6 +76,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([FeatureSwitchCommand::class])
     // Many failed sign-ins in an hour alert the admins (24.15).
     ->withCommands([WatchSignInFailuresCommand::class])
+    // Every install step in order, safe to repeat (phase 10b freeze).
+    ->withCommands([RaqamInstallCommand::class])
     // Every listener is registered by hand in AppServiceProvider. With discovery on as well, a class in app/Listeners ran
     // twice for each event (two webhooks for every post change).
     ->withEvents(discover: false)

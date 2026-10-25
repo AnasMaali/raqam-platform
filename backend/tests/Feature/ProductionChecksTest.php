@@ -106,3 +106,16 @@ test('production refuses any password hashing but Argon2id (24.6)', function () 
     productionConfig(['hashing.driver' => 'argon2id']);
     expect(implode("\n", ProductionChecks::failures()))->not->toContain('HASH_DRIVER');
 });
+
+test('production refuses short secrets and a back-end address that is not https (security review)', function (string $setting, string $name) {
+    productionConfig([$setting => 'short-but-not-empty']);
+    expect(ProductionChecks::failures())->toContain("{$name} must be at least 32 characters.");
+})->with([['raqam.api.site_token', 'API_SITE_TOKEN'], ['raqam.auth.code_key', 'ADMIN_CODE_KEY'], ['raqam.tracking_key', 'TRACKING_HASH_KEY']]);
+
+test('production refuses an APP_URL that is not https', function () {
+    productionConfig(['app.url' => 'http://api.raqam.example']);
+    expect(ProductionChecks::failures())->toContain('APP_URL must be the https:// address of the back end.');
+
+    productionConfig();
+    expect(ProductionChecks::failures())->toBe([]);
+});

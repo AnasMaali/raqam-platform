@@ -11,7 +11,7 @@ test('synonyms, search statistics and quick search fit a phone', async ({ page, 
     await signIn(page, app, adminPassword);
     app.artisan(['synonyms:install']);
     for (const q of ['أسعار الذهب', 'سعر صرف الدولار أمام الشيكل اليوم في نابلس', 'كلمة طويلة جداً جداً جداً لا توجد في أي مادة منشورة']) {
-        await page.request.get(`${app.url}/api/v1/search?${new URLSearchParams({ q, track: '1' })}`);
+        await page.request.get(`${app.url}/api/v1/search?${new URLSearchParams({ q, track: '1' })}`, { headers: { 'X-Raqam-Site-Token': 'e2e-site-token' } });
     }
 
     for (const [name, path] of [['synonyms', '/synonyms'], ['new synonym group', '/synonyms/create'], ['search statistics', '/search-statistics']] as const) {
