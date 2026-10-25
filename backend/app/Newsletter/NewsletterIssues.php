@@ -3,6 +3,7 @@
 namespace App\Newsletter;
 
 use App\Api\Presenter;
+use App\Audit\AuditLogger;
 use App\Mail\TemplatedEmail;
 use App\Models\Post;
 use App\Panel\AdminAlerts;
@@ -101,10 +102,23 @@ final class NewsletterIssues
             throw ValidationException::withMessages($errors);
         }
 
-        DB::transaction(function () use ($id, $subject, $intro, $ids) {
-            DB::table('newsletter_issues')->where('id', $id)->update(['subject' => $subject, 'intro' => filled($intro) ? trim($intro) : null, 'updated_at' => DB::raw('now()')]);
+        DB::transaction(function () use ($id, $subject, $intro, $ids, $userId) {
+            $before = DB::table('newsletter_issues')->where('id', $id)->first(['subject', 'intro']);
+            $beforePosts = DB::table('newsletter_issue_posts')->where('issue_id', $id)->orderBy('sort_order')->pluck('post_id')->implode(',');
+            $intro = filled($intro) ? trim($intro) : null;
+            DB::table('newsletter_issues')->where('id', $id)->update(['subject' => $subject, 'intro' => $intro, 'updated_at' => DB::raw('now()')]);
             DB::table('newsletter_issue_posts')->where('issue_id', $id)->delete();
             DB::table('newsletter_issue_posts')->insert($ids->map(fn ($p, $i) => ['issue_id' => $id, 'post_id' => $p, 'sort_order' => $i])->all());
+
+            // 22.14: every change made in the panel is in the audit trail.
+            $changes = array_filter([
+                'subject' => $before->subject !== $subject ? [$before->subject, $subject] : null,
+                'intro' => $before->intro !== $intro ? [$before->intro, $intro] : null,
+                'posts' => $beforePosts !== $ids->implode(',') ? [$beforePosts, $ids->implode(',')] : null,
+            ]);
+            if ($changes !== []) {
+                AuditLogger::record('update', 'newsletter_issues', $id, $changes, $userId);
+            }
         });
         if ($status === 'sent_to_brevo') {
             $this->tryPush($id);   // keep Brevo's draft the same as ours
