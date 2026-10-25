@@ -1,6 +1,7 @@
 <?php
 
 use App\Mail\EmailCatalog;
+use App\Mail\EmailCatalogVersions;
 use App\Mail\EmailTemplates;
 use App\Mail\SystemMail;
 use App\Mail\TemplatedEmail;
@@ -27,6 +28,61 @@ test('emails:install makes every template of the catalogue, and never overwrites
 
     expect(DB::table('email_templates')->where('key', 'visitor_contact_reply')->first(['subject', 'body_html']))
         ->toEqual((object) ['subject' => 'عنوان معدّل', 'body_html' => '<p>نص معدّل {الاسم}</p>']);
+});
+
+// The status-update text as first shipped (with a link, switched off), before phase 10 changed it.
+const OLD_STATUS_MAIL = ['تحديث على حجزك {المرجع}', '<p>مرحباً {الاسم}،</p><p>صارت حالة حجزك {المرجع}: {الحالة}.</p><p>{الرابط}</p>', false];
+
+test('every template has the hash of its text of now at the end of its shipped versions, and no unknown template has any', function () {
+    foreach (EmailCatalog::templates() as $key => $t) {
+        $shipped = EmailCatalogVersions::HASHES[$key] ?? [];
+        expect(end($shipped))->toBe(EmailCatalogVersions::hash($t['subject'], $t['body'], $t['active'] ?? true), "add this hash at the end of {$key}");
+    }
+    expect(array_keys(EmailCatalogVersions::HASHES))->toEqualCanonicalizing(array_keys(EmailCatalog::templates()))
+        ->and(EmailCatalogVersions::HASHES['booking_status_changed'][0])->toBe(EmailCatalogVersions::hash(...OLD_STATUS_MAIL));
+});
+
+test('emails:install brings a row nobody edited up to the catalogue\'s text of now, once', function () {
+    EmailTemplates::install();
+    [$subject, $body, $active] = OLD_STATUS_MAIL;
+    DB::table('email_templates')->where('key', 'booking_status_changed')
+        ->update(['name_ar' => 'اسم قديم', 'subject' => $subject, 'body_html' => $body, 'is_active' => $active]);
+
+    $this->artisan('emails:install')->assertSuccessful()->expectsOutput('Added 0 e-mail templates; updated 1 that nobody had edited.');
+
+    $t = EmailCatalog::get('booking_status_changed');
+    expect(DB::table('email_templates')->where('key', 'booking_status_changed')->first(['name_ar', 'subject', 'body_html', 'is_active', 'updated_by']))
+        ->toEqual((object) ['name_ar' => $t['name'], 'subject' => $t['subject'], 'body_html' => $t['body'], 'is_active' => true, 'updated_by' => null])
+        ->and(EmailTemplates::install())->toBe(['added' => 0, 'updated' => 0]);
+});
+
+test('an edited row is never brought up to date: not a changed text, not a template only switched on or off', function () {
+    EmailTemplates::install();
+    [$subject, $body] = OLD_STATUS_MAIL;
+    // The old text, switched on by the admin: that is an edit too.
+    DB::table('email_templates')->where('key', 'booking_status_changed')->update(['subject' => $subject, 'body_html' => $body, 'is_active' => true]);
+    EmailTemplates::save('booking_received', 'عنوان معدّل {المرجع}', '<p>نص معدّل {الاسم}</p>', true, null);
+    $before = DB::table('email_templates')->orderBy('key')->get();
+
+    expect(EmailTemplates::install())->toBe(['added' => 0, 'updated' => 0])
+        ->and(DB::table('email_templates')->orderBy('key')->get())->toEqual($before);
+});
+
+test('an edit saved between the read and the update of emails:install is kept', function () {
+    EmailTemplates::install();
+    [$subject, $body, $active] = OLD_STATUS_MAIL;
+    DB::table('email_templates')->where('key', 'booking_status_changed')->update(['subject' => $subject, 'body_html' => $body, 'is_active' => $active]);
+    $saved = false;
+    DB::listen(function ($query) use (&$saved) {
+        if (! $saved && str_starts_with($query->sql, 'select "key", "subject", "body_html", "is_active" from "email_templates"')) {
+            $saved = true;   // the admin saves right after install() read the rows
+            DB::table('email_templates')->where('key', 'booking_status_changed')->update(['subject' => 'عنوان الأدمن {المرجع}']);
+        }
+    });
+
+    expect(EmailTemplates::install())->toBe(['added' => 0, 'updated' => 0])
+        ->and($saved)->toBeTrue()
+        ->and(DB::table('email_templates')->where('key', 'booking_status_changed')->value('subject'))->toBe('عنوان الأدمن {المرجع}');
 });
 
 test('a message is the RTL frame of Raqam around the template, with a plain-text copy', function () {

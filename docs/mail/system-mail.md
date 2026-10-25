@@ -6,7 +6,10 @@ Decisions 20.1–20.13 of the requirements log. Everything here works without an
 
 - Every message goes through `App\Mail\SystemMail` and is made from an editable template (`email_templates`).
   `App\Mail\EmailCatalog` lists each message with the text it starts with, who it is from and its variables;
-  the row is made the first time it is needed and never overwritten (`php artisan emails:install` makes all of them).
+  the row is made the first time it is needed (`php artisan emails:install` makes all of them). When a text in the
+  catalogue changes, `emails:install` (and opening the templates list) gives the new text to every row that still
+  holds a text the catalogue shipped, i.e. nobody edited it; an edited row is never touched. Each shipped text is
+  kept as a hash in `App\Mail\EmailCatalogVersions`: a change to the catalogue adds its new hash at the end.
 - Queued messages (`SendSystemEmail`) are tried 3 times (30 s, then 2 min apart). Each try is counted in
   `email_log`, which ends as `sent` or `failed` with a short reason (the SMTP password and any key are hidden).
 - The sign-in messages (code, new device, password changed) are **never queued**: a stuck queue must not keep the

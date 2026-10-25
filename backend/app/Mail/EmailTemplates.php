@@ -8,19 +8,35 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * The editable texts of the system messages (20.7). A template's row is made from EmailCatalog the first time it is
- * needed (so a message never waits for an install command) and is never overwritten by it afterwards.
+ * needed (so a message never waits for an install command). Afterwards only install() changes it, and only while it
+ * still holds a text the catalogue shipped (nobody edited it): then it gets the catalogue's text of now.
  */
 final class EmailTemplates
 {
-    /** Makes the rows that do not exist yet; returns how many were added. */
-    public static function install(): int
+    /** @return array{added: int, updated: int} rows made, and unedited rows brought up to the catalogue's text */
+    public static function install(): array
     {
         $added = 0;
         foreach (array_keys(EmailCatalog::templates()) as $key) {
             $added += self::ensure($key) ? 1 : 0;
         }
 
-        return $added;
+        $updated = 0;
+        foreach (DB::table('email_templates')->get(['key', 'subject', 'body_html', 'is_active']) as $row) {
+            $shipped = EmailCatalogVersions::HASHES[$row->key] ?? [];
+            $held = EmailCatalogVersions::hash($row->subject, $row->body_html, (bool) $row->is_active);
+            if ($held === end($shipped) || ! in_array($held, $shipped, true)) {
+                continue;
+            }
+            $t = EmailCatalog::get($row->key);
+            // Only while the row still holds what was read: an edit saved meanwhile is kept.
+            $updated += DB::table('email_templates')->where('key', $row->key)
+                ->where('subject', $row->subject)->where('body_html', $row->body_html)->where('is_active', $row->is_active)
+                ->update(['name_ar' => $t['name'], 'audience' => $t['audience'], 'subject' => $t['subject'], 'body_html' => $t['body'],
+                    'is_active' => $t['active'] ?? true, 'updated_at' => now()]);
+        }
+
+        return ['added' => $added, 'updated' => $updated];
     }
 
     /** Whether the row was added just now. */
