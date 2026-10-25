@@ -98,6 +98,8 @@ final class MenuStore
         $after = $this->describe($this->load($key));
         if ($before !== $after) {
             AuditLogger::record('update', 'menus', $menuId, ['items' => [$before, $after]], $userId);
+            // Every page of the site carries the menus (21.16).
+            MenuBoard::changed($key);
         }
     }
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Audit\Audited;
 use App\Models\Concerns\HasSeoMeta;
+use App\Navigation\MenuBoard;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -22,6 +23,12 @@ class Section extends Model
     protected function casts(): array
     {
         return ['is_visible' => 'boolean', 'sort_order' => 'integer'];
+    }
+
+    protected static function booted(): void
+    {
+        // A menu link to the section disappears while it is hidden (21.12, 21.16).
+        static::saved(fn (self $s) => $s->wasChanged('is_visible') ? MenuBoard::targetChanged('section_id', $s->id) : null);
     }
 
     public function cover()

@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Api\SiteToken;
+use App\Chat\ChatAnswer;
 use App\Chat\ChatRefused;
 use App\Chat\ChatService;
+use App\Support\Honeypot;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * The chatbot (decision 18). GET /chat tells the site whether it is on, its welcome and its first buttons (18.1, 18.6);
@@ -38,6 +41,13 @@ class ChatApiController extends ApiController
             return $this->error(403, 'site_only', 'المحادثة تُرسَل من الموقع فقط.');
         }
         $body = $request->json()->all();
+        // A robot caught by the honeypot (24.10) gets the shape of a reply; nothing is kept and no conversation is opened.
+        if (Honeypot::caught($body)) {
+            return response()->json(['data' => [
+                'conversation' => Str::uuid().'.'.bin2hex(random_bytes(32)),
+                'reply' => (new ChatAnswer(ChatAnswer::NO_ANSWER, '<p>لم أجد جواباً لسؤالك.</p>'))->toArray(),
+            ]])->withHeaders(['Cache-Control' => 'no-store']);
+        }
         $string = fn (string $key, int $max) => is_string($body[$key] ?? null) && strlen($body[$key]) <= $max ? $body[$key] : null;
         $button = $body['button'] ?? null;
         // Button ids are small numbers (smallint); anything else is simply no such button.

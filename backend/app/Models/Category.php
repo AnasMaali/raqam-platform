@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Audit\Audited;
 use App\Models\Concerns\HasSeoMeta;
+use App\Navigation\MenuBoard;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -18,6 +19,13 @@ class Category extends Model
     protected function casts(): array
     {
         return ['is_highlighted' => 'boolean', 'is_active' => 'boolean', 'sort_order' => 'integer'];
+    }
+
+    protected static function booted(): void
+    {
+        // A menu link to the category changes with its address or when it is hidden (21.12, 21.16).
+        static::saved(fn (self $c) => $c->wasChanged(['slug', 'is_active']) ? MenuBoard::targetChanged('category_id', $c->id) : null);
+        static::deleting(fn (self $c) => MenuBoard::targetChanged('category_id', $c->id));
     }
 
     public function parent(): BelongsTo

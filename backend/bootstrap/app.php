@@ -69,6 +69,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([ReconcilePaymentsCommand::class])
     // The switches only the server turns on (phase 10 review N1).
     ->withCommands([FeatureSwitchCommand::class])
+    // Every listener is registered by hand in AppServiceProvider. With discovery on as well, a class in app/Listeners ran
+    // twice for each event (two webhooks for every post change).
+    ->withEvents(discover: false)
     ->withExceptions(function (Exceptions $exceptions): void {
         // The API always answers in the same JSON shape, whatever went wrong.
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());

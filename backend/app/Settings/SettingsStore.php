@@ -90,8 +90,13 @@ final class SettingsStore
                 if (array_intersect($changed, ServiceContact::SETTINGS) !== []) {
                     ServiceBoard::changed(null, everyPage: true);
                 }
+                $socialChanged = false;
                 foreach ($social as $code => $url) {
-                    $this->putSocial($code, $url);
+                    $socialChanged = $this->putSocial($code, $url) || $socialChanged;
+                }
+                // The name, logo, contact details, social accounts and default SEO are on every page of the site (21.13, 21.16).
+                if ($socialChanged || array_intersect($changed, SiteProfile::SETTINGS) !== []) {
+                    SiteProfile::changed('settings');
                 }
             });
         } catch (QueryException $e) {
@@ -137,18 +142,27 @@ final class SettingsStore
         return false;
     }
 
-    private function putSocial(string $code, ?string $url): void
+    /** @return bool whether the link changed */
+    private function putSocial(string $code, ?string $url): bool
     {
         $link = SiteSocialLink::query()->find($code);
 
         if ($url === null) {
-            $link?->delete();
-        } elseif ($link === null) {
+            return (bool) $link?->delete();
+        }
+        if ($link === null) {
             $order = (int) DB::table('social_platforms')->where('code', $code)->value('sort_order');
             SiteSocialLink::query()->create(['platform_code' => $code, 'url' => $url, 'sort_order' => $order]);
-        } elseif ($link->url !== $url) {
-            $link->update(['url' => $url]);
+
+            return true;
         }
+        if ($link->url !== $url) {
+            $link->update(['url' => $url]);
+
+            return true;
+        }
+
+        return false;
     }
 
     /**

@@ -137,3 +137,20 @@ test('the refresh button on the dashboard asks the site to refresh everything, o
     Livewire\Livewire::test(Dashboard::class)->callAction('refreshSite')->assertNotified();
     Bus::assertDispatched(SendSiteWebhook::class, fn ($job) => $job->payload['type'] === 'all');
 });
+
+test('a post change sends one webhook, not one per way its listener was found', function () {
+    configureWebhook();
+    Bus::fake([SendSiteWebhook::class]);
+    $post = app(PostSaver::class)->create('news', 'خبر', $this->user->id);
+
+    app(PostSaver::class)->save($post, [...$this->data, 'status' => 'published'], $this->user->id);
+
+    Bus::assertDispatchedTimes(SendSiteWebhook::class, 1);
+});
+
+test('no listener is registered twice for the same event', function () {
+    foreach (app('events')->getRawListeners() as $event => $listeners) {
+        $names = array_filter(array_map(fn ($l) => is_string($l) ? preg_replace('/@handle$/', '', $l) : null, $listeners));
+        expect(array_unique($names))->toHaveCount(count($names), $event);
+    }
+});
