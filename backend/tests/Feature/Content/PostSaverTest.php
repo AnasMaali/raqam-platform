@@ -570,3 +570,11 @@ test('publishing and unpublishing are audited as such, and the text itself is no
     $fields = DB::table('audit_log_changes')->join('audit_log', 'audit_log.id', '=', 'audit_id')->where('subject_id', $post->id)->pluck('field')->all();
     expect($fields)->toContain('body_length', 'status')->not->toContain('body');
 });
+
+test('a title with Arabic-Indic digits gets an address with 0-9, and so does a slug typed by hand (decision 1.3)', function () {
+    $post = $this->saver->create('news', 'الحلقة ١٢ من موسم ٢٠٢٦', $this->user->id);
+    expect($post->slug)->toBe('الحلقة-12-موسم-2026');
+
+    $this->saver->save($post, ['title' => $post->title, 'slug' => 'تقرير ۳'], $this->user->id);
+    expect($post->fresh()->slug)->toBe('تقرير-3');
+});

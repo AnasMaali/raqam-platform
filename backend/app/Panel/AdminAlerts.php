@@ -2,6 +2,7 @@
 
 namespace App\Panel;
 
+use App\Access\Access;
 use App\Mail\SystemMail;
 use App\Mail\TemplatedEmail;
 use Illuminate\Support\Facades\DB;
@@ -39,12 +40,11 @@ final class AdminAlerts
             if ($recent) {
                 return false;
             }
-            DB::insert(
-                "INSERT INTO admin_notifications (user_id, category, title, body, action_path, dedupe_key)
-                 SELECT u.id, ?, ?, ?, ?, ? FROM users u
-                 WHERE u.user_type = 'staff' AND u.is_active AND u.deleted_at IS NULL",
-                [$category, $title, $body, $actionPath, $dedupeKey],
-            );
+            // One row per account that may enter the panel (a role, decision 2026-10-25).
+            foreach (Access::panelUserIds()->pluck('id') as $userId) {
+                DB::table('admin_notifications')->insert(['user_id' => $userId, 'category' => $category, 'title' => $title, 'body' => $body,
+                    'action_path' => $actionPath, 'dedupe_key' => $dedupeKey]);
+            }
 
             return true;
         });

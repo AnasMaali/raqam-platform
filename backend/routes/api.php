@@ -94,9 +94,9 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
 });
 
 // Ads (decision 13): the click link a browser follows (counts, then 302 to the stored address) and the view reports
-// of the site. Never cached. The click link has no request limit of its own: a person must always reach the advertiser
-// (behind a proxy many people can share one address); what counts is limited by the counter itself.
-Route::get('/ads/click/{campaign}/{placement}/{signature}', [AdApiController::class, 'click'])
+// of the site. Never cached. The click link allows 120 requests a minute per address (decision 2026-10-25): under it a
+// person always reaches the advertiser; what counts as a click is limited by the counter itself.
+Route::middleware('throttle:ads-click')->get('/ads/click/{campaign}/{placement}/{signature}', [AdApiController::class, 'click'])
     ->where(['campaign' => '[0-9]{1,18}', 'placement' => '[a-z_]{1,20}', 'signature' => '[0-9a-f]{32}'])->name('ads.click');
 Route::middleware('throttle:ads-impressions')->post('/ads/impressions', [AdApiController::class, 'impressions']);
 

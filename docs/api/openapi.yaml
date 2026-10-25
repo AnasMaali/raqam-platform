@@ -1512,7 +1512,8 @@ paths:
         per visitor, campaign and slot), then the browser is sent with **302** to the address stored with the campaign
         and nowhere else: the link carries no destination, so it cannot send anyone to another site. A link that was
         not issued by `/ads` (wrong signature) is a 404. A campaign that has since ended or been paused still sends the
-        visitor on, without counting. Never cached, and never refused for too many requests: a visitor always goes on.
+        visitor on, without counting. Never cached. At most 120 requests a minute per address (429 beyond); under that a
+        visitor always goes on, whether or not the click is counted.
       operationId: adClick
       parameters:
         - { name: campaign, in: path, required: true, schema: { type: integer, minimum: 1 } }
@@ -1523,6 +1524,7 @@ paths:
           description: On to the advertiser.
           headers: { Location: { schema: { type: string, format: uri } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
   /ads/impressions:
     post:
       tags: [Ads]

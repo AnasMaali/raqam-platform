@@ -20,9 +20,10 @@ uses(RefreshDatabase::class);
 
 beforeEach(fn () => Cache::flush());
 
-// F1: the click link's flood limit answered 429. Behind a proxy that hides the visitors' addresses (before TrustProxies is
-// set for Cloudflare) every visitor shares one address, so real visitors would have been stopped on the way to the
-// advertiser. Over the limit the visitor still goes on; the click is simply not counted.
+// F1: the click link's flood limit answered 429 after 60. Behind a proxy that hides the visitors' addresses (before
+// TrustProxies is set for Cloudflare) every visitor shares one address, so real visitors would have been stopped on the way
+// to the advertiser. Over the click counter's limit the visitor still goes on; the click is simply not counted. The request
+// limit is now 120 a minute per address (decision 2026-10-25, next test).
 test('F1: over the click limit the visitor still reaches the advertiser, and nothing more is counted', function () {
     $c = adCampaign();
     $path = parse_url(AdClickLink::url($c->id, 'header_leaderboard'), PHP_URL_PATH);
@@ -32,6 +33,17 @@ test('F1: over the click limit the visitor still reaches the advertiser, and not
     }
     // Counted once (the same address, campaign and slot within 30 seconds), and every one of them reached the advertiser.
     expect((int) DB::table('ad_stats_daily')->sum('clicks'))->toBe(1);
+});
+
+test('the click link allows 120 requests a minute per address: each reaches the advertiser, the next is refused, another address goes on', function () {
+    $c = adCampaign();
+    $path = parse_url(AdClickLink::url($c->id, 'header_leaderboard'), PHP_URL_PATH);
+
+    foreach (range(1, 120) as $i) {
+        $this->withHeaders(['User-Agent' => PERSON_AGENT])->get($path)->assertStatus(302)->assertHeader('Location', 'https://bank.example.ps/offer?utm=raqam');
+    }
+    $this->withHeaders(['User-Agent' => PERSON_AGENT])->get($path)->assertStatus(429)->assertJsonPath('error.code', 'too_many_requests');
+    $this->withServerVariables(['REMOTE_ADDR' => '198.51.100.77'])->withHeaders(['User-Agent' => PERSON_AGENT])->get($path)->assertStatus(302);
 });
 
 test('made-up service and click addresses are a 404, never a server error, whatever they hold', function (string $slug) {

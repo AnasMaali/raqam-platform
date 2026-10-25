@@ -116,6 +116,8 @@ class AppServiceProvider extends ServiceProvider
 
         // Ads (13.6): the view reports of one visitor (the address the site names with its token, or the request's own).
         // Click links have no limit here (the visitor must always reach the advertiser); their counter limits what counts.
+        RateLimiter::for('ads-click', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.click_requests_per_minute'))
+            ->by('ads-click|'.TrackingHash::visitor($request->ip())));
         RateLimiter::for('ads-impressions', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.impression_requests_per_minute'))
             ->by('ads-views|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('newsletter', fn (Request $request) => Limit::perMinute((int) config('raqam.newsletter.requests_per_minute'))->by('newsletter|'.TrackingHash::visitor(SiteToken::visitorIp($request))));

@@ -5,6 +5,7 @@ namespace App\Access;
 use App\Auth\AdminAudit;
 use App\Models\User;
 use App\Settings\FeatureFlags;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +34,31 @@ final class Access
             ->join('role_permissions as rp', 'rp.role_id', '=', 'ur.role_id')
             ->join('permissions as p', 'p.id', '=', 'rp.permission_id')
             ->where('ur.user_id', $user->id)->where('p.code', $permission)->exists();
+    }
+
+    /**
+     * Who may enter the admin panel (decision 2026-10-25): a live, active staff account that holds a role. While
+     * `multi_admin` is off only «admin» counts (no other role can be given then); once it is on, any role of the team.
+     */
+    public function mayEnterPanel(User $user): bool
+    {
+        if (! $user->isStaff() || ! $user->is_active || $user->deleted_at !== null) {
+            return false;
+        }
+
+        return FeatureFlags::on('multi_admin')
+            ? DB::table('user_roles')->where('user_id', $user->id)->exists()
+            : $this->hasRole($user->id, self::ADMIN);
+    }
+
+    /** The ids of every account that may enter the panel now (the same rule as mayEnterPanel), for alerts and admin mail. */
+    public static function panelUserIds(): QueryBuilder
+    {
+        $withRole = DB::table('user_roles as ur')->join('roles as r', 'r.id', '=', 'ur.role_id')->select('ur.user_id')
+            ->when(! FeatureFlags::on('multi_admin'), fn ($q) => $q->where('r.code', self::ADMIN));
+
+        return DB::table('users')->where('user_type', 'staff')->where('is_active', true)->whereNull('deleted_at')
+            ->whereIn('id', $withRole)->select('id');
     }
 
     public function hasRole(int $userId, string $role): bool

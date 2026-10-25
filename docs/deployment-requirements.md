@@ -3,6 +3,20 @@
 Things the production image and server must provide. The application checks some of them at boot
 (`ProductionChecks`) and warns about others on the panel's home.
 
+## Mandatory before launch (not optional)
+
+These two belong to deployment, but the site must not go live without them (decision 2026-10-25):
+
+1. **Turnstile on the admin sign-in** (24.9). The public forms already check Turnstile on the server; the panel's sign-in
+   must too, so a script that knows the admin e-mail cannot try passwords or lock the account (today the limits are 5 a
+   minute per address and e-mail, 20 an hour per e-mail, 30 an hour per address).
+2. **Trusted proxies set to Cloudflare's ranges** (24.2). Behind Cloudflare every request reaches the server from a
+   Cloudflare address. Until Laravel trusts exactly those ranges, `request()->ip()` is Cloudflare's, so every limit keyed
+   by the visitor's address (sign-in, API, search, forms, the ad click link) counts all visitors together. The ranges come
+   from Cloudflare's published list; the origin must also refuse connections from anywhere else.
+
+Both are sign-in parts: they are built and tested step by step, and the launch checklist cannot be closed without them.
+
 ## Image library (GD) with AVIF
 
 The media library writes every picture as AVIF, WebP and JPEG. A development machine may report AVIF as

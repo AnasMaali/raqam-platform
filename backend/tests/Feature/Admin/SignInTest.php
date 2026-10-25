@@ -74,6 +74,13 @@ test('every kind of wrong or refused sign-in looks the same and sends nothing', 
     'customer account' => ['customer@raqam.ps', 'correct horse battery', null],
     'inactive staff' => ['admin@raqam.ps', 'correct horse battery', fn () => User::where('email', 'admin@raqam.ps')->update(['is_active' => false])],
     'deleted staff' => ['admin@raqam.ps', 'correct horse battery', fn () => User::where('email', 'admin@raqam.ps')->update(['deleted_at' => now()])],
+    // Decision 2026-10-25: a role is needed, and while multi_admin is off only «admin» counts.
+    'staff without a role' => ['admin@raqam.ps', 'correct horse battery', fn () => DB::table('user_roles')->delete()],
+    'staff with another role, multi_admin off' => ['admin@raqam.ps', 'correct horse battery', function () {
+        DB::table('user_roles')->delete();
+        $editor = DB::table('roles')->insertGetId(['code' => 'editor', 'name_ar' => 'محرر']);
+        DB::table('user_roles')->insert(['user_id' => User::where('email', 'admin@raqam.ps')->value('id'), 'role_id' => $editor]);
+    }],
 ]);
 
 test('the code page shows the same message and form whatever the outcome', function () {
