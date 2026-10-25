@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\DB;
  */
 final class FeatureFlags
 {
+    /** Switched on only from the server (feature:switch) until their site pages exist; the panel can still switch them off (phase 10 review N1). */
+    public const SERVER_ONLY = ['booking', 'online_payments', 'customer_accounts', 'multi_admin'];
+
     /** Whether a feature is switched on now; an unknown key is off. Read from the table every time (no cache to go stale). */
     public static function on(string $key): bool
     {
@@ -22,9 +25,13 @@ final class FeatureFlags
     }
 
     /** @throws FeatureFlagRefused */
-    public function set(string $key, bool $enabled, ?int $userId): void
+    public function set(string $key, bool $enabled, ?int $userId, bool $fromServer = false): void
     {
         $flag = FeatureFlag::query()->findOrFail($key);
+
+        if ($enabled && ! $fromServer && in_array($key, self::SERVER_ONLY, true)) {
+            throw new FeatureFlagRefused('هذا المفتاح يُشغَّل من السيرفر فقط حتى تُبنى صفحاته في الموقع.');
+        }
 
         if ($flag->is_enabled === $enabled) {
             return;

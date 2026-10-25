@@ -129,7 +129,7 @@ test('the booking button appears at once when booking is switched on, on every p
         ->and(api('/services')->json('data.groups.0.services.0.booking.enabled'))->toBeFalse()
         ->and(api('/advertise')->json('data.booking'))->toBe(['enabled' => false]);
 
-    app(FeatureFlags::class)->set('booking', true, null);   // nothing else: the switch itself drops the cached pages
+    app(FeatureFlags::class)->set('booking', true, null, fromServer: true);   // nothing else: the switch itself drops the cached pages
 
     expect(api('/services/'.rawurlencode($s->slug))->json('data.booking'))->toBe(['enabled' => true, 'path' => '/services/'.$s->slug.'/book'])
         ->and(api('/services')->json('data.groups.0.services.0.booking.enabled'))->toBeTrue()

@@ -94,7 +94,7 @@ test('the service itself refuses a booking while the switch is off, whoever call
 test('«احجز الآن» is not offered while booking is off, and appears when it is on (15.1, 14.10)', function () {
     $this->getJson('/api/v1/services/podcast-episode')->assertOk()->assertJsonPath('data.booking', ['enabled' => false, 'path' => null]);
 
-    app(FeatureFlags::class)->set('booking', true, $this->admin);   // the switch drops the services cache
+    app(FeatureFlags::class)->set('booking', true, $this->admin, fromServer: true);   // the switch drops the services cache
     $this->getJson('/api/v1/services/podcast-episode')->assertOk()->assertJsonPath('data.booking', ['enabled' => true, 'path' => '/services/podcast-episode/book']);
 });
 

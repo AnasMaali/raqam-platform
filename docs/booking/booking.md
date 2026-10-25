@@ -4,6 +4,11 @@ Everything lives in the back end and its tests. There is no page on the site and
 `booking` feature switch is off, every booking route of the API is a 404 (the same answer as an address that never
 existed), and the services API offers no «احجز الآن» button.
 
+Until their site pages exist, the four dormant switches (`booking`, `online_payments`, `customer_accounts`,
+`multi_admin`) are turned on only from the server, with the same dependency rule and an audit entry:
+`php artisan feature:switch booking on` (or `off`). In the panel's «مفاتيح التشغيل» screen they stay locked while off;
+once on, the panel can switch them off as an emergency stop (payments first, then booking).
+
 ## Pieces
 
 | Piece | What it does |
