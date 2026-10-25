@@ -32,7 +32,9 @@ stored, not even in a Redis key. Two browsers behind one address (a shared line)
 - A page view: the same page (query ignored) again within 10 seconds counts once; at most 500 views per visitor a day.
 - A visit, for sources and devices, opens with a visitor's first view after 30 minutes of quiet; its source is that
   view's `utm_source` tag, otherwise its referrer's host (Google, Bing, Facebook, Instagram, WhatsApp, TikTok,
-  YouTube, X, other sites), otherwise direct (22.6). A link from the site itself is direct. Newsletter links carry
+  YouTube, X, five answer engines, other sites), otherwise direct (22.6). The answer engines (search assistants) are
+  read before the search engines, since one of them lives on a search engine's subdomain; their hosts, tags and apps
+  are listed in `App\Analytics\AnswerEngineSources` and their codes are rows of `traffic_sources`. A link from the site itself is direct. Newsletter links carry
   `utm_source=newsletter`. Device: phone, tablet or computer from the browser (an iPad that says it is a Mac counts
   as a computer, 22.7).
 - A post's reading: once per visitor, post and day (22.4); archived posts still count at their address.

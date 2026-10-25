@@ -5,7 +5,8 @@ namespace App\Analytics;
 /**
  * Where a visit came from (22.6), one of the codes of traffic_sources. A campaign tag in the page address
  * (utm_source=…) wins, because the apps that share links most here (WhatsApp, Instagram, TikTok, mail) usually send no
- * referrer at all; then the referrer's host; no referrer is a direct visit. A referrer from the site itself is not a
+ * referrer at all; then the referrer's host (the answer engines of AnswerEngineSources, then the search engines and social
+ * networks); no referrer is a direct visit. A referrer from the site itself is not a
  * source (it is the same visit going on), so it reads as direct when it does open a visit.
  */
 final class TrafficSource
@@ -47,7 +48,7 @@ final class TrafficSource
             return 'direct';
         }
         if (preg_match('~^android-app://([a-z0-9_.]+)~i', $referrer, $m) === 1) {
-            return self::APPS[strtolower($m[1])] ?? 'other';
+            return (AnswerEngineSources::APPS + self::APPS)[strtolower($m[1])] ?? 'other';
         }
         $host = strtolower((string) parse_url($referrer, PHP_URL_HOST));
         if ($host === '' || ! preg_match('~^https?://~i', $referrer)) {
@@ -56,6 +57,14 @@ final class TrafficSource
         $host = rtrim($host, '.');
         if ($siteHost !== null && $siteHost !== '' && self::within($host, strtolower($siteHost))) {
             return 'direct';
+        }
+        // The answer engines first: one of them lives on a subdomain of a search engine.
+        foreach (AnswerEngineSources::HOSTS as $source => $hosts) {
+            foreach ($hosts as $known) {
+                if (self::within($host, $known)) {
+                    return $source;
+                }
+            }
         }
         // google.com, google.ps, google.co.il, news.google.com … but not notgoogle.com.
         if (preg_match('~(^|\.)google(\.[a-z]{2,3}){1,2}$~', $host) === 1) {
@@ -81,7 +90,7 @@ final class TrafficSource
         parse_str($query, $params);
         $value = $params['utm_source'] ?? null;
 
-        return is_string($value) ? (self::TAGS[strtolower(trim($value))] ?? null) : null;
+        return is_string($value) ? ((AnswerEngineSources::TAGS + self::TAGS)[strtolower(trim($value))] ?? null) : null;
     }
 
     private static function within(string $host, string $domain): bool

@@ -12,7 +12,7 @@ use App\Newsletter\NewsletterIssues;
  */
 final class SettingsCatalog
 {
-    /** @return array<string, array{group: string, label: string, type: string, hint?: string, options?: array<string, string>}> */
+    /** @return array<string, array{group: string, label: string, type: string, hint?: string, options?: array<string, string>, default?: string}> */
     public static function fields(): array
     {
         return [
@@ -35,6 +35,12 @@ final class SettingsCatalog
             'seo.title_suffix' => ['group' => 'محركات البحث', 'label' => 'لاحقة عنوان الصفحة', 'type' => 'string', 'hint' => 'تُضاف بعد عنوان كل صفحة'],
             'seo.default_image' => ['group' => 'محركات البحث', 'label' => 'صورة المشاركة الافتراضية', 'type' => 'media', 'hint' => 'تظهر عند مشاركة صفحة ليس لها صورة'],
             'seo.default_description' => ['group' => 'محركات البحث', 'label' => 'الوصف الافتراضي', 'type' => 'text', 'hint' => 'يُستعمل عندما لا يكون للصفحة وصف خاص'],
+            'seo.answer_bots' => ['group' => 'محركات البحث', 'label' => 'السماح لمحركات الإجابة', 'type' => 'boolean', 'default' => 'true',
+                'hint' => 'مساعدات البحث التي تقرأ الصفحة لتجيب سؤال زائر وتذكر المصدر. محركات البحث العادية مسموحة دائماً.'],
+            'seo.training_bots' => ['group' => 'محركات البحث', 'label' => 'السماح لبوتات تدريب النماذج', 'type' => 'boolean', 'default' => 'false',
+                'hint' => 'البوتات التي تجمع المحتوى لتدريب نماذج لغوية. مطفأ = ممنوعة. القرار لإدارة المنصة.'],
+            'seo.llms_summary' => ['group' => 'محركات البحث', 'label' => 'وصف المنصة لمحركات الإجابة (llms.txt)', 'type' => 'text',
+                'hint' => 'فقرة قصيرة: من أنتم وماذا تنشرون. فارغ = الوصف الافتراضي.'],
         ];
     }
 

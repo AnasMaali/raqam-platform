@@ -67,6 +67,22 @@ address. The site writes the XML.
   admins see it in the bell; 429 and 5xx are tried again (3 tries).
 * `INDEXNOW_ENDPOINT` is for browser tests only; production refuses to start with it.
 
+## Answer engines (GEO)
+
+* **Sources of visits**: five answer engines (search assistants) are sources of their own in the statistics, told by
+  their referrer, their `utm_source` tag or their Android app (`App\Analytics\AnswerEngineSources`, read before the
+  search engines). Their codes are seeded in `traffic_sources`.
+* **Crawler policy** (`/robots`, `App\Seo\RobotsPolicy`, lists in `App\Seo\CrawlerAgents`): search engines always
+  (`*`); answer engines allowed unless the admin turns them off (`seo.answer_bots`, on by default); crawlers that train
+  language models closed unless the admin turns them on (`seo.training_bots`, off by default; the decision is the
+  platform's). The pages of 23.17 (`/search`, `/newsletter`, `/bookings`, `/account`) and previews are closed to all.
+  The site writes one robots.txt group per entry (`Disallow: /` for a closed group, the private paths for an open one).
+* **llms.txt** (`/llms`, `App\Seo\LlmsBoard`): the name, a paragraph (`seo.llms_summary`, otherwise the default
+  description) and links to the visible sections, the news categories, the published "who we are" pages (about, team,
+  editorial, corrections and sponsored-content policies, contact, advertise, services) and the live data pages.
+* A change of any of the three settings sends `{"type": "site", "change": "robots"}`: refresh `/robots.txt` and `/llms.txt`.
+* Names of the engines and crawlers live only in their two data files, the seed and their tests (decision of 2026-10-25).
+
 ## The honeypot (24.10)
 
 `App\Support\Honeypot`: the hidden field `website` on every public form: the contact form, the newsletter (subscribe and

@@ -14,7 +14,7 @@ test('the seed provides the reference rows', function (string $table, int $rows)
     ['data_providers', 6], ['provider_health', 6], ['social_platforms', 8], ['sections', 7], ['categories', 6],
     ['post_kinds', 11], ['guest_roles', 3], ['pose_types', 5], ['awareness_types', 7], ['ad_placements', 6],
     ['service_groups', 2], ['booking_statuses', 9], ['booking_status_transitions', 15], ['payment_gateways', 2],
-    ['feature_flags', 9], ['roles', 1], ['menus', 3], ['traffic_sources', 11], ['event_types', 6], ['settings', 13],
+    ['feature_flags', 9], ['roles', 1], ['menus', 3], ['traffic_sources', 16], ['event_types', 6], ['settings', 13],
     ['weather_conditions', 55],
 ]);
 

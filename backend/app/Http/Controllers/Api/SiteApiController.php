@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Navigation\MenuBoard;
 use App\Seo\FeedBoard;
+use App\Seo\LlmsBoard;
+use App\Seo\RobotsPolicy;
 use App\Seo\SitemapBoard;
 use App\Settings\SiteProfile;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +25,18 @@ class SiteApiController extends ApiController
     public function menus(MenuBoard $menus): JsonResponse
     {
         return response()->json(['data' => $menus->all()]);
+    }
+
+    /** Who may crawl the site (GEO): the website writes robots.txt from it. */
+    public function robots(RobotsPolicy $policy): JsonResponse
+    {
+        return response()->json(['data' => $policy->payload()]);
+    }
+
+    /** What llms.txt says about the platform (GEO): the website writes the Markdown from it. */
+    public function llms(LlmsBoard $llms): JsonResponse
+    {
+        return response()->json(['data' => $llms->payload()]);
     }
 
     public function sitemaps(SitemapBoard $sitemaps): JsonResponse

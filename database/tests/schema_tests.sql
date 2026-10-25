@@ -410,6 +410,13 @@ SELECT pg_temp.expect_fail('job_batches: negative pending count',
   $$INSERT INTO job_batches (id, name, total_jobs, pending_jobs, failed_jobs, failed_job_ids, created_at)
     VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1f', 'newsletter', 1, -1, 0, '[]', 1760000000)$$);
 
+-- ---------------------------------------------------------------- statistics reference
+-- 22.6 and the answer engines of phase 10b: eleven sources and five answer engines.
+SELECT pg_temp.expect_eq('traffic sources: 16 seeded',
+  (SELECT count(*)::text FROM traffic_sources), '16');
+SELECT pg_temp.expect_fail('traffic sources: a code is lower-case letters only',
+  $$INSERT INTO traffic_sources (code, name_ar) VALUES ('answer-1', 'محرك')$$);
+
 -- ---------------------------------------------------------------- report
 \o
 \set QUIET off

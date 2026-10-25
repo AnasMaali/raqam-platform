@@ -57,7 +57,8 @@ info:
       the weather is shown (the free plan's condition).
     * **The platform and its menus** (`/site`, `/menus`) are on every page. A change of the name, logo, contact details,
       social accounts or default SEO sends `{"type": "site", "change": "settings", "paths": []}`; a switch the site acts on
-      (`features`) sends `{"type": "site", "change": "feature", "paths": []}`. Saving a menu sends `{"type": "menus",
+      (`features`) sends `{"type": "site", "change": "feature", "paths": []}`; the crawler policy or the llms.txt text
+      sends `{"type": "site", "change": "robots", "paths": []}` (refresh `/robots.txt` and `/llms.txt`). Saving a menu sends `{"type": "menus",
       "change": "header" | "footer_main" | "footer_legal", "paths": []}`, and so does (`"change": "target"`) a page,
       category or section that a menu links to when its address changes or it is unpublished or hidden. Refresh every page.
     * **Sitemaps and feeds** (`/sitemaps…`, `/feeds…`) hold only what a visitor can open and a search engine may index (no
@@ -730,6 +731,94 @@ paths:
                   data: { $ref: '#/components/schemas/PlaylistDetail' }
         '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /robots:
+    get:
+      tags: [Seo]
+      summary: Who may crawl the site, for robots.txt
+      description: |
+        Three groups: search engines (`*`, always allowed), answer engines (search assistants that read a page to answer a
+        person and cite it; allowed unless the admin turns them off) and crawlers that train language models (closed unless
+        the admin turns them on). Write one robots.txt group per entry: its `User-agent` lines, then `Disallow: /` when
+        `allow` is false, or one `Disallow` line per `disallow` path when it is true (a crawler follows only the most specific
+        group that names it). Then the `Sitemap` lines with the site's full address. A change sends the `site` webhook with
+        `"change": "robots"`.
+      operationId: robots
+      responses:
+        '200':
+          description: The policy.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [groups, disallow, sitemaps]
+                    properties:
+                      groups:
+                        type: array
+                        items:
+                          type: object
+                          required: [purpose, agents, allow]
+                          properties:
+                            purpose: { enum: [search, answer, training] }
+                            agents: { type: array, minItems: 1, items: { type: string }, example: ['*'] }
+                            allow: { type: boolean }
+                      disallow: { type: array, items: { type: string, pattern: '^/' }, example: [/search] }
+                      sitemaps: { type: array, items: { type: string }, example: [/sitemap.xml] }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /llms:
+    get:
+      tags: [Seo]
+      summary: What llms.txt says about the platform
+      description: |
+        The name, a summary paragraph (the admin's text for answer engines, or the default description), and groups of links:
+        the visible special sections, the news categories, the published pages that tell who stands behind the news, and
+        the live data pages. Write it as Markdown at `/llms.txt`: `# name`, `> summary`, then `## title` and `- [title](full
+        address): description` lines. A change sends the `site` webhook.
+      operationId: llms
+      responses:
+        '200':
+          description: The content.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [name, summary, groups, feed, sitemap]
+                    properties:
+                      name: { type: string }
+                      summary: { type: [string, 'null'] }
+                      groups:
+                        type: array
+                        items:
+                          type: object
+                          required: [title, links]
+                          properties:
+                            title: { type: string }
+                            links:
+                              type: array
+                              minItems: 1
+                              items:
+                                type: object
+                                required: [title, path, description]
+                                properties:
+                                  title: { type: string }
+                                  path: { type: string, pattern: '^/' }
+                                  description: { type: [string, 'null'] }
+                      feed: { type: string }
+                      sitemap: { type: string }
+        '304': { $ref: '#/components/responses/NotModified' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /sitemaps:

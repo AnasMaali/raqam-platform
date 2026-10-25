@@ -11,6 +11,7 @@ use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Actions;
@@ -46,8 +47,9 @@ class GeneralSettings extends Page
     {
         $store = app(SettingsStore::class);
         $state = [];
+        $fields = SettingsCatalog::fields();
         foreach ($store->values() as $key => $value) {
-            $state[$store->fieldName($key)] = $value;
+            $state[$store->fieldName($key)] = $fields[$key]['type'] === 'boolean' ? ($value ?? $fields[$key]['default'] ?? 'false') === 'true' : $value;
         }
         $state['social'] = $store->socialLinks();
 
@@ -85,14 +87,18 @@ class GeneralSettings extends Page
             $input = match (true) {
                 isset($field['options']) => Select::make($name)->options($field['options'])->native(false),
                 default => match ($field['type']) {
+                    'boolean' => Toggle::make($name),
                     'text' => Textarea::make($name)->rows(3)->maxLength(2000),
                     'media' => MediaSelect::make($name),
                     default => TextInput::make($name)->maxLength(255),
                 },
             };
 
-            $input->label($field['label'])->helperText($field['hint'] ?? null)->rules(SettingsCatalog::rules($field['type']))
-                ->validationMessages(SettingsCatalog::messages($name));
+            $input->label($field['label'])->helperText($field['hint'] ?? null)->validationMessages(SettingsCatalog::messages($name));
+            // A switch holds true/false in the form; the store turns it into the words the table keeps.
+            if ($field['type'] !== 'boolean') {
+                $input->rules(SettingsCatalog::rules($field['type']));
+            }
 
             match ($field['type']) {
                 'email' => $input->email()->inputMode('email')->extraInputAttributes(['dir' => 'ltr']),
