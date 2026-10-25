@@ -37,6 +37,8 @@ Schedule::command('emails:prune')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('retention:prune')->dailyAt('02:40')->withoutOverlapping();
 Schedule::command('ads:ending-alerts')->hourly()->withoutOverlapping();
 Schedule::command('system:check-disk')->hourly()->withoutOverlapping();
+// Many failed sign-ins to the panel (24.15), looked at every quarter hour; the alert itself comes at most once an hour.
+Schedule::command('auth:watch-failures')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('admin:weekly-digest')->timezone('Asia/Hebron')->weeklyOn(6, '09:00')->withoutOverlapping();
 
 // Newsletter (19.6, 19.10): the weekly draft on the admin's day and time (checked every quarter hour), Brevo's numbers hourly.

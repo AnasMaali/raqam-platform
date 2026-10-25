@@ -4,17 +4,19 @@ namespace App\Filament\Resources\Cities;
 
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Cities\Pages\ManageCities;
+use App\Integrations\DataProviders;
 use App\Integrations\ProviderAlerts;
 use App\Jobs\FetchCityWeather;
 use App\Models\City;
 use App\Models\WeatherLocation;
-use App\Support\ArabicSlug;
-use App\Support\UniqueSlug;
-use App\Weather\OpenWeatherSource;
+use App\Weather\WeatherBoard;
+use App\Weather\WeatherCities;
 use App\Weather\WeatherFetcher;
+use App\Weather\WeatherSources;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
@@ -22,6 +24,7 @@ use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -69,12 +72,13 @@ class CityResource extends Resource
             ->paginated(false)
             ->description(fn () => self::status())
             ->columns([
-                TextColumn::make('city.name_ar')->label('المدينة')->description(fn (WeatherLocation $r) => '/weather/'.$r->city?->slug)
+                TextColumn::make('city.name_ar')->label('المدينة')->searchable()->description(fn (WeatherLocation $r) => '/weather/'.$r->city?->slug)
                     ->badge(fn (WeatherLocation $r) => $r->is_default)->color(fn (WeatherLocation $r) => $r->is_default ? 'primary' : null),
                 TextColumn::make('coordinates')->label('الإحداثيات')->state(fn (WeatherLocation $r) => $r->city?->latitude.', '.$r->city?->longitude),
                 TextColumn::make('now')->label('الآن')->placeholder('—')->state(fn (WeatherLocation $r) => self::latest($r)),
                 IconColumn::make('is_active')->label('ظاهرة')->boolean(),
             ])
+            ->filters([TernaryFilter::make('is_active')->label('ظاهرة')])
             ->recordActions([
                 Action::make('edit')->label('تعديل')->icon(Heroicon::OutlinedPencilSquare)->modalSubmitActionLabel('حفظ')
                     ->fillForm(fn (WeatherLocation $r) => ['name_ar' => $r->city->name_ar, 'latitude' => $r->city->latitude, 'longitude' => $r->city->longitude, 'is_active' => $r->is_active])
@@ -86,8 +90,16 @@ class CityResource extends Resource
                         });
                         Notification::make()->success()->title('حُفظت المدينة.')->send();
                     }),
+                Action::make('remove')->label('حذف')->icon(Heroicon::OutlinedTrash)->color('danger')
+                    ->visible(fn (WeatherLocation $r) => ! $r->is_default)
+                    ->requiresConfirmation()->modalHeading('حذف المدينة من الطقس')
+                    ->modalDescription('تُحذف المدينة مع قراءاتها وتوقعاتها، وتجيب صفحتها «لم تعد موجودة» (410). لإخفائها مؤقتاً استعمل «تعديل» وأطفئ الظهور.')
+                    ->action(function (WeatherLocation $r) {
+                        app(WeatherCities::class)->remove($r, auth()->id());
+                        Notification::make()->success()->title('حُذفت المدينة.')->send();
+                    }),
                 Action::make('fetch')->label('جلب الطقس')->icon(Heroicon::OutlinedArrowPath)->color('gray')
-                    ->visible(fn () => app(OpenWeatherSource::class)->configured())
+                    ->visible(fn () => WeatherSources::ready())
                     ->action(function (WeatherLocation $r) {
                         FetchCityWeather::dispatch($r->city_id);
                         Notification::make()->success()->title('أُرسل الطلب.')->body('يظهر الطقس خلال دقيقة؛ حدّث الصفحة.')->send();
@@ -97,20 +109,12 @@ class CityResource extends Resource
                 Action::make('add')->label('إضافة مدينة')->icon(Heroicon::OutlinedPlus)->modalSubmitActionLabel('إضافة')
                     ->schema(self::fields(null))->fillForm(['is_active' => true])
                     ->action(function (array $data) {
-                        DB::transaction(function () use ($data) {
-                            $name = trim($data['name_ar']);
-                            $slug = ArabicSlug::make($name);
-                            // /weather/cities and /weather/widget are taken by the API's lists.
-                            $slug = in_array($slug, ['cities', 'widget'], true) ? 'city-'.$slug : $slug;
-                            $city = City::query()->create(['name_ar' => $name, 'slug' => UniqueSlug::for('cities', $slug, fallback: 'city'),
-                                'latitude' => $data['latitude'], 'longitude' => $data['longitude']]);
-                            WeatherLocation::query()->create(['city_id' => $city->id, 'is_active' => (bool) $data['is_active'],
-                                'sort_order' => (int) WeatherLocation::query()->max('sort_order') + 1]);
-                        });
+                        app(WeatherCities::class)->add($data);
                         Notification::make()->success()->title('أُضيفت المدينة.')->body('يظهر طقسها بعد أول جلب (خلال ساعة).')->send();
                     }),
+                self::sourceAction(),
                 Action::make('fetchAll')->label('جلب الطقس الآن')->icon(Heroicon::OutlinedArrowPath)->color('gray')
-                    ->visible(fn () => app(OpenWeatherSource::class)->configured())
+                    ->visible(fn () => WeatherSources::ready())
                     ->requiresConfirmation()->modalDescription('يُطلب طقس كل المدن الظاهرة من OpenWeather في الخلفية (طلبان لكل مدينة)، ويظهر خلال دقيقة.')
                     // In the background: a slow or silent source must not hold the page (twelve cities, two calls each).
                     ->action(function () {
@@ -119,6 +123,24 @@ class CityResource extends Resource
                         Notification::make()->success()->title('أُرسل الطلب.')->body('يظهر الطقس خلال دقيقة؛ حدّث الصفحة.')->send();
                     }),
             ]);
+    }
+
+    /** The source of the weather (12.13): a setting, audited; a source the code does not know, or without its key, cannot be chosen. */
+    private static function sourceAction(): Action
+    {
+        return Action::make('source')->label('مصدر الطقس')->icon(Heroicon::OutlinedBuildingLibrary)->color('gray')->modalSubmitActionLabel('حفظ')
+            ->fillForm(fn () => ['provider' => DataProviders::active('weather')])
+            ->schema([
+                Radio::make('provider')->label('المصدر')->required()
+                    ->options(fn () => collect(DataProviders::of('weather'))->mapWithKeys(fn ($name, $code) => [$code => ProviderAlerts::name($code)])->all())
+                    ->descriptions(fn () => collect(DataProviders::of('weather'))->mapWithKeys(fn ($name, $code) => [$code => WeatherSources::get($code)?->configured() ? 'متاح' : 'غير متاح: لا ربط له في الكود أو مفتاحه غير مضبوط.'])->all())
+                    ->disableOptionWhen(fn (string $value) => ! (WeatherSources::get($value)?->configured() ?? false)),
+            ])
+            ->action(function (array $data) {
+                DataProviders::switchTo('weather', (string) $data['provider']);
+                WeatherBoard::changed();
+                Notification::make()->success()->title('حُفظ مصدر الطقس.')->send();
+            });
     }
 
     /** @return list<Field> */
@@ -134,7 +156,8 @@ class CityResource extends Resource
 
         return [
             TextInput::make('name_ar')->label('الاسم')->required()->maxLength(80)
-                ->unique('cities', 'name_ar', ignorable: $record?->city)->validationMessages(['unique' => 'توجد مدينة بهذا الاسم.']),
+                ->unique('cities', 'name_ar', ignorable: $record?->city, modifyRuleUsing: fn ($rule) => $rule->whereIn('id', WeatherLocation::query()->select('city_id')))
+                ->validationMessages(['unique' => 'توجد مدينة بهذا الاسم.']),
             $coordinate('latitude', 'خط العرض (Latitude)', self::LATITUDE),
             $coordinate('longitude', 'خط الطول (Longitude)', self::LONGITUDE),
             Toggle::make('is_active')->label('ظاهرة على الموقع')
@@ -144,12 +167,13 @@ class CityResource extends Resource
 
     private static function status(): string
     {
-        if (! app(OpenWeatherSource::class)->configured()) {
-            return 'مفتاح OpenWeather غير مضبوط: لا يُجلب طقس، ويبقى آخر طقس محفوظ.';
+        $code = DataProviders::active('weather') ?? WeatherFetcher::PROVIDER;
+        if (! WeatherSources::ready()) {
+            return ($code === WeatherFetcher::PROVIDER ? 'مفتاح OpenWeather غير مضبوط' : 'مصدر الطقس المختار غير متاح').': لا يُجلب طقس، ويبقى آخر طقس محفوظ.';
         }
-        $health = DB::table('provider_health')->where('provider_code', WeatherFetcher::PROVIDER)->first();
+        $health = DB::table('provider_health')->where('provider_code', $code)->first();
 
-        return 'المصدر: '.ProviderAlerts::name(WeatherFetcher::PROVIDER).' · كل مدينة مرة بالساعة'
+        return 'المصدر: '.ProviderAlerts::name($code).' · كل مدينة مرة بالساعة'
             .' · آخر نجاح: '.($health?->last_success_at ? ProviderAlerts::time($health->last_success_at) : '—')
             .($health && $health->consecutive_failures > 0 ? ' · فشل متتالٍ: '.$health->consecutive_failures : '');
     }

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Pages;
 
 use App\Content\StaticPages;
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\SeoSection;
 use App\Filament\Resources\Pages\Pages\CreatePage;
@@ -24,6 +25,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
 
@@ -76,6 +78,12 @@ class PageResource extends Resource
                 IconColumn::make('is_published')->label('منشورة')->boolean(),
                 TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron'),
             ])
+            ->filters([
+                TernaryFilter::make('is_published')->label('منشورة'),
+                TernaryFilter::make('system')->label('صفحة نظامية')
+                    ->queries(true: fn ($query) => $query->whereNotNull('system_key'), false: fn ($query) => $query->whereNull('system_key')),
+            ])
+            ->toolbarActions([...BulkRecords::toggle('is_published', 'نشر المحدد', 'إلغاء نشر المحدد'), BulkRecords::delete(fn (Page $record) => ! $record->isSystem())])
             ->recordActions([
                 EditAction::make()->label('تحرير'),
                 DeleteAction::make()->label('حذف')->visible(fn (Page $record) => ! $record->isSystem()),

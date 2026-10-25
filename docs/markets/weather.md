@@ -22,6 +22,21 @@ is visible wherever the weather is shown. Every weather answer of the API carrie
   the readings alone make today (its picture stays). The API shows five days, today first; `now.today` is that row.
 * `cities:install` adds any of the twelve cities of 12.1 that is missing and never changes one the admin edited.
 
+## The source is a setting (12.13)
+
+`App\Weather\WeatherSources` maps each `data_providers` row of the `weather` service to a class implementing
+`App\Weather\WeatherSource` (`config('raqam.weather.sources')`); the fetcher always asks the active one and stores its
+code with every reading. «مصدر الطقس» on the weather screen switches it (audited as `provider.weather`); a source the code
+does not know, or one without its key, cannot be chosen, and nothing is fetched while such a source is active. A new
+source = a class, a line in the config, a row in `data_providers`.
+
+## Adding and removing cities (12.1)
+
+`App\Weather\WeatherCities`. «حذف» (not for the default city) removes the city from the weather with its readings and
+forecast; its page answers 410, and the city row itself goes too unless a company still names it. `cities:install` never
+brings back a city the admin removed (its 410 says so). Adding a city of the same name again brings it back at its old
+address and clears the 410. To hide a city for a while, switch it off instead.
+
 ## The key travels in the address
 
 OpenWeather takes the key as `appid=` in the query string; there is no header alternative. So:

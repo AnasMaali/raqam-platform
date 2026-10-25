@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Guests;
 
+use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Forms\OrganizationSelect;
@@ -92,6 +93,7 @@ class GuestResource extends Resource
                 TextColumn::make('organization.name')->label('الجهة')->placeholder('—'),
             ])
             ->filters([TrashedFilter::make()->label('المحذوفون')])
+            ->toolbarActions([BulkRecords::delete()])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('تبقى ظهوراته في المواد ويمكن استرجاعه لاحقاً.'),

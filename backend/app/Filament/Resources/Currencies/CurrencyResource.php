@@ -32,6 +32,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -76,7 +77,7 @@ class CurrencyResource extends Resource
             ->paginated(false)
             ->description(fn () => self::status())
             ->columns([
-                TextColumn::make('currency.name_ar')->label('العملة')->description(fn (RateBoardCurrency $r) => $r->currency_code.' '.$r->currency?->symbol),
+                TextColumn::make('currency.name_ar')->label('العملة')->searchable()->description(fn (RateBoardCurrency $r) => $r->currency_code.' '.$r->currency?->symbol),
                 TextColumn::make('mid')->label('السعر الرسمي')->state(fn (RateBoardCurrency $r) => self::shown($r, 'mid_rate'))->placeholder('—'),
                 TextColumn::make('buy')->label('شراء')->state(fn (RateBoardCurrency $r) => self::shown($r, 'buy_rate'))->placeholder('—')
                     ->description(fn (RateBoardCurrency $r) => '−'.CurrencyCatalog::percent($r->buy_spread_bp).'%'),
@@ -90,6 +91,8 @@ class CurrencyResource extends Resource
                     ->description(fn (RateBoardCurrency $r) => self::live($r)?->is_pegged ? 'من الدولار بالربط الثابت' : null),
                 IconColumn::make('is_active')->label('ظاهرة')->boolean(),
             ])
+
+            ->filters([TernaryFilter::make('is_active')->label('ظاهرة')])
             ->recordActions([
                 self::editAction(),
                 self::manualAction(),

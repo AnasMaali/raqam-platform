@@ -506,7 +506,8 @@ test('the history section can be read as a timeline: era, then year, oldest firs
     $ottoman = Era::create(['name_ar' => 'العثماني', 'sort_order' => 1]);
     $mandate = Era::create(['name_ar' => 'الانتداب', 'sort_order' => 2]);
     $late = publish('history', ['history' => ['era_id' => $mandate->id, 'year_from' => 1930], 'published_at' => now()->subDay()]);
-    $early = publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1850], 'published_at' => now()->subDays(3)]);
+    // Published last, but the oldest year: only the year puts it first.
+    $early = publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1850], 'published_at' => now()->subHour()]);
     $middle = publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1900], 'published_at' => now()->subDays(2)]);
 
     $timeline = api('/posts?section=history&order=timeline')->assertOk()->json();
@@ -514,7 +515,7 @@ test('the history section can be read as a timeline: era, then year, oldest firs
 
     expect(array_column($timeline['data'], 'id'))->toBe([$early->id, $middle->id, $late->id])
         ->and($timeline['data'][0]['facts'])->toMatchArray(['era' => ['id' => $ottoman->id, 'name' => 'العثماني'], 'year_from' => 1850])
-        ->and(array_column(api('/posts?section=history')->json('data'), 'id'))->toBe([$late->id, $middle->id, $early->id])   // without it: newest published first
+        ->and(array_column(api('/posts?section=history')->json('data'), 'id'))->toBe([$early->id, $late->id, $middle->id])   // without it: newest published first
         ->and($timeline['links']['next'])->toBeNull();
     expect(api('/posts?section=history&order=timeline&page=1')->json('links.prev'))->toBeNull();
 });

@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Seo\SitePaths;
 use App\Weather\WeatherBoard;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +15,7 @@ class InstallCitiesCommand extends Command
 {
     protected $signature = 'cities:install';
 
-    protected $description = 'Add any of the twelve weather cities that is missing';
+    protected $description = 'Add any of the twelve weather cities that was never there (one the admin removed stays removed)';
 
     /** name, address, latitude, longitude (as in the reference seed) */
     public const CITIES = [
@@ -37,18 +38,16 @@ class InstallCitiesCommand extends Command
         $added = 0;
         DB::transaction(function () use (&$added) {
             foreach (self::CITIES as $i => [$name, $slug, $lat, $lon]) {
-                $id = DB::table('cities')->where('slug', $slug)->value('id');
-                if ($id === null) {
-                    if (DB::table('cities')->where('name_ar', $name)->exists()) {
-                        continue;   // renamed address of an existing city: the admin's choice stands
-                    }
-                    $id = DB::table('cities')->insertGetId(['name_ar' => $name, 'slug' => $slug, 'latitude' => $lat, 'longitude' => $lon]);
+                // The city is there (with its weather, or kept only for a company after the admin removed its weather),
+                // or the admin removed it (its page answers 410, 12.1): either way the admin's choice stands.
+                $removed = DB::table('redirects')->where('from_path', SitePaths::city($slug))->where('status_code', 410)->exists();
+                if ($removed || DB::table('cities')->where('slug', $slug)->orWhere('name_ar', $name)->exists()) {
+                    continue;
                 }
-                if (! DB::table('weather_locations')->where('city_id', $id)->exists()) {
-                    $default = $slug === 'نابلس' && ! DB::table('weather_locations')->where('is_default', true)->exists();
-                    DB::table('weather_locations')->insert(['city_id' => $id, 'is_default' => $default, 'sort_order' => (int) DB::table('weather_locations')->max('sort_order') + 1]);
-                    $added++;
-                }
+                $id = DB::table('cities')->insertGetId(['name_ar' => $name, 'slug' => $slug, 'latitude' => $lat, 'longitude' => $lon]);
+                $default = $slug === 'نابلس' && ! DB::table('weather_locations')->where('is_default', true)->exists();
+                DB::table('weather_locations')->insert(['city_id' => $id, 'is_default' => $default, 'sort_order' => (int) DB::table('weather_locations')->max('sort_order') + 1]);
+                $added++;
             }
         });
         WeatherBoard::changed();

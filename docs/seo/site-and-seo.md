@@ -22,6 +22,23 @@ The contract is `docs/api/openapi.yaml`; this page explains the rules behind it.
 | Service | `/services/{slug}` |
 | City | `/weather/{slug}` |
 
+## Old addresses of every page (23.6)
+
+Posts keep their 301/410 as before. Every other page addressed by a slug (category, tag, author, guest, character, service,
+page, playlist) uses `App\Content\KeepsOldAddresses`: a changed slug leaves a 301 from the old address (no chains), a
+deleted record a 410 for its address and the old ones, and a record made again (or restored) at the same address clears
+its 410. The site asks `/redirects/lookup` for any address it does not know.
+
+## Lists the site draws without opening every item
+
+* `/posts?initiative_status=ongoing|ended` (5.5) and `/posts?section=history&order=timeline` (5.4: era, then year, oldest
+  first). Every list item carries `facts`: a history item's era and years, an initiative's name and state (null for others).
+* Every item's `kind.schema_type` is the schema.org type of its JSON-LD (23.9).
+* `/team` (28): the writers on the team page, in the admin's order, on one page.
+* A company (`organization`) carries its sector, city, founding year and logo (5.2, 5.3), kept on «الجهات والشركات» with
+  the sectors on «القطاعات الاقتصادية».
+* `/site` carries `contact.map_url`, the place on a map for the contact page (28).
+
 ## `/site` and `/menus`
 
 * `/site`: name (falls back to «رَقَم»), logo, contact details with a ready WhatsApp link, the visible social accounts, the

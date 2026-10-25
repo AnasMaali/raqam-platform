@@ -17,6 +17,7 @@ use App\Models\MediaAsset;
 use App\Models\User;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Forms\Components\FileUpload;
@@ -35,6 +36,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Number;
@@ -147,6 +149,23 @@ class MediaAssetResource extends Resource
                 SelectFilter::make('uploaded_by')->label('رفعه')
                     ->options(fn () => User::query()->where('user_type', 'staff')->orderBy('name')->pluck('name', 'id')->all()),
                 TrashedFilter::make()->label('سلة المحذوفات'),
+            ])
+            // Each picture goes through the trash rules: one still used is kept (21.17).
+            ->toolbarActions([
+                BulkAction::make('trashSelected')->label('نقل المحدد إلى السلة')->icon(Heroicon::OutlinedTrash)->color('danger')
+                    ->requiresConfirmation()->deselectRecordsAfterCompletion()
+                    ->action(function (Collection $records) {
+                        $done = $kept = 0;
+                        foreach ($records as $record) {
+                            try {
+                                $record->trashed() ? null : app(MediaTrash::class)->trash($record);
+                                $done++;
+                            } catch (MediaInUse) {
+                                $kept++;
+                            }
+                        }
+                        Notification::make()->title("نُقل إلى السلة: {$done}")->body($kept > 0 ? "بقي {$kept} لأنه مستخدم." : null)->{$kept > 0 ? 'warning' : 'success'}()->send();
+                    }),
             ])
             ->recordActions([
                 EditAction::make()->label('تعديل'),
