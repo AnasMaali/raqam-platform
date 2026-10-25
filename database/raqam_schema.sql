@@ -2360,7 +2360,9 @@ INSERT INTO menus (key, name_ar) VALUES
 INSERT INTO traffic_sources (code, name_ar) VALUES
   ('google', 'جوجل'), ('bing', 'بينغ'), ('facebook', 'فيسبوك'), ('whatsapp', 'واتساب'),
   ('instagram', 'إنستغرام'), ('tiktok', 'تيك توك'), ('youtube', 'يوتيوب'), ('x', 'إكس'),
-  ('newsletter', 'النشرة البريدية'), ('direct', 'مباشر'), ('other', 'مواقع أخرى');
+  ('newsletter', 'النشرة البريدية'), ('direct', 'مباشر'), ('other', 'مواقع أخرى'),
+  ('chatgpt', 'شات جي بي تي'), ('perplexity', 'بربلكسيتي'), ('gemini', 'جيميناي'),
+  ('copilot', 'كوبايلوت'), ('claude', 'كلود');
 
 INSERT INTO event_types (code, name_ar) VALUES
   ('video_play',          'تشغيل فيديو'),

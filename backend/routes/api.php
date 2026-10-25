@@ -30,6 +30,8 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/home', [HomeApiController::class, 'show']);
     Route::get('/site', [SiteApiController::class, 'site']);
     Route::get('/menus', [SiteApiController::class, 'menus']);
+    Route::get('/robots', [SiteApiController::class, 'robots']);
+    Route::get('/llms', [SiteApiController::class, 'llms']);
     Route::get('/posts', [PostApiController::class, 'index']);
     Route::get('/posts/most-read', [StatsApiController::class, 'mostRead']);
     // At most 18 digits: a longer number does not fit the database's bigint (and would be a server error, not a 404).

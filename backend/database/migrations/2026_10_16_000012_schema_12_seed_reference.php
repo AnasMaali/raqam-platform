@@ -169,7 +169,9 @@ INSERT INTO menus (key, name_ar) VALUES
 INSERT INTO traffic_sources (code, name_ar) VALUES
   ('google', 'جوجل'), ('bing', 'بينغ'), ('facebook', 'فيسبوك'), ('whatsapp', 'واتساب'),
   ('instagram', 'إنستغرام'), ('tiktok', 'تيك توك'), ('youtube', 'يوتيوب'), ('x', 'إكس'),
-  ('newsletter', 'النشرة البريدية'), ('direct', 'مباشر'), ('other', 'مواقع أخرى');
+  ('newsletter', 'النشرة البريدية'), ('direct', 'مباشر'), ('other', 'مواقع أخرى'),
+  ('chatgpt', 'شات جي بي تي'), ('perplexity', 'بربلكسيتي'), ('gemini', 'جيميناي'),
+  ('copilot', 'كوبايلوت'), ('claude', 'كلود');
 
 INSERT INTO event_types (code, name_ar) VALUES
   ('video_play',          'تشغيل فيديو'),
@@ -237,8 +239,8 @@ DELETE FROM settings WHERE key IN (
   'seo.title_suffix');
 DELETE FROM event_types WHERE code IN ('chatbot_open', 'converter_use', 'infographic_download', 'newsletter_signup', 'share_click', 'video_play');
 DELETE FROM traffic_sources WHERE code IN (
-  'bing', 'direct', 'facebook', 'google', 'instagram', 'newsletter',
-  'other', 'tiktok', 'whatsapp', 'x', 'youtube');
+  'bing', 'chatgpt', 'claude', 'copilot', 'direct', 'facebook', 'gemini', 'google', 'instagram', 'newsletter',
+  'other', 'perplexity', 'tiktok', 'whatsapp', 'x', 'youtube');
 DELETE FROM menus WHERE key IN ('footer_legal', 'footer_main', 'header');
 DELETE FROM roles WHERE code IN ('admin');
 DELETE FROM feature_flags WHERE key IN ('chatbot_ai', 'online_payments');   -- dependents first (depends_on RESTRICT)

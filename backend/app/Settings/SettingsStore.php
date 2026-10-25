@@ -5,6 +5,7 @@ namespace App\Settings;
 use App\Models\MediaAsset;
 use App\Models\Setting;
 use App\Models\SiteSocialLink;
+use App\Seo\RobotsPolicy;
 use App\Services\ServiceBoard;
 use App\Services\ServiceContact;
 use Illuminate\Database\QueryException;
@@ -98,6 +99,10 @@ final class SettingsStore
                 if ($socialChanged || array_intersect($changed, SiteProfile::SETTINGS) !== []) {
                     SiteProfile::changed('settings');
                 }
+                // robots.txt and llms.txt are made of these.
+                if (array_intersect($changed, RobotsPolicy::SETTINGS) !== []) {
+                    SiteProfile::changed('robots');
+                }
             });
         } catch (QueryException $e) {
             if ($e->getCode() === '23514') {
@@ -181,7 +186,8 @@ final class SettingsStore
                 continue;
             }
             $value = $input[$name];
-            $value = is_string($value) ? trim($value) : $value;
+            // A switch (type boolean) is stored as the words the table accepts.
+            $value = is_bool($value) ? ($value ? 'true' : 'false') : (is_string($value) ? trim($value) : $value);
             $clean[$key] = ($value === '' || $value === null) ? null : (string) $value;
         }
 
