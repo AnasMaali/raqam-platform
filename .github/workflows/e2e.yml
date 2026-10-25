@@ -135,6 +135,12 @@ jobs:
         working-directory: e2e
         run: TRY_SECONDS=300 ../.github/scripts/retry.sh npm ci --no-audit --no-fund
 
+      # Known vulnerabilities in the test tools' packages (24.13).
+      - name: Dependency audit
+        timeout-minutes: 3
+        working-directory: e2e
+        run: npm audit --audit-level=low
+
       - name: Playwright version (cache key of the browser)
         id: playwright
         working-directory: e2e

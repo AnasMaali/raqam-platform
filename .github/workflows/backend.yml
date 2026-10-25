@@ -120,6 +120,11 @@ jobs:
         timeout-minutes: 15
         run: TRY_SECONDS=400 ../.github/scripts/retry.sh composer install --no-interaction --no-progress --prefer-dist
 
+      # Known vulnerabilities in the PHP packages (24.13); abandoned packages are reported too.
+      - name: Dependency audit
+        timeout-minutes: 3
+        run: composer audit --no-interaction --abandoned=report
+
       - name: Prepare environment
         timeout-minutes: 2
         run: cp .env.example .env && php artisan key:generate
@@ -151,3 +156,13 @@ jobs:
         run: |
           php artisan migrate:fresh --force --no-interaction
           php artisan migrate:fresh --force --no-interaction
+
+      # Every install step on the empty database, twice: the second run must change nothing and fail nothing.
+      - name: raqam:install twice on the fresh database
+        timeout-minutes: 5
+        env:
+          DB_DATABASE: raqam_testing
+          MEILISEARCH_KEY: ""
+        run: |
+          php artisan raqam:install --no-interaction
+          php artisan raqam:install --no-interaction

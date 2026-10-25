@@ -25,6 +25,7 @@ use App\Console\PruneEmailLogCommand;
 use App\Console\PruneRetainedDataCommand;
 use App\Console\PublishDuePostsCommand;
 use App\Console\PurgeTrashedPostsCommand;
+use App\Console\RaqamInstallCommand;
 use App\Console\ReconcilePaymentsCommand;
 use App\Console\SearchCreateKeyCommand;
 use App\Console\SearchEvaluateCommand;
@@ -69,6 +70,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([ReconcilePaymentsCommand::class])
     // The switches only the server turns on (phase 10 review N1).
     ->withCommands([FeatureSwitchCommand::class])
+    // Every install step in order, safe to repeat (phase 10b freeze).
+    ->withCommands([RaqamInstallCommand::class])
     // Every listener is registered by hand in AppServiceProvider. With discovery on as well, a class in app/Listeners ran
     // twice for each event (two webhooks for every post change).
     ->withEvents(discover: false)
