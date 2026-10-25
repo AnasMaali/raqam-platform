@@ -83,7 +83,7 @@ final class Presenter
     public function summaries(Collection $posts): array
     {
         $this->preload($posts->pluck('cover_media_id'));
-        $kinds = DB::table('post_kinds')->pluck('name_ar', 'code');
+        $kinds = DB::table('post_kinds')->get(['code', 'name_ar', 'schema_org_type'])->keyBy('code');
         $categories = DB::table('categories')->whereIn('id', $posts->pluck('category_id')->filter())->get()->keyBy('id');
         $authors = DB::table('post_authors')->join('authors', 'authors.id', '=', 'post_authors.author_id')->whereNull('authors.deleted_at')
             ->whereIn('post_id', $posts->pluck('id'))->orderBy('post_authors.sort_order')->get(['post_id', 'authors.id', 'authors.name', 'authors.slug'])->groupBy('post_id');
@@ -96,7 +96,7 @@ final class Presenter
             $s = $sponsors->get($p->sponsor_organization_id);
 
             return ($views === null ? [] : ['views' => $views[$p->id] ?? 0]) + [
-                'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code] ?? $p->kind_code],
+                'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code]->name_ar ?? $p->kind_code, 'schema_type' => $kinds[$p->kind_code]->schema_org_type ?? 'Article'],
                 'title' => $p->title, 'subtitle' => $p->subtitle, 'excerpt' => $p->excerpt, 'slug' => $p->slug,
                 'path' => PostPath::for($p->kind_code, $p->id, $p->slug),
                 'published_at' => $this->iso($p->published_at), 'updated_at' => $this->iso($p->updated_at),

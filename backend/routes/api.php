@@ -47,6 +47,7 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
 
     Route::get('/authors', [PeopleApiController::class, 'authors']);
     Route::get('/authors/{slug}', [PeopleApiController::class, 'author']);
+    Route::get('/team', [PeopleApiController::class, 'team']);
     Route::get('/guests', [PeopleApiController::class, 'guests']);
     Route::get('/guests/{slug}', [PeopleApiController::class, 'guest']);
 

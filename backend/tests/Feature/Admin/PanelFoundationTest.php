@@ -141,3 +141,7 @@ test('the audit log is read only: no create, edit or delete', function () {
 test('a customer account cannot open the audit log', function () {
     $this->actingAs(User::factory()->create())->get($this->url.'/audit-logs')->assertForbidden();
 });
+
+test('leaving a form with unsaved changes asks first (21.7)', function () {
+    expect(Filament::getPanel('admin')->hasUnsavedChangesAlerts())->toBeTrue();
+});

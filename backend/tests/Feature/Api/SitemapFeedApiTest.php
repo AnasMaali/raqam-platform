@@ -103,6 +103,7 @@ test('the pages sitemap lists what a visitor can open and leaves out the hidden,
     DB::table('pages')->insert([['title' => 'من نحن', 'slug' => 'about', 'is_published' => true], ['title' => 'مسودة', 'slug' => 'draft-x', 'is_published' => false]]);
     DB::table('authors')->insert([['name' => 'سامر', 'slug' => 'samer', 'deleted_at' => null], ['name' => 'قديم', 'slug' => 'old-author', 'deleted_at' => now()]]);
     DB::table('sections')->where('key', 'round_table')->update(['is_visible' => false]);
+    DB::table('weather_locations')->where('city_id', DB::table('cities')->where('slug', 'غزة')->value('id'))->update(['is_active' => false]);
     $post = sitemapLivePost();
     $usedTag = DB::table('tags')->insertGetId(['name_ar' => 'مستعمل', 'slug' => 'used-tag']);
     $emptyTag = DB::table('tags')->insertGetId(['name_ar' => 'فارغ', 'slug' => 'empty-tag']);
@@ -112,10 +113,10 @@ test('the pages sitemap lists what a visitor can open and leaves out the hidden,
     validateAgainstPath($body, '/sitemaps/pages');
     $paths = array_column($body['data'], 'path');
 
-    expect($paths)->toContain('/', '/category/طاقة-x', '/about', '/author/samer', '/podcast', '/tag/used-tag', '/currencies', '/weather', '/video')
+    expect($paths)->toContain('/', '/category/طاقة-x', '/about', '/author/samer', '/podcast', '/tag/used-tag', '/currencies', '/weather', '/weather/نابلس', '/video')
         ->and(count($paths))->toBe(count(array_unique($paths)));
     // One by one: a negated toContain with several values fails only when all of them are there.
-    foreach (['/category/مخفي-x', '/category/بدون-فهرسة', '/draft-x', '/author/old-author', '/round-table', '/tag/empty-tag'] as $left) {
+    foreach (['/category/مخفي-x', '/category/بدون-فهرسة', '/draft-x', '/author/old-author', '/round-table', '/tag/empty-tag', '/weather/غزة'] as $left) {
         expect($paths)->not->toContain($left);
     }
     expect([$active, $emptyTag])->each->toBeInt();

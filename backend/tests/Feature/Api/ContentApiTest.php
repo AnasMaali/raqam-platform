@@ -457,3 +457,31 @@ test('no query can read a draft through a filter or an id trick', function () {
         expect(json_encode(api($path)->json(), JSON_UNESCAPED_UNICODE))->not->toContain('مسودة سرية');
     }
 });
+
+test('every item says the schema.org type of its JSON-LD (23.9)', function () {
+    $news = publish('news');
+    $opinion = publish('opinion');
+
+    expect(api("/posts/{$news->id}")->json('data.kind.schema_type'))->toBe('NewsArticle')
+        ->and(api("/posts/{$opinion->id}")->json('data.kind.schema_type'))->toBe('OpinionNewsArticle')
+        ->and(collect(api('/posts')->json('data'))->pluck('kind.schema_type')->unique()->sort()->values()->all())->toBe(['NewsArticle', 'OpinionNewsArticle']);
+});
+
+test('the team page lists the writers the admin put on it, in the admin\'s order, active only (28)', function () {
+    DB::table('authors')->insert([
+        ['name' => 'رئيس التحرير', 'slug' => 'chief', 'team_sort_order' => 1, 'is_active' => true, 'deleted_at' => null],
+        ['name' => 'محررة', 'slug' => 'editor', 'team_sort_order' => 0, 'is_active' => true, 'deleted_at' => null],
+        ['name' => 'كاتب ضيف', 'slug' => 'guest-writer', 'team_sort_order' => null, 'is_active' => true, 'deleted_at' => null],
+        ['name' => 'سابق', 'slug' => 'former', 'team_sort_order' => 2, 'is_active' => false, 'deleted_at' => null],
+        ['name' => 'محذوف', 'slug' => 'gone', 'team_sort_order' => 3, 'is_active' => true, 'deleted_at' => now()],
+    ]);
+
+    // (A link each: the test's JSON decoding turns an empty links object into a list.)
+    foreach (['chief', 'editor'] as $slug) {
+        DB::table('author_links')->insert(['author_id' => DB::table('authors')->where('slug', $slug)->value('id'), 'platform_code' => 'x', 'url' => "https://x.com/{$slug}"]);
+    }
+    $body = api('/team')->assertOk()->json();
+    validateAgainstPath($body, '/team');
+
+    expect(array_column($body['data'], 'slug'))->toBe(['editor', 'chief']);
+});

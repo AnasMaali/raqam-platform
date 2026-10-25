@@ -499,6 +499,26 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /team:
+    get:
+      tags: [People]
+      summary: The team page (28), every member in the admin's order
+      description: The active writers the admin put on the «فريق العمل» page, ordered by `team_order`, all on one page.
+      operationId: team
+      responses:
+        '200':
+          description: The team.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Author' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /guests:
     get:
       tags: [People]
@@ -2893,10 +2913,11 @@ components:
             additionalProperties: { $ref: '#/components/schemas/MediaVariant' }
     Kind:
       type: object
-      required: [code, name]
+      required: [code, name, schema_type]
       properties:
         code: { $ref: '#/components/schemas/KindCode' }
         name: { type: string }
+        schema_type: { type: string, description: 'The schema.org type of its JSON-LD (23.9): NewsArticle, OpinionNewsArticle, ReportageNewsArticle or Article.', example: NewsArticle }
     CategoryRef:
       type: object
       required: [id, name, slug]
@@ -2955,7 +2976,7 @@ components:
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }]
         contact:
           type: object
-          required: [phone, whatsapp, whatsapp_message, whatsapp_url, email, address]
+          required: [phone, whatsapp, whatsapp_message, whatsapp_url, email, address, map_url]
           properties:
             phone: { type: [string, 'null'], example: '+970599123456' }
             whatsapp: { type: [string, 'null'] }
@@ -2963,6 +2984,7 @@ components:
             whatsapp_url: { type: [string, 'null'], description: 'https://wa.me/… with the ready message.' }
             email: { type: [string, 'null'], format: email }
             address: { type: [string, 'null'] }
+            map_url: { type: [string, 'null'], description: 'The place on a map (a share link), for the contact page (28).' }
         social:
           type: array
           items:

@@ -4,13 +4,16 @@ use App\Chat\BotLibrary;
 use App\Chat\ChatAnswer;
 use App\Chat\ChatGuard;
 use App\Chat\ChatResponder;
+use App\Chat\ChatService;
 use App\Chat\KnowledgeBase;
 use App\Markets\RateFetcher;
 use App\Models\Faq;
+use App\Support\TrackingHash;
 use App\Weather\WeatherFetcher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 
 uses(RefreshDatabase::class);
 
@@ -212,4 +215,26 @@ test('KnowledgeBase words drop question words and fold forms like the search', f
     expect(KnowledgeBase::words('كيف أعلن في المنصة؟'))->toBe(KnowledgeBase::words('اعلن بالمنصه'))
         ->and(KnowledgeBase::words('ما هو'))->toBe([])
         ->and(KnowledgeBase::dice(['a', 'b'], ['a', 'b']))->toBe(1.0)->and(KnowledgeBase::dice(['a'], ['b']))->toBe(0.0);
+});
+
+test('two hundred messages a day per visitor, whatever the minute (18.12)', function () {
+    $visitor = TrackingHash::visitor('203.0.113.77');
+    foreach (range(1, ChatService::PER_DAY - 1) as $i) {
+        RateLimiter::hit("chat:day:{$visitor}", 86400);
+    }
+
+    ask('السؤال الأخير اليوم', ip: '203.0.113.77')->assertOk();
+    ask('سؤال زائد', ip: '203.0.113.77')->assertStatus(429)->assertJsonPath('error.code', 'too_many');
+    ask('سؤال من زائر آخر', ip: '203.0.113.78')->assertOk();
+});
+
+test('after sixty questions a conversation goes on in a new one (18.12)', function () {
+    $token = ask('مرحبا')->json('data.conversation');
+    $id = DB::table('bot_conversations')->where('public_id', explode('.', $token)[0])->value('id');
+    DB::table('bot_messages')->insert(array_map(fn ($i) => ['conversation_id' => $id, 'role' => 'user', 'content' => "سؤال {$i}"], range(2, ChatService::PER_CONVERSATION)));
+
+    $next = ask('سؤال بعد الحد', $token)->assertOk()->json('data.conversation');
+
+    expect($next)->not->toBe($token)
+        ->and(DB::table('bot_messages')->where('conversation_id', $id)->where('role', 'user')->count())->toBe(ChatService::PER_CONVERSATION);
 });
