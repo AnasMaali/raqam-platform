@@ -7,6 +7,7 @@ use App\Jobs\CheckBrevoEvent;
 use App\Newsletter\NewsletterRefused;
 use App\Newsletter\NewsletterSignup;
 use App\Newsletter\Subscribers;
+use App\Support\Honeypot;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,7 +26,10 @@ class NewsletterApiController extends ApiController
 
     public function subscribe(Request $request, NewsletterSignup $signup): JsonResponse
     {
-        return $this->fromSite($request, fn (array $body, string $ip) => response()->json(['data' => $this->challenge($signup->request($body, $ip))], 202));
+        return $this->fromSite($request, fn (array $body, string $ip) => response()->json(['data' => $this->challenge(
+            // A robot caught by the honeypot (24.10) gets a challenge that leads nowhere; no code is sent to anybody.
+            Honeypot::caught($body) ? Honeypot::decoyChallenge() : $signup->request($body, $ip)
+        )], 202));
     }
 
     public function resend(Request $request, NewsletterSignup $signup): JsonResponse
@@ -36,6 +40,9 @@ class NewsletterApiController extends ApiController
     public function confirm(Request $request, NewsletterSignup $signup): JsonResponse
     {
         return $this->fromSite($request, function (array $body, string $ip) use ($signup) {
+            if (Honeypot::caught($body)) {
+                throw new NewsletterRefused('bad_code', 'الرمز غير صحيح.');
+            }
             $signup->confirm($this->string($body, 'challenge'), $this->string($body, 'code'), $ip);
 
             return response()->json(['data' => ['confirmed' => true]]);

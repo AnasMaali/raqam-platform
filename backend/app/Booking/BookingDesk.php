@@ -11,6 +11,7 @@ use App\Media\MediaUploader;
 use App\Models\Service;
 use App\Panel\AdminAlerts;
 use App\Settings\FeatureFlags;
+use App\Support\Honeypot;
 use App\Support\PhoneNumber;
 use App\Support\TrackingHash;
 use App\Support\Turnstile;
@@ -35,7 +36,7 @@ use Illuminate\Validation\ValidationException;
  */
 final class BookingDesk
 {
-    public const HONEYPOT = 'website';
+    public const HONEYPOT = Honeypot::FIELD;
 
     public const CONTACT_WAYS = ['phone' => 'اتصال هاتفي', 'whatsapp' => 'واتساب', 'email' => 'البريد الإلكتروني'];
 

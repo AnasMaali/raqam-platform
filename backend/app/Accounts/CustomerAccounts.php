@@ -30,7 +30,7 @@ use Illuminate\Support\Timebox;
  */
 final class CustomerAccounts
 {
-    private const BAD_LOGIN = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+    public const BAD_LOGIN = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
 
     private static ?string $decoy = null;
 

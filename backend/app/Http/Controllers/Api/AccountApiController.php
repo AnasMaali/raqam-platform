@@ -8,6 +8,7 @@ use App\Accounts\CustomerLibrary;
 use App\Accounts\CustomerSessions;
 use App\Api\SiteToken;
 use App\Models\User;
+use App\Support\Honeypot;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class AccountApiController extends ApiController
 {
     public function register(Request $request, CustomerAccounts $accounts): JsonResponse
     {
-        return $this->visitor($request, fn (string $ip) => ['challenge' => $accounts->register($request->json()->all(), $ip)], 202);
+        return $this->visitor($request, fn (string $ip) => ['challenge' => $this->caught($request) ? Honeypot::decoyChallenge() : $accounts->register($request->json()->all(), $ip)], 202);
     }
 
     public function resend(Request $request, CustomerAccounts $accounts): JsonResponse
@@ -30,22 +31,27 @@ class AccountApiController extends ApiController
 
     public function confirm(Request $request, CustomerAccounts $accounts): JsonResponse
     {
-        return $this->visitor($request, fn (string $ip) => ['token' => $accounts->confirmRegistration((string) $request->json('challenge'), (string) $request->json('code'), $ip)], 201);
+        return $this->visitor($request, fn (string $ip) => ['token' => $this->caught($request) ? throw new AccountRefused('bad_code', 'الرمز غير صحيح.')
+            : $accounts->confirmRegistration((string) $request->json('challenge'), (string) $request->json('code'), $ip)], 201);
     }
 
     public function login(Request $request, CustomerAccounts $accounts): JsonResponse
     {
-        return $this->visitor($request, fn (string $ip) => ['token' => $accounts->login($request->json('email'), $request->json('password'), $ip)]);
+        return $this->visitor($request, fn (string $ip) => ['token' => $this->caught($request) ? throw new AccountRefused('bad_credentials', CustomerAccounts::BAD_LOGIN)
+            : $accounts->login($request->json('email'), $request->json('password'), $ip)]);
     }
 
     public function forgot(Request $request, CustomerAccounts $accounts): JsonResponse
     {
-        return $this->visitor($request, fn (string $ip) => ['challenge' => $accounts->forgotPassword($request->json()->all(), $ip)], 202);
+        return $this->visitor($request, fn (string $ip) => ['challenge' => $this->caught($request) ? Honeypot::decoyChallenge() : $accounts->forgotPassword($request->json()->all(), $ip)], 202);
     }
 
     public function reset(Request $request, CustomerAccounts $accounts): JsonResponse
     {
         return $this->visitor($request, function (string $ip) use ($request, $accounts) {
+            if ($this->caught($request)) {
+                throw new AccountRefused('bad_code', 'الرمز غير صحيح.');
+            }
             $accounts->resetPassword((string) $request->json('challenge'), (string) $request->json('code'), $request->json('password'), $ip);
 
             return ['reset' => true];
@@ -137,6 +143,15 @@ class AccountApiController extends ApiController
     private function customer(Request $request): User
     {
         return $request->attributes->get('customer');
+    }
+
+    /**
+     * The hidden field of the public forms (24.10). A caught robot gets the answer a person would get, with nothing behind
+     * it: a challenge that leads nowhere, or the refusal of a wrong code or password; nothing is checked, stored or sent.
+     */
+    private function caught(Request $request): bool
+    {
+        return Honeypot::caught($request->json()->all());
     }
 
     /** A route of a visitor who is not signed in: site only, JSON only. @param Closure(string): array<string, mixed> $work */

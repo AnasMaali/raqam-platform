@@ -49,6 +49,11 @@ final class FeatureFlags
                 if ($flag->key === 'booking') {
                     ServiceBoard::changed(null, everyPage: true);
                 }
+                // The site draws the chat button, the popup, the mobile bar, the view counts and (later) the booking and
+                // account pages from these (21.14, 21.16).
+                if (in_array($flag->key, SiteProfile::FEATURES, true)) {
+                    SiteProfile::changed('feature');
+                }
             });
         } catch (QueryException $e) {
             if ($e->getCode() === '23514') {

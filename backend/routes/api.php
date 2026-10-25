@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\RedirectLookupController;
 use App\Http\Controllers\Api\SearchApiController;
 use App\Http\Controllers\Api\ServiceApiController;
+use App\Http\Controllers\Api\SiteApiController;
 use App\Http\Controllers\Api\StatsApiController;
 use App\Http\Controllers\Api\TaxonomyApiController;
 use App\Http\Controllers\Api\VideoApiController;
@@ -27,6 +28,8 @@ use Illuminate\Support\Facades\Route;
 // Read-only content API, /api/v1 (contract: docs/api/openapi.yaml). Published content only.
 Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(function () {
     Route::get('/home', [HomeApiController::class, 'show']);
+    Route::get('/site', [SiteApiController::class, 'site']);
+    Route::get('/menus', [SiteApiController::class, 'menus']);
     Route::get('/posts', [PostApiController::class, 'index']);
     Route::get('/posts/most-read', [StatsApiController::class, 'mostRead']);
     // At most 18 digits: a longer number does not fit the database's bigint (and would be a server error, not a 404).
@@ -57,7 +60,14 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/videos/{id}', [VideoApiController::class, 'show'])->where('id', '[0-9]{1,18}');
     Route::get('/playlists', [VideoApiController::class, 'playlists']);
     Route::get('/playlists/{slug}', [VideoApiController::class, 'playlistShow']);
+    Route::get('/sitemaps', [SiteApiController::class, 'sitemaps']);
+    Route::get('/sitemaps/pages', [SiteApiController::class, 'sitemapPages']);
+    Route::get('/sitemaps/posts', [SiteApiController::class, 'sitemapPosts']);
+    Route::get('/sitemaps/news', [SiteApiController::class, 'sitemapNews']);
     Route::get('/sitemaps/videos', [VideoApiController::class, 'sitemap']);
+    Route::get('/feeds/posts', [SiteApiController::class, 'feed']);
+    Route::get('/feeds/categories/{slug}', [SiteApiController::class, 'categoryFeed']);
+    Route::get('/feeds/sections/{slug}', [SiteApiController::class, 'sectionFeed']);
 
     Route::get('/redirects/lookup', RedirectLookupController::class);
 

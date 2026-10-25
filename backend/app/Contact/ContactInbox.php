@@ -5,6 +5,7 @@ namespace App\Contact;
 use App\Mail\SystemMail;
 use App\Mail\TemplatedEmail;
 use App\Panel\AdminAlerts;
+use App\Support\Honeypot;
 use App\Support\PhoneNumber;
 use App\Support\TrackingHash;
 use App\Support\Turnstile;
@@ -27,7 +28,7 @@ use Illuminate\Validation\ValidationException;
 final class ContactInbox
 {
     /** The hidden field a person never fills. */
-    public const HONEYPOT = 'website';
+    public const HONEYPOT = Honeypot::FIELD;
 
     /**
      * @param  array<string, mixed>  $input  name, email, phone, subject, message, turnstile_token, website

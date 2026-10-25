@@ -106,3 +106,10 @@ test('the pages screens are for signed-in staff only', function () {
     $this->get('/'.config('raqam.admin_path').'/pages')->assertRedirect();
     $this->actingAs(User::factory()->create())->get('/'.config('raqam.admin_path').'/pages')->assertForbidden();
 });
+
+test('a page cannot take the address of a site page that is not a post (currencies, feeds, bookings, account, llms.txt)', function () {
+    foreach (['currencies', 'feeds', 'bookings', 'account', 'llms.txt', 'CURRENCIES'] as $slug) {
+        expect(StaticPages::isReserved($slug))->toBeTrue($slug);
+    }
+    expect(StaticPages::isReserved('about-us'))->toBeFalse();
+});

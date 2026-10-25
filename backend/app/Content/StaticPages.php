@@ -33,6 +33,7 @@ final class StaticPages
         'news', 'report', 'opinion', 'infographic', 'podcast', 'success-stories', 'made-in-nablus', 'history', 'initiatives',
         'round-table', 'awareness', 'category', 'tag', 'author', 'guest', 'video', 'videos', 'search', 'api', 'currency', 'weather',
         'newsletter', 'preview', 'storage', 'private-media', 'livewire', 'up', 'sitemap', 'sitemap.xml', 'robots.txt', 'rss', 'feed', 'login', 'logout',
+        'currencies', 'feeds', 'bookings', 'account', 'llms.txt',
     ];
 
     /** @return int how many were added (existing ones are left exactly as they are) */

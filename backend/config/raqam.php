@@ -141,6 +141,20 @@ return [
     ],
 
     /*
+    | IndexNow (decision 23.11): Bing, Yandex and the others are told about every published, edited or deleted address
+    | right after the save is committed. The key is not a secret (the website serves it at /{key}.txt, from its own
+    | environment, with the same value); it lives in .env so it never sits in the repository. Empty = nothing is sent.
+    */
+    'indexnow' => [
+        'key' => env('INDEXNOW_KEY'),
+        'endpoint' => 'https://api.indexnow.org/indexnow',
+        // Browser tests only: a stand-in for api.indexnow.org. Production refuses to start with it set.
+        'endpoint_override' => env('INDEXNOW_ENDPOINT'),
+        // The same address is not sent again within this many seconds (several saves in a row are one change for a crawler).
+        'gap_seconds' => 60,
+    ],
+
+    /*
     | System e-mail (decision 20): every message goes out through SMTP from a template the admin edits. Queued messages
     | are tried `attempts` times (20.8), `backoff` seconds apart; the sign-in messages are not queued (a stuck queue must
     | never lock the admin out) and are tried as many times right away, `direct_pause_ms` apart. email_log keeps

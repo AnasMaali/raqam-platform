@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Seo\IndexNow;
 use RuntimeException;
 
 /**
@@ -76,6 +77,14 @@ final class ProductionChecks
         }
         if (! str_starts_with((string) config('raqam.site_url'), 'https://')) {
             $failures[] = 'SITE_URL must be the https:// address of the website.';
+        }
+
+        if (filled(config('raqam.indexnow.endpoint_override'))) {
+            $failures[] = 'INDEXNOW_ENDPOINT is for browser tests only and must not be set.';
+        }
+        // IndexNow is optional (empty key = nothing is sent); a key that is set must be one the engines accept.
+        if (filled(config('raqam.indexnow.key')) && preg_match(IndexNow::KEY_PATTERN, (string) config('raqam.indexnow.key')) !== 1) {
+            $failures[] = 'INDEXNOW_KEY must be 8 to 128 letters, digits or dashes.';
         }
 
         if (filled(config('raqam.turnstile.verify_url'))) {

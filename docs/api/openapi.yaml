@@ -55,11 +55,27 @@ info:
     * **Weather** sends no webhook (every city changes every hour): refresh weather pages every 10 minutes. Every
       weather answer carries `meta.attribution` ("Weather data © OpenWeather"), which must be visible wherever
       the weather is shown (the free plan's condition).
+    * **The platform and its menus** (`/site`, `/menus`) are on every page. A change of the name, logo, contact details,
+      social accounts or default SEO sends `{"type": "site", "change": "settings", "paths": []}`; a switch the site acts on
+      (`features`) sends `{"type": "site", "change": "feature", "paths": []}`. Saving a menu sends `{"type": "menus",
+      "change": "header" | "footer_main" | "footer_legal", "paths": []}`, and so does (`"change": "target"`) a page,
+      category or section that a menu links to when its address changes or it is unpublished or hidden. Refresh every page.
+    * **Sitemaps and feeds** (`/sitemaps…`, `/feeds…`) hold only what a visitor can open and a search engine may index (no
+      draft, scheduled, archived, trashed, noindex or canonical-elsewhere item). The site writes the XML and refreshes it
+      on the post and page webhooks.
+    * **IndexNow** (23.11): the back end tells the engines about every published, edited or deleted post and page by
+      itself, after the save. The website must serve the key file at `/{INDEXNOW_KEY}.txt` (the key as its only content),
+      from its own environment with the same value as the back end's `INDEXNOW_KEY`.
+    * **Every public form has a hidden field `website`** (the honeypot, 24.10): the contact form, the newsletter
+      (subscribe and code), the chat, booking and the customer-account forms. Draw it out of sight and send it as it is
+      (empty for a person). A filled field gets an answer of the usual shape with nothing behind it.
   license:
     name: Proprietary
 servers:
   - url: /api/v1
 tags:
+  - name: Site
+  - name: Seo
   - name: Posts
   - name: Taxonomy
   - name: People
@@ -114,6 +130,59 @@ paths:
                 required: [data]
                 properties:
                   data: { type: array, items: { $ref: '#/components/schemas/HomeBlock' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /site:
+    get:
+      tags: [Site]
+      summary: The platform's own settings, for every page (21.13)
+      description: |
+        The name (falls back to «رَقَم»), logo, contact details (with a ready `whatsapp_url`), the visible social accounts in
+        order, the default SEO and the switches the website acts on (21.14). Nothing secret: no key, no internal mail
+        address, no schedule. A change sends the `site` webhook.
+      operationId: site
+      responses:
+        '200':
+          description: The settings.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SiteProfile' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /menus:
+    get:
+      tags: [Site]
+      summary: The header and footer menus, links ready (21.12)
+      description: |
+        `header`, `footer_main` and `footer_legal`, each a list of links in the admin's order with at most one level of
+        children. A hidden link is left out, and so is one whose page is unpublished or whose category or section is
+        hidden; a top-level link left out takes its children with it. `href` is a path of the site or an https address
+        (`external`). A change sends the `menus` webhook.
+      operationId: menus
+      responses:
+        '200':
+          description: The menus.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [header, footer_main, footer_legal]
+                    properties:
+                      header: { type: array, items: { $ref: '#/components/schemas/MenuLink' } }
+                      footer_main: { type: array, items: { $ref: '#/components/schemas/MenuLink' } }
+                      footer_legal: { type: array, items: { $ref: '#/components/schemas/MenuLink' } }
         '304': { $ref: '#/components/responses/NotModified' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
@@ -663,6 +732,138 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /sitemaps:
+    get:
+      tags: [Seo]
+      summary: The list of sitemaps (23.10)
+      description: |
+        What the site's sitemap index lists: the other pages, one sitemap per page of posts (`POSTS_PER_PAGE` = 2000 each,
+        oldest first, so a page keeps its addresses), the news of the last 48 hours for Google News, and the videos.
+        `path` is the API address to read for each.
+      operationId: sitemaps
+      responses:
+        '200':
+          description: The sitemaps.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [type, path, updated_at]
+                      properties:
+                        type: { enum: [pages, posts, news, videos] }
+                        path: { type: string, example: '/sitemaps/posts?page=1' }
+                        updated_at: { type: [string, 'null'], format: date-time }
+                  meta:
+                    type: object
+                    required: [posts_total, posts_per_page, news_total]
+                    properties:
+                      posts_total: { type: integer, minimum: 0 }
+                      posts_per_page: { type: integer }
+                      news_total: { type: integer, minimum: 0 }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /sitemaps/pages:
+    get:
+      tags: [Seo]
+      summary: Every page of the site that is not a post or a video
+      description: |
+        The home page, the visible sections, active categories, published static pages, active authors, guests, visible
+        characters, visible playlists, tags that carry a live item, visible services, the currency and weather pages and
+        each visible city, and the video library. Noindex or canonical-elsewhere rows are left out.
+      operationId: sitemapPages
+      responses:
+        '200':
+          description: The addresses.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SitemapEntry' } }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /sitemaps/posts:
+    get:
+      tags: [Seo]
+      summary: One page of the live posts for the sitemap
+      operationId: sitemapPosts
+      parameters: [{ $ref: '#/components/parameters/Page' }]
+      responses:
+        '200':
+          description: The addresses.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SitemapEntry' } }
+                  meta:
+                    type: object
+                    required: [page, per_page, total, last_page]
+                    properties:
+                      page: { type: integer }
+                      per_page: { type: integer }
+                      total: { type: integer }
+                      last_page: { type: integer }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /sitemaps/news:
+    get:
+      tags: [Seo]
+      summary: The news sitemap for Google News (23.10, 23.13)
+      description: |
+        News, reports, opinion pieces and infographics (not the section items, which are articles) published in the last
+        48 hours, newest first, at most 1,000. `meta.publication` is the name and language Google News asks for.
+      operationId: sitemapNews
+      responses:
+        '200':
+          description: The news.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [path, title, published_at, keywords]
+                      properties:
+                        path: { type: string }
+                        title: { type: string }
+                        published_at: { type: string, format: date-time }
+                        keywords: { type: array, items: { type: string }, maxItems: 10 }
+                  meta:
+                    type: object
+                    required: [publication, hours]
+                    properties:
+                      publication:
+                        type: object
+                        required: [name, language]
+                        properties:
+                          name: { type: string }
+                          language: { const: ar }
+                      hours: { const: 48 }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /sitemaps/videos:
     get:
       tags: [Videos]
@@ -681,6 +882,68 @@ paths:
                 properties:
                   data: { type: array, items: { $ref: '#/components/schemas/VideoSitemapEntry' } }
         '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /feeds/posts:
+    get:
+      tags: [Seo]
+      summary: The RSS feed of the whole site (23.12)
+      description: The 30 latest live items, newest first. The website writes the RSS XML.
+      operationId: feed
+      responses:
+        '200':
+          description: The feed.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Feed' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /feeds/categories/{slug}:
+    get:
+      tags: [Seo]
+      summary: The RSS feed of one category, sub-categories included
+      operationId: categoryFeed
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The feed.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Feed' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /feeds/sections/{slug}:
+    get:
+      tags: [Seo]
+      summary: The RSS feed of one special section
+      operationId: sectionFeed
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200':
+          description: The feed.
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Feed' }
+        '304': { $ref: '#/components/responses/NotModified' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /pages:
@@ -1596,6 +1859,7 @@ paths:
               type: object
               required: [email, placement, turnstile_token]
               properties:
+                website: { type: string, description: 'Honeypot: must stay empty.' }
                 email: { type: string, format: email, maxLength: 254 }
                 name: { type: [string, 'null'], minLength: 2, maxLength: 120 }
                 placement: { type: string, enum: [footer, post_end, newsletter_page] }
@@ -1647,6 +1911,7 @@ paths:
               type: object
               required: [challenge, code]
               properties:
+                website: { type: string, description: 'Honeypot: must stay empty.' }
                 challenge: { type: string }
                 code: { type: string, pattern: '^[0-9]{6}$' }
       responses:
@@ -1751,6 +2016,7 @@ paths:
             schema:
               type: object
               properties:
+                website: { type: string, description: 'Honeypot: must stay empty.' }
                 message: { type: string, maxLength: 500 }
                 button: { type: integer }
                 conversation: { type: [string, 'null'] }
@@ -1856,7 +2122,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, properties: { name: { type: string }, email: { type: string }, phone: { type: [string, 'null'] }, password: { type: string, minLength: 10, maxLength: 128 }, turnstile_token: { type: string } } }
+            schema: { type: object, properties: { name: { type: string }, email: { type: string }, phone: { type: [string, 'null'] }, password: { type: string, minLength: 10, maxLength: 128 }, turnstile_token: { type: string }, website: { type: string, description: 'Honeypot: must stay empty.' } } }
       responses:
         '202':
           description: A challenge; a code was sent if the address has no account.
@@ -1896,7 +2162,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, properties: { challenge: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' } } }
+            schema: { type: object, properties: { challenge: { type: string }, code: { type: string, pattern: '^[0-9]{6}$' }, website: { type: string, description: 'Honeypot: must stay empty.' } } }
       responses:
         '201':
           description: The session token.
@@ -1916,7 +2182,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, properties: { email: { type: string }, password: { type: string } } }
+            schema: { type: object, properties: { email: { type: string }, password: { type: string }, website: { type: string, description: 'Honeypot: must stay empty.' } } }
       responses:
         '200':
           description: The session token.
@@ -1936,7 +2202,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, properties: { email: { type: string }, turnstile_token: { type: string } } }
+            schema: { type: object, properties: { email: { type: string }, turnstile_token: { type: string }, website: { type: string, description: 'Honeypot: must stay empty.' } } }
       responses:
         '202':
           description: A challenge.
@@ -1956,7 +2222,7 @@ paths:
         required: true
         content:
           application/json:
-            schema: { type: object, properties: { challenge: { type: string }, code: { type: string }, password: { type: string, minLength: 10, maxLength: 128 } } }
+            schema: { type: object, properties: { challenge: { type: string }, code: { type: string }, password: { type: string, minLength: 10, maxLength: 128 }, website: { type: string, description: 'Honeypot: must stay empty.' } } }
       responses:
         '200':
           description: Done.
@@ -2591,6 +2857,77 @@ components:
           type: object
           description: Endpoints to read for this block.
           additionalProperties: { type: string }
+    SiteProfile:
+      type: object
+      required: [name, logo, contact, social, seo, features]
+      properties:
+        name: { type: string }
+        logo:
+          oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }]
+        contact:
+          type: object
+          required: [phone, whatsapp, whatsapp_message, whatsapp_url, email, address]
+          properties:
+            phone: { type: [string, 'null'], example: '+970599123456' }
+            whatsapp: { type: [string, 'null'] }
+            whatsapp_message: { type: [string, 'null'] }
+            whatsapp_url: { type: [string, 'null'], description: 'https://wa.me/… with the ready message.' }
+            email: { type: [string, 'null'], format: email }
+            address: { type: [string, 'null'] }
+        social:
+          type: array
+          items:
+            type: object
+            required: [platform, name, url]
+            properties:
+              platform: { type: string, example: facebook }
+              name: { type: string }
+              url: { type: string }
+        seo:
+          type: object
+          required: [title_suffix, default_description, default_image]
+          properties:
+            title_suffix: { type: [string, 'null'] }
+            default_description: { type: [string, 'null'] }
+            default_image:
+              oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }]
+        features:
+          type: object
+          description: The switches the website acts on (21.14).
+          required: [ad_mobile_sticky, ad_popup, booking, chatbot, customer_accounts, online_payments, public_view_counts]
+          additionalProperties: false
+          properties:
+            ad_mobile_sticky: { type: boolean }
+            ad_popup: { type: boolean }
+            booking: { type: boolean }
+            chatbot: { type: boolean }
+            customer_accounts: { type: boolean }
+            online_payments: { type: boolean }
+            public_view_counts: { type: boolean }
+    MenuLink:
+      type: object
+      required: [label, href, external, opens_new_tab, children]
+      properties:
+        label: { type: string }
+        href: { type: string, pattern: '^(/|https?://)', example: /category/طاقة }
+        external: { type: boolean }
+        opens_new_tab: { type: boolean }
+        children: { type: array, items: { $ref: '#/components/schemas/MenuLink' }, description: 'Empty for a child (one level only).' }
+    SitemapEntry:
+      type: object
+      required: [path, updated_at]
+      properties:
+        path: { type: string, pattern: '^/' }
+        updated_at: { type: [string, 'null'], format: date-time }
+    Feed:
+      type: object
+      required: [title, path, description, updated_at, items]
+      properties:
+        title: { type: [string, 'null'], description: 'The category or section name; null for the whole site (use the site name).' }
+        path: { type: string, description: 'The page of the site the feed belongs to.' }
+        description: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'], format: date-time }
+        items: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/PostSummary' } }
     PostSummary:
       type: object
       required: [id, kind, title, subtitle, excerpt, slug, path, published_at, updated_at, cover, category, authors, is_featured, is_breaking, breaking_until, sponsor]
