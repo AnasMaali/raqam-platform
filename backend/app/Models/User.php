@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Access\Access;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -63,10 +64,13 @@ class User extends Authenticatable implements FilamentUser
         ];
     }
 
-    /** Only a live, active staff account may enter the admin panel (decisions 2.4, 24.9). */
+    /**
+     * Only a live, active staff account with a role may enter the admin panel (decisions 2.4, 24.9, 2026-10-25): see
+     * Access::mayEnterPanel. The sign-in, the code and every panel request ask this.
+     */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->isStaff() && $this->is_active && $this->deleted_at === null;
+        return app(Access::class)->mayEnterPanel($this);
     }
 
     public function isStaff(): bool

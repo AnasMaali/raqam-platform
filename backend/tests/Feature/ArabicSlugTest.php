@@ -12,7 +12,9 @@ dataset('titles', [
     'diacritics and tatweel' => ['اقتِصَادُ فلسطيـــن', 'اقتصاد-فلسطين'],
     'punctuation the domain refuses' => ['هل يرتفع الدولار؟ / 50% #سوق & أخبار', 'هل-يرتفع-الدولار-50-سوق-أخبار'],
     'latin is lower-cased' => ['Raqam Podcast EP 12', 'raqam-podcast-ep-12'],
-    'arabic-indic digits' => ['الحلقة ١٢', 'الحلقة-١٢'],
+    'arabic-indic digits become 0-9 (decision 1.3)' => ['الحلقة ١٢', 'الحلقة-12'],
+    'eastern arabic-indic digits too' => ['سنة ۲۰۲۶', 'سنة-2026'],
+    'mixed digits' => ['عام ٢٠26 والربع ٣', 'عام-2026-والربع-3'],
     'only punctuation' => ['؟؟ !!', ''],
 ]);
 

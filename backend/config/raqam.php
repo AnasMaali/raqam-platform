@@ -65,6 +65,9 @@ return [
         'impression_gap' => 10,
         'clicks_per_hour' => 20,
         'click_gap' => 30,
+        // Requests a minute per address to the click link (decision 2026-10-25): high enough that people behind one shared
+        // address still reach the advertiser, low enough that a script cannot hammer it.
+        'click_requests_per_minute' => 120,
         'max_items' => 8,
         'ending_alert_days' => 3,
         'adsense_client' => env('ADSENSE_CLIENT'),

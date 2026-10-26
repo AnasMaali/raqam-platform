@@ -12,4 +12,8 @@ screen for them. In V1 the only role in use is `admin` («مدير المنصة�
   - `assign()` / `revoke()`: a role other than `admin` cannot be given while `multi_admin` is off; the database refuses
     any role to a customer; the last active admin cannot lose `admin`. Each change is written to the audit log.
 - The gate answers every ability that is a permission code: `Gate::allows('posts.manage')`, `@can('posts.manage')`.
-  Any other ability is left to the rest of the gate. The panel's own entry check (live, active staff) is unchanged.
+  Any other ability is left to the rest of the gate.
+- **Entering the panel** (decision 2026-10-25): a live, active staff account **with a role**, `Access::mayEnterPanel`, asked by
+  `User::canAccessPanel` on the sign-in, the code and every panel request. While `multi_admin` is off only «admin» counts
+  (no other role can be given then); once it is on, any role. Alerts and admin mail go to the same accounts
+  (`Access::panelUserIds`). A staff account without a role is refused like an inactive one (same page, no code).

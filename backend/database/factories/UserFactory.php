@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -34,9 +35,19 @@ class UserFactory extends Factory
     }
 
     /**
-     * Indicate that the user is a staff member (admin panel).
+     * A staff member who runs the platform: the «admin» role, as admin:create gives it (the panel needs a role).
      */
     public function staff(): static
+    {
+        return $this->bareStaff()->afterCreating(function (User $user) {
+            DB::table('user_roles')->insertOrIgnore(['user_id' => $user->id, 'role_id' => DB::table('roles')->where('code', 'admin')->value('id')]);
+        });
+    }
+
+    /**
+     * A staff account with no role at all (it may not enter the panel).
+     */
+    public function bareStaff(): static
     {
         return $this->state(fn (array $attributes) => [
             'user_type' => 'staff',

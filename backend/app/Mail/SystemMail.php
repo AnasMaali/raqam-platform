@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Access\Access;
 use App\Integrations\Secrets;
 use App\Jobs\SendSystemEmail;
 use Illuminate\Support\Facades\DB;
@@ -50,8 +51,8 @@ final class SystemMail
     /** @return list<string> */
     public static function adminEmails(): array
     {
-        return DB::table('users')->where('user_type', 'staff')->where('is_active', true)->whereNull('deleted_at')
-            ->orderBy('id')->pluck('email')->map(fn ($e) => (string) $e)->all();
+        // Those who may enter the panel (a role, decision 2026-10-25): the mail points them there.
+        return DB::table('users')->whereIn('id', Access::panelUserIds())->orderBy('id')->pluck('email')->map(fn ($e) => (string) $e)->all();
     }
 
     /** Sends right away, tried up to the configured attempts; returns whether it went. Logged either way. */
