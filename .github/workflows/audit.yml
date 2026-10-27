@@ -33,6 +33,10 @@ jobs:
         with:
           node-version: 24
 
+      - name: Website packages
+        working-directory: frontend
+        run: npm audit --audit-level=low
+
       - name: Browser-test packages
         working-directory: e2e
         run: npm audit --audit-level=low
