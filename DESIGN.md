@@ -33,8 +33,8 @@ Two readers set the bar:
 The design must satisfy both at once: fast to read, and serious enough to trust.
 
 **The idea to express.** «خلف كل رقم حكاية». A number always comes with its story, and the economy's history sits
-beside its future. The logo carries this in its own shapes: the small dark shape is the past, the big cyan shape is the
-future, and the kashida of the wordmark draws a line through time.
+beside its future. The logo carries this in its own shapes: the small blue shape (`vivid-blue`) is the past, the big
+cyan shape is the future, and the kashida of the wordmark draws a line through time.
 
 ## Colors
 
