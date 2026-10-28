@@ -26,7 +26,7 @@ class CurrencyApiController extends ApiController
 
     public function ticker(): JsonResponse
     {
-        $items = array_map(fn (array $r) => array_intersect_key($r, array_flip(['code', 'name', 'symbol', 'mid', 'change_pct', 'direction'])), $this->board->rows());
+        $items = array_map(fn (array $r) => array_intersect_key($r, array_flip(['code', 'path', 'name', 'symbol', 'mid', 'change_pct', 'direction'])), $this->board->rows());
 
         return response()->json(['data' => $items, 'meta' => $this->board->meta()]);
     }

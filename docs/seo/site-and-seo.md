@@ -21,6 +21,7 @@ The contract is `docs/api/openapi.yaml`; this page explains the rules behind it.
 | Video | `/video/{id}` |
 | Service | `/services/{slug}` |
 | City | `/weather/{slug}` |
+| Currency | `/currencies/{code}` (ISO code in lower case: `/currencies/usd`) |
 
 ## Old addresses of every page (23.6)
 
@@ -32,7 +33,22 @@ its 410. The site asks `/redirects/lookup` for any address it does not know.
 ## Lists the site draws without opening every item
 
 * `/posts?initiative_status=ongoing|ended` (5.5) and `/posts?section=history&order=timeline` (5.4: era, then year, oldest
-  first). Every list item carries `facts`: a history item's era and years, an initiative's name and state (null for others).
+  first).
+* Every list item carries `facts`: a history item's era and years, an initiative's name and state, an episode's season and
+  number, a success story's company, person and figures, a product and its maker, a round table's date, an awareness card's
+  type, character and pose (null for news, reports, opinion and infographics). They are read in one query per kind on the
+  page, never one per item.
+* The section filters (5.9, first version):
+  * podcast: `season` (its number);
+  * success stories and Made in Nablus: `sector` (its slug);
+  * history: `era` (its id, from `/eras`);
+  * initiatives: `initiative_status`;
+  * awareness: `character` (its slug);
+  * the round table has no filter, and nothing filters by city.
+
+  `/sections/{slug}` lists each filter's values that have a live item, with their counts. A filtered page is noindex,
+  with the section page as its canonical.
+* `kind` takes several kinds separated by commas: `/news` is `kind=news,report,opinion,infographic`.
 * Every item's `kind.schema_type` is the schema.org type of its JSON-LD (23.9).
 * `/team` (28): the writers on the team page, in the admin's order, on one page.
 * A company (`organization`) carries its sector, city, founding year and logo (5.2, 5.3), kept on «الجهات والشركات» with
@@ -63,7 +79,7 @@ address. The site writes the XML.
 * `/sitemaps/posts?page=N`: posts by id, so a page keeps its addresses as new posts arrive.
 * `/sitemaps/news`: news, reports, opinion and infographics of the last 48 hours (Google News; at most 1000), with tags.
 * `/sitemaps/pages`: home, sections, categories, pages, authors, guests, characters, playlists, tags with a live item,
-  services, currencies, weather and each city, the video library.
+  services, currencies and each currency, weather and each city, the video library.
 * `/sitemaps/videos`: unchanged (phase 4).
 
 ## Feeds (23.12)

@@ -519,3 +519,184 @@ test('the history section can be read as a timeline: era, then year, oldest firs
         ->and($timeline['links']['next'])->toBeNull();
     expect(api('/posts?section=history&order=timeline&page=1')->json('links.prev'))->toBeNull();
 });
+
+// ---- section lists: facts, filters and /news (5.9) -------------------------------------------------------------------
+
+/** Two sectors with a company each, two podcast seasons, two characters with a pose each (each pose its own picture). */
+function sectionFixtures(): array
+{
+    // Different sizes: the same bytes twice would be the same picture.
+    $picture = fn (string $name, int $size) => app(MediaUploader::class)->store(uploadFile(imageBytes($size, $size)), $name, ['alt_text' => 'شخصية'], null)->asset->id;
+    $food = DB::table('sectors')->insertGetId(['name_ar' => 'الصناعات الغذائية', 'slug' => 'food', 'sort_order' => 1]);
+    $soap = DB::table('sectors')->insertGetId(['name_ar' => 'الصابون', 'slug' => 'soap', 'sort_order' => 2]);
+    $character = fn (string $name, string $slug, int $order) => DB::table('characters')->insertGetId(['name_ar' => $name, 'slug' => $slug, 'role_ar' => 'دور', 'accent_color' => '#124FFF', 'sort_order' => $order]);
+    $pose = fn (int $character, int $media) => DB::table('character_poses')->insertGetId(['character_id' => $character, 'pose_type_code' => 'explaining', 'static_media_id' => $media]);
+
+    return [
+        'dairy' => Organization::create(['name' => 'ألبان الوادي', 'slug' => 'dairy', 'sector_id' => $food]),
+        'soapCo' => Organization::create(['name' => 'صابون الجبل', 'slug' => 'soap-co', 'sector_id' => $soap]),
+        'season1' => DB::table('podcast_seasons')->insertGetId(['season_number' => 1, 'title_ar' => 'البدايات']),
+        'season2' => DB::table('podcast_seasons')->insertGetId(['season_number' => 2]),
+        'raqamPose' => $pose($character('رَقَم', 'raqam', 1), $picture('raqam.jpg', 200)),
+        'watchPose' => $pose($character('انتبه!', 'watch-out', 2), $watch = $picture('watch.jpg', 210)),
+        'watchPicture' => $watch,
+    ];
+}
+
+test('section items carry their own facts in lists, so a card needs no second request (5.1-5.7)', function () {
+    $f = sectionFixtures();
+    $episode = publish('episode', ['episode' => ['season_id' => $f['season2'], 'episode_number' => 4]]);
+    $story = publish('story', ['story' => ['organization_id' => $f['dairy']->id, 'person_name' => 'أم أحمد', 'figures' => [['value' => '120', 'label' => 'موظفاً'], ['value' => '3', 'label' => 'فروع']]]]);
+    $product = publish('product', ['product' => ['product_name' => 'صابون زيت الزيتون', 'organization_id' => $f['soapCo']->id]]);
+    $table = publish('roundtable', ['roundtable' => ['held_on' => '2026-09-01']]);
+    $card = publish('awareness', ['awareness' => ['character_pose_id' => $f['watchPose'], 'awareness_type_code' => 'warning']]);
+    $news = publish('news');
+
+    $list = api('/posts')->assertOk()->json();
+    validateAgainstPath($list, '/posts');
+    $facts = collect($list['data'])->pluck('facts', 'id');
+
+    expect($facts[$episode->id])->toBe(['season' => ['number' => 2, 'title' => null], 'episode_number' => 4])
+        ->and($facts[$story->id]['organization'])->toMatchArray(['name' => 'ألبان الوادي', 'sector' => ['name' => 'الصناعات الغذائية', 'slug' => 'food']])
+        ->and($facts[$story->id]['person_name'])->toBe('أم أحمد')
+        ->and($facts[$story->id]['figures'])->toBe([['value' => '120', 'label' => 'موظفاً'], ['value' => '3', 'label' => 'فروع']])
+        ->and($facts[$product->id]['product_name'])->toBe('صابون زيت الزيتون')
+        ->and($facts[$product->id]['organization']['slug'])->toBe('soap-co')
+        ->and($facts[$table->id])->toBe(['held_on' => '2026-09-01'])
+        ->and($facts[$card->id]['type']['code'])->toBe('warning')
+        ->and($facts[$card->id]['character'])->toMatchArray(['name' => 'انتبه!', 'slug' => 'watch-out', 'accent_color' => '#124FFF'])
+        ->and($facts[$card->id]['pose']['image']['id'])->toBe($f['watchPicture'])
+        ->and($facts[$news->id])->toBeNull();
+    // The list says what the item's own page says.
+    expect($facts[$story->id]['organization'])->toBe(api("/posts/{$story->id}")->json('data.details.organization'))
+        ->and($facts[$card->id]['character'])->toBe(api("/posts/{$card->id}")->json('data.details.character'));
+});
+
+test('a page of posts costs the same number of queries for six items as for twelve (no query per item)', function () {
+    $f = sectionFixtures();
+    $round = 0;
+    // Six kinds whose facts come from other tables; twice six is one full page, so every kind appears twice in it.
+    $oneOfEach = function () use ($f, &$round) {
+        $round++;
+        publish('episode', ['episode' => ['season_id' => $f['season1'], 'episode_number' => $round]]);
+        publish('story', ['story' => ['organization_id' => $f['dairy']->id, 'figures' => [['value' => '5', 'label' => 'فروع']]]]);
+        publish('product', ['product' => ['product_name' => 'منتج '.$round, 'organization_id' => $f['soapCo']->id]]);
+        publish('roundtable', ['roundtable' => ['held_on' => '2026-09-01']]);
+        publish('awareness', ['awareness' => ['character_pose_id' => $round === 1 ? $f['raqamPose'] : $f['watchPose'], 'awareness_type_code' => 'warning']]);
+        publish('news', ['sponsor_organization_id' => $round === 1 ? $f['dairy']->id : $f['soapCo']->id]);
+    };
+    $queries = function (int $items) {
+        // One process serves both requests here, and a route keeps its controller: the presenter inside it would
+        // remember the pictures of the first request.
+        foreach (app('router')->getRoutes() as $route) {
+            $route->controller = null;
+        }
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        expect(api('/posts')->assertOk()->json('data'))->toHaveCount($items);
+        $n = count(DB::getQueryLog());
+        DB::disableQueryLog();
+
+        return $n;
+    };
+
+    $oneOfEach();
+    $six = $queries(6);
+    $oneOfEach();
+
+    expect($queries(12))->toBe($six);
+});
+
+test('section pages filter by season, sector, era and character (5.9)', function () {
+    $f = sectionFixtures();
+    publish('episode', ['episode' => ['season_id' => $f['season1'], 'episode_number' => 1]]);
+    $second = publish('episode', ['episode' => ['season_id' => $f['season2'], 'episode_number' => 1]]);
+    publish('story', ['story' => ['organization_id' => $f['dairy']->id]]);
+    $soapStory = publish('story', ['story' => ['organization_id' => $f['soapCo']->id]]);
+    $soapProduct = publish('product', ['product' => ['product_name' => 'صابون', 'organization_id' => $f['soapCo']->id]]);
+    $ottoman = Era::create(['name_ar' => 'العثماني', 'sort_order' => 1]);
+    $mandate = Era::create(['name_ar' => 'الانتداب', 'sort_order' => 2]);
+    $old = publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1850]]);
+    publish('history', ['history' => ['era_id' => $mandate->id, 'year_from' => 1930]]);
+    publish('awareness', ['awareness' => ['character_pose_id' => $f['raqamPose'], 'awareness_type_code' => 'warning']]);
+    $watchCard = publish('awareness', ['awareness' => ['character_pose_id' => $f['watchPose'], 'awareness_type_code' => 'advice']]);
+
+    $ids = function (string $query) {
+        $body = api('/posts?'.$query)->assertOk()->json();
+        validateAgainstPath($body, '/posts');
+
+        return array_column($body['data'], 'id');
+    };
+
+    expect($ids('section=podcast&season=2'))->toBe([$second->id])
+        ->and($ids('section=success-stories&sector=soap'))->toBe([$soapStory->id])
+        ->and($ids('section=made-in-nablus&sector=soap'))->toBe([$soapProduct->id])
+        ->and($ids('sector=soap'))->toBe([$soapProduct->id, $soapStory->id])
+        ->and($ids('section=history&order=timeline&era='.$ottoman->id))->toBe([$old->id])
+        ->and($ids('section=awareness&character=watch-out'))->toBe([$watchCard->id])
+        ->and($ids('season=9'))->toBe([])
+        ->and($ids('sector=unknown'))->toBe([]);
+    foreach (['season=0', 'season=x', 'era=-1', 'era=40000', 'sector=a%20b', 'character=a/b'] as $bad) {
+        api('/posts?'.$bad)->assertStatus(422);
+    }
+});
+
+test('kind takes several kinds: /news lists news, reports, opinion and infographics together', function () {
+    $news = publish('news');
+    $report = publish('report');
+    $opinion = publish('opinion');
+    $infographic = publish('infographic', ['infographic' => ['download_media_id' => $this->cover->id]]);
+    publish('roundtable', ['roundtable' => ['held_on' => '2026-09-01']]);
+
+    $body = api('/posts?kind=news,report,opinion,infographic')->assertOk()->json();
+    validateAgainstPath($body, '/posts');
+
+    expect(array_column($body['data'], 'id'))->toBe([$infographic->id, $opinion->id, $report->id, $news->id])
+        ->and(array_column(api('/posts?kind=report')->json('data'), 'id'))->toBe([$report->id])
+        ->and(array_column(api('/posts?kind=news,news')->json('data'), 'id'))->toBe([$news->id]);
+    foreach (['news,', ',news', 'news,,report', 'news,bogus', 'NEWS', 'news%20,report', str_repeat('news,', 30).'news'] as $bad) {
+        api('/posts?kind='.$bad)->assertStatus(422);
+    }
+});
+
+test('the eras and each section\'s filters list only the values that have a live item, with their counts', function () {
+    $f = sectionFixtures();
+    $ottoman = Era::create(['name_ar' => 'العثماني', 'sort_order' => 2, 'year_from' => 1516, 'year_to' => 1917]);
+    $mandate = Era::create(['name_ar' => 'الانتداب', 'sort_order' => 1]);
+    $empty = Era::create(['name_ar' => 'بلا مواد', 'sort_order' => 3]);
+    publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1850]]);
+    publish('history', ['history' => ['era_id' => $ottoman->id, 'year_from' => 1900]]);
+    publish('history', ['history' => ['era_id' => $mandate->id, 'year_from' => 1930]]);
+    publish('history', ['history' => ['era_id' => $empty->id], 'status' => 'draft']);
+    publish('episode', ['episode' => ['season_id' => $f['season2'], 'episode_number' => 1]]);
+    publish('episode', ['episode' => ['season_id' => $f['season1'], 'episode_number' => 1], 'status' => 'draft']);
+    publish('story', ['story' => ['organization_id' => $f['dairy']->id]]);
+    publish('awareness', ['awareness' => ['character_pose_id' => $f['raqamPose'], 'awareness_type_code' => 'warning']]);
+    publish('initiative', ['initiative' => ['initiative_name' => 'مبادرة', 'organizer_organization_id' => $f['dairy']->id, 'status' => 'ended']]);
+
+    $eras = api('/eras')->assertOk()->json();
+    validateAgainstPath($eras, '/eras');
+    expect($eras['data'])->toBe([
+        ['id' => $mandate->id, 'name' => 'الانتداب', 'year_from' => null, 'year_to' => null, 'posts_count' => 1],
+        ['id' => $ottoman->id, 'name' => 'العثماني', 'year_from' => 1516, 'year_to' => 1917, 'posts_count' => 2],
+    ]);
+
+    $filters = function (string $slug) {
+        $body = api("/sections/{$slug}")->assertOk()->json();
+        validateAgainstPath($body, '/sections/{slug}');
+
+        return $body['data']['filters'];
+    };
+    $only = fn (string $param, string $name, array $options) => [['param' => $param, 'name' => $name, 'options' => $options]];
+
+    expect($filters('podcast'))->toBe($only('season', 'الموسم', [['value' => '2', 'name' => 'الموسم 2', 'posts_count' => 1]]))
+        ->and($filters('success-stories'))->toBe($only('sector', 'القطاع', [['value' => 'food', 'name' => 'الصناعات الغذائية', 'posts_count' => 1]]))
+        ->and($filters('made-in-nablus'))->toBe($only('sector', 'القطاع', []))
+        ->and($filters('history'))->toBe($only('era', 'الحقبة', [
+            ['value' => (string) $mandate->id, 'name' => 'الانتداب', 'posts_count' => 1], ['value' => (string) $ottoman->id, 'name' => 'العثماني', 'posts_count' => 2]]))
+        ->and($filters('initiatives'))->toBe($only('initiative_status', 'الحالة', [['value' => 'ended', 'name' => 'منتهية', 'posts_count' => 1]]))
+        ->and($filters('awareness'))->toBe($only('character', 'الشخصية', [['value' => 'raqam', 'name' => 'رَقَم', 'posts_count' => 1]]))
+        ->and($filters('round-table'))->toBe([])
+        // The list of sections stays as it was: the filters belong to the section's own page.
+        ->and(api('/sections')->json('data.0'))->not->toHaveKey('filters');
+});

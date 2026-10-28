@@ -27,7 +27,7 @@ test('the board lists the active currencies in order, as decimal strings rounded
     $usd = $body['data'][0];
 
     expect(array_column($body['data'], 'code'))->toBe(['USD', 'JOD', 'EUR', 'GBP', 'EGP', 'AED', 'SAR'])
-        ->and($usd)->toMatchArray(['code' => 'USD', 'mid' => '3.030', 'buy' => '3.015', 'sell' => '3.045', 'previous' => '3.000',
+        ->and($usd)->toMatchArray(['code' => 'USD', 'path' => '/currencies/usd', 'mid' => '3.030', 'buy' => '3.015', 'sell' => '3.045', 'previous' => '3.000',
             'change_pct' => '1.00', 'direction' => 'up', 'is_manual' => false, 'is_pegged' => false, 'rate_date' => '2026-10-20',
             'published_at' => '2026-10-20T12:42:27Z'])
         ->and($body['data'][1]['direction'])->toBe('down')
@@ -56,7 +56,7 @@ test('the converter says which rate it uses, and the ticker is short', function 
         ->and($converter['rules']['to_base']['rate'])->toBe('buy')
         ->and($converter['rules']['from_base']['rate'])->toBe('sell')
         ->and($converter['currencies'][0])->toBe(['code' => 'USD', 'name' => 'دولار أمريكي', 'symbol' => '$', 'decimals' => 3, 'buy' => '3.015', 'sell' => '3.045', 'is_manual' => false])
-        ->and(array_keys($ticker))->toBe(['code', 'name', 'symbol', 'mid', 'change_pct', 'direction']);
+        ->and(array_keys($ticker))->toBe(['code', 'path', 'name', 'symbol', 'mid', 'change_pct', 'direction']);
 });
 
 test('history has one point per publication day for 30 days, oldest first; unknown or hidden currencies are 404', function () {
@@ -116,4 +116,17 @@ test('the site is told when the board changes', function () {
     app(RateOverrides::class)->set('USD', '3.1', '3.2', null);
 
     Bus::assertDispatched(SendSiteWebhook::class, fn ($job) => $job->payload['type'] === 'currencies' && $job->payload['change'] === 'manual_rate' && $job->payload['paths'] === ['/currencies']);
+});
+
+test('each currency on the board has a page of its own, listed in the pages sitemap', function () {
+    DB::table('rate_board_currencies')->where('currency_code', 'GBP')->update(['is_active' => false]);
+    Cache::increment('markets:version');
+
+    $paths = array_column(api('/sitemaps/pages')->assertOk()->json('data'), 'path');
+    $board = array_column(api('/currencies')->json('data'), 'path');
+
+    expect($board)->toBe(['/currencies/usd', '/currencies/jod', '/currencies/eur', '/currencies/egp', '/currencies/aed', '/currencies/sar'])
+        ->and($paths)->toContain('/currencies', ...$board)
+        ->and($paths)->not->toContain('/currencies/gbp')
+        ->and(api('/currencies/gbp/history')->status())->toBe(404);
 });

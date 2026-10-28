@@ -4,6 +4,7 @@ namespace App\Markets;
 
 use App\Integrations\DataProviders;
 use App\Jobs\SendSiteWebhook;
+use App\Seo\SitePaths;
 use Brick\Math\BigDecimal;
 use Brick\Math\RoundingMode;
 use Illuminate\Support\Carbon;
@@ -100,6 +101,7 @@ final class RateBoard
 
         return [
             'code' => trim($r->currency_code),
+            'path' => SitePaths::currency($r->currency_code),
             'name' => $r->name_ar,
             'symbol' => $r->symbol,
             'decimals' => $decimals,

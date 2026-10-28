@@ -44,6 +44,7 @@ Route::middleware([ApiResponseCache::class, 'throttle:api-public'])->group(funct
     Route::get('/tags/{slug}', [TaxonomyApiController::class, 'tag']);
     Route::get('/sections', [TaxonomyApiController::class, 'sections']);
     Route::get('/sections/{slug}', [TaxonomyApiController::class, 'section']);
+    Route::get('/eras', [TaxonomyApiController::class, 'eras']);
 
     Route::get('/authors', [PeopleApiController::class, 'authors']);
     Route::get('/authors/{slug}', [PeopleApiController::class, 'author']);

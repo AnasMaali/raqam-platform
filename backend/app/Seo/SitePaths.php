@@ -60,6 +60,12 @@ final class SitePaths
         return '/services/'.$slug;
     }
 
+    /** One currency's page («سعر الدولار مقابل الشيكل اليوم»): its ISO code in lower case. */
+    public static function currency(string $code): string
+    {
+        return '/currencies/'.strtolower(trim($code));
+    }
+
     public static function city(string $slug): string
     {
         return '/weather/'.$slug;

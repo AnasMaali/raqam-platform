@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class TaxonomyApiController extends ApiController
@@ -71,6 +72,56 @@ class TaxonomyApiController extends ApiController
         }
         $s = DB::table('sections')->where('slug', $slug)->where('is_visible', true)->first();
 
-        return $s ? response()->json(['data' => $this->section($s)]) : $this->notFound();
+        return $s ? response()->json(['data' => $this->section($s) + ['filters' => $this->filters($s->key)]]) : $this->notFound();
+    }
+
+    /** The eras that have a live history item, in the admin's order (5.4: the timeline and its filter). */
+    public function eras(): JsonResponse
+    {
+        return response()->json(['data' => $this->eraRows()->map(fn ($e) => [
+            'id' => (int) $e->id, 'name' => $e->name_ar, 'year_from' => $e->year_from === null ? null : (int) $e->year_from,
+            'year_to' => $e->year_to === null ? null : (int) $e->year_to, 'posts_count' => (int) $e->n,
+        ])->all()]);
+    }
+
+    /**
+     * The filters of a section page (5.9, first version): the `/posts` parameter, its label and the values that have live
+     * items, each with its count. The round table has none, and no section filters by city.
+     *
+     * @return list<array{param: string, name: string, options: list<array{value: string, name: string, posts_count: int}>}>
+     */
+    private function filters(string $key): array
+    {
+        $option = fn (string|int $value, string $name, int $n) => ['value' => (string) $value, 'name' => $name, 'posts_count' => $n];
+        $filter = fn (string $param, string $name, $options) => [['param' => $param, 'name' => $name, 'options' => collect($options)->values()->all()]];
+        $live = fn () => Post::query()->live()->select('id');
+
+        return match ($key) {
+            'podcast' => $filter('season', 'الموسم', DB::table('podcast_episodes')->join('podcast_seasons', 'podcast_seasons.id', '=', 'podcast_episodes.season_id')
+                ->whereIn('post_id', $live())->groupBy('season_number', 'title_ar')->orderBy('season_number')->selectRaw('season_number, title_ar, count(*) AS n')->get()
+                ->map(fn ($r) => $option($r->season_number, 'الموسم '.$r->season_number.($r->title_ar ? ': '.$r->title_ar : ''), (int) $r->n))),
+            'success_stories', 'made_in_nablus' => $filter('sector', 'القطاع', DB::table($key === 'made_in_nablus' ? 'products AS t' : 'success_stories AS t')
+                ->join('organizations', 'organizations.id', '=', 't.organization_id')->join('sectors', 'sectors.id', '=', 'organizations.sector_id')
+                ->whereIn('t.post_id', $live())->groupBy('sectors.id', 'sectors.slug', 'sectors.name_ar', 'sectors.sort_order')->orderBy('sectors.sort_order')->orderBy('sectors.name_ar')
+                ->selectRaw('sectors.slug, sectors.name_ar, count(*) AS n')->get()->map(fn ($r) => $option($r->slug, $r->name_ar, (int) $r->n))),
+            'nablus_history' => $filter('era', 'الحقبة', $this->eraRows()->map(fn ($e) => $option($e->id, $e->name_ar, (int) $e->n))),
+            'initiatives' => $filter('initiative_status', 'الحالة', DB::table('initiatives')->whereIn('post_id', $live())->groupBy('status')->selectRaw('status, count(*) AS n')
+                ->pluck('n', 'status')->sortKeysUsing(fn ($a, $b) => $a === 'ongoing' ? -1 : ($b === 'ongoing' ? 1 : 0))
+                ->map(fn ($n, $status) => $option($status, $status === 'ongoing' ? 'جارية' : 'منتهية', (int) $n))),
+            'awareness' => $filter('character', 'الشخصية', DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
+                ->join('characters', 'characters.id', '=', 'character_poses.character_id')->whereIn('post_id', $live())
+                ->groupBy('characters.id', 'characters.slug', 'characters.name_ar', 'characters.sort_order')->orderBy('characters.sort_order')->orderBy('characters.id')
+                ->selectRaw('characters.slug, characters.name_ar, count(*) AS n')->get()->map(fn ($r) => $option($r->slug, $r->name_ar, (int) $r->n))),
+            default => [],
+        };
+    }
+
+    /** @return Collection<int, object> eras with their number of live history items (n), only those that have one */
+    private function eraRows(): Collection
+    {
+        $counts = DB::table('history_entries')->whereIn('post_id', Post::query()->live()->select('id'))->groupBy('era_id')->selectRaw('era_id, count(*) AS n');
+
+        return DB::table('eras')->joinSub($counts, 'c', 'c.era_id', '=', 'eras.id')->orderBy('eras.sort_order')->orderBy('eras.id')
+            ->get(['eras.id', 'eras.name_ar', 'eras.year_from', 'eras.year_to', 'c.n']);
     }
 }
