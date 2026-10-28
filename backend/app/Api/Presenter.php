@@ -87,14 +87,14 @@ final class Presenter
         $categories = DB::table('categories')->whereIn('id', $posts->pluck('category_id')->filter())->get()->keyBy('id');
         $authors = DB::table('post_authors')->join('authors', 'authors.id', '=', 'post_authors.author_id')->whereNull('authors.deleted_at')
             ->whereIn('post_id', $posts->pluck('id'))->orderBy('post_authors.sort_order')->get(['post_id', 'authors.id', 'authors.name', 'authors.slug'])->groupBy('post_id');
-        $sponsors = DB::table('organizations')->whereIn('id', $posts->pluck('sponsor_organization_id')->filter())->get()->keyBy('id');
+        $sponsors = $this->organizations($posts->pluck('sponsor_organization_id'));
         $facts = $this->listFacts($posts);
         // 22.12: the number of readings only when the admin shows it; otherwise the field is not sent at all.
         $views = ViewCounts::shown() ? ViewCounts::totals($posts->pluck('id')) : null;
 
         return $posts->map(function (Post $p) use ($kinds, $categories, $authors, $sponsors, $views, $facts) {
             $c = $categories->get($p->category_id);
-            $s = $sponsors->get($p->sponsor_organization_id);
+            $s = $sponsors[$p->sponsor_organization_id] ?? null;
 
             return ($views === null ? [] : ['views' => $views[$p->id] ?? 0]) + [
                 'id' => $p->id, 'kind' => ['code' => $p->kind_code, 'name' => $kinds[$p->kind_code]->name_ar ?? $p->kind_code, 'schema_type' => $kinds[$p->kind_code]->schema_org_type ?? 'Article'],
@@ -106,15 +106,18 @@ final class Presenter
                 'authors' => ($authors->get($p->id) ?? collect())->map(fn ($a) => ['id' => (int) $a->id, 'name' => $a->name, 'slug' => $a->slug])->values()->all(),
                 'is_featured' => (bool) $p->is_featured, 'is_breaking' => $p->isBreaking(),
                 'breaking_until' => $p->isBreaking() ? $this->iso($p->breaking_until) : null,
-                'sponsor' => $s ? $this->organization($s) : null,
+                'sponsor' => $s,
                 'facts' => $facts[$p->id] ?? null,
             ];
         })->values()->all();
     }
 
     /**
-     * What a list needs of two kinds to be filtered and drawn without opening every item (5.4, 5.5): a history item's era
-     * and years (the timeline), an initiative's name and state (ongoing/ended). Null for the other kinds.
+     * What a list needs of each section kind to be filtered and drawn without opening every item: a history item's era and
+     * years (5.4, the timeline), an initiative's name and state (5.5), an episode's season and number (5.1), a success story's
+     * company, person and figures (5.2), a product and its maker (5.3), a round table's date (5.6), an awareness card's
+     * character, pose and type of information (5.7). Null for news, reports, opinion and infographics. One query per kind
+     * on the page, never one per item.
      *
      * @param  Collection<int, Post>  $posts
      * @return array<int, array<string, mixed>>
@@ -122,18 +125,87 @@ final class Presenter
     private function listFacts(Collection $posts): array
     {
         $facts = [];
-        $history = DB::table('history_entries')->leftJoin('eras', 'eras.id', '=', 'history_entries.era_id')
-            ->whereIn('post_id', $posts->where('kind_code', 'history')->pluck('id'))
-            ->get(['post_id', 'eras.id as era_id', 'eras.name_ar as era_name', 'period_label', 'history_entries.year_from', 'history_entries.year_to']);
-        foreach ($history as $h) {
-            $facts[$h->post_id] = ['era' => $h->era_id ? ['id' => (int) $h->era_id, 'name' => $h->era_name] : null, 'period_label' => $h->period_label,
-                'year_from' => $h->year_from === null ? null : (int) $h->year_from, 'year_to' => $h->year_to === null ? null : (int) $h->year_to];
+        $ids = fn (string $kind) => $posts->where('kind_code', $kind)->pluck('id')->all();
+        $year = fn ($y) => $y === null ? null : (int) $y;
+
+        if ($history = $ids('history')) {
+            $rows = DB::table('history_entries')->leftJoin('eras', 'eras.id', '=', 'history_entries.era_id')->whereIn('post_id', $history)
+                ->get(['post_id', 'eras.id as era_id', 'eras.name_ar as era_name', 'period_label', 'history_entries.year_from', 'history_entries.year_to']);
+            foreach ($rows as $h) {
+                $facts[$h->post_id] = ['era' => $h->era_id ? ['id' => (int) $h->era_id, 'name' => $h->era_name] : null, 'period_label' => $h->period_label,
+                    'year_from' => $year($h->year_from), 'year_to' => $year($h->year_to)];
+            }
         }
-        foreach (DB::table('initiatives')->whereIn('post_id', $posts->where('kind_code', 'initiative')->pluck('id'))->get(['post_id', 'initiative_name', 'status']) as $i) {
-            $facts[$i->post_id] = ['initiative_name' => $i->initiative_name, 'status' => $i->status];
+        if ($initiatives = $ids('initiative')) {
+            foreach (DB::table('initiatives')->whereIn('post_id', $initiatives)->get(['post_id', 'initiative_name', 'status']) as $i) {
+                $facts[$i->post_id] = ['initiative_name' => $i->initiative_name, 'status' => $i->status];
+            }
+        }
+        if ($episodes = $ids('episode')) {
+            $rows = DB::table('podcast_episodes')->join('podcast_seasons', 'podcast_seasons.id', '=', 'podcast_episodes.season_id')->whereIn('post_id', $episodes)
+                ->get(['post_id', 'season_number', 'title_ar', 'episode_number']);
+            foreach ($rows as $e) {
+                $facts[$e->post_id] = ['season' => ['number' => (int) $e->season_number, 'title' => $e->title_ar], 'episode_number' => (int) $e->episode_number];
+            }
+        }
+
+        $stories = ($storyIds = $ids('story')) ? DB::table('success_stories')->whereIn('post_id', $storyIds)->get(['post_id', 'organization_id', 'person_name']) : collect();
+        $products = ($productIds = $ids('product')) ? DB::table('products')->whereIn('post_id', $productIds)->get(['post_id', 'organization_id', 'product_name']) : collect();
+        $companies = $this->organizations($stories->pluck('organization_id')->merge($products->pluck('organization_id')));
+        $figures = $storyIds ? DB::table('success_story_figures')->whereIn('post_id', $storyIds)->orderBy('sort_order')->get(['post_id', 'value', 'label'])->groupBy('post_id') : collect();
+        foreach ($stories as $r) {
+            $facts[$r->post_id] = ['organization' => $companies[$r->organization_id] ?? null, 'person_name' => $r->person_name,
+                'figures' => ($figures->get($r->post_id) ?? collect())->map(fn ($f) => ['value' => $f->value, 'label' => $f->label])->values()->all()];
+        }
+        foreach ($products as $r) {
+            $facts[$r->post_id] = ['product_name' => $r->product_name, 'organization' => $companies[$r->organization_id] ?? null];
+        }
+
+        if ($tables = $ids('roundtable')) {
+            foreach (DB::table('roundtable_sessions')->whereIn('post_id', $tables)->get(['post_id', 'held_on']) as $r) {
+                $facts[$r->post_id] = ['held_on' => substr((string) $r->held_on, 0, 10)];
+            }
+        }
+        if ($cards = $ids('awareness')) {
+            $rows = DB::table('awareness_cards')
+                ->join('awareness_types', 'awareness_types.code', '=', 'awareness_cards.awareness_type_code')
+                ->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
+                ->join('pose_types', 'pose_types.code', '=', 'character_poses.pose_type_code')
+                ->join('characters', 'characters.id', '=', 'character_poses.character_id')
+                ->whereIn('post_id', $cards)
+                ->get(['post_id', 'awareness_types.code as type_code', 'awareness_types.name_ar as type_name', 'characters.id as character_id', 'characters.name_ar as character_name',
+                    'characters.slug as character_slug', 'characters.accent_color', 'pose_types.code as pose_code', 'pose_types.name_ar as pose_name', 'character_poses.static_media_id']);
+            $this->preload($rows->pluck('static_media_id'));
+            foreach ($rows as $a) {
+                $facts[$a->post_id] = ['type' => ['code' => $a->type_code, 'name' => $a->type_name],
+                    'character' => ['id' => (int) $a->character_id, 'name' => $a->character_name, 'slug' => $a->character_slug, 'accent_color' => $a->accent_color],
+                    'pose' => ['code' => $a->pose_code, 'name' => $a->pose_name, 'image' => $this->media((int) $a->static_media_id)]];
+            }
         }
 
         return $facts;
+    }
+
+    /**
+     * Several companies in one query (with their sectors, cities and logos), in the shape of organization().
+     *
+     * @param  iterable<int|string|null>  $ids
+     * @return array<int, array<string, mixed>> id => organisation
+     */
+    public function organizations(iterable $ids): array
+    {
+        $ids = collect($ids)->filter()->map(fn ($i) => (int) $i)->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $rows = DB::table('organizations')->leftJoin('sectors', 'sectors.id', '=', 'organizations.sector_id')->leftJoin('cities', 'cities.id', '=', 'organizations.city_id')
+            ->whereIn('organizations.id', $ids)
+            ->get(['organizations.*', 'sectors.name_ar as sector_name', 'sectors.slug as sector_slug', 'cities.name_ar as city_name', 'cities.slug as city_slug']);
+        $this->preload($rows->pluck('logo_media_id'));
+
+        return $rows->mapWithKeys(fn ($o) => [(int) $o->id => $this->organizationShape($o,
+            $o->sector_id ? (object) ['name_ar' => $o->sector_name, 'slug' => $o->sector_slug] : null,
+            $o->city_id ? (object) ['name_ar' => $o->city_name, 'slug' => $o->city_slug] : null)])->all();
     }
 
     public function organization(object $o): array
@@ -141,6 +213,11 @@ final class Presenter
         $sector = $o->sector_id ? DB::table('sectors')->where('id', $o->sector_id)->first(['name_ar', 'slug']) : null;
         $city = $o->city_id ? DB::table('cities')->where('id', $o->city_id)->first(['name_ar', 'slug']) : null;
 
+        return $this->organizationShape($o, $sector, $city);
+    }
+
+    private function organizationShape(object $o, ?object $sector, ?object $city): array
+    {
         return [
             'id' => (int) $o->id, 'name' => $o->name, 'slug' => $o->slug, 'website' => $o->website,
             // 5.2, 5.3: what a success story or a Made in Nablus product shows of its company.

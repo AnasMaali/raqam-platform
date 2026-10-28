@@ -35,7 +35,8 @@ info:
     * **Rates and money are decimal strings** (`"3.106"`), never JSON numbers: do the arithmetic with a decimal
       library or show them as they come. When the currency board changes (a new publication, a manual rate, a
       spread, the list) the site gets `{"type": "currencies", "change": "rates_published" | "manual_rate" | "board" |
-      "source", "paths": ["/currencies"]}`. A manual rate that simply runs out sends nothing: the board answers are
+      "source", "paths": ["/currencies"]}`: refresh `/currencies` and every currency's own page (`/currencies/{code}`,
+      the `path` of each row). A manual rate that simply runs out sends nothing: the board answers are
       cached only until that moment, so refresh `/currencies` at least every few minutes.
     * **Ads** (`/ads`): every slot with its reserved sizes, the campaigns that may fill it now and what an empty slot
       shows. Pick one campaign per slot and render with `weight` (weighted random: a campaign with weight 80 shows twice
@@ -196,8 +197,10 @@ paths:
         - $ref: '#/components/parameters/Page'
         - name: kind
           in: query
-          description: Only this kind of content.
-          schema: { $ref: '#/components/schemas/KindCode' }
+          description: |
+            Only this kind of content, or several kinds separated by commas: `news,report,opinion,infographic` is everything
+            under `/news`.
+          schema: { type: string, pattern: '^(news|report|opinion|infographic|episode|story|product|history|initiative|roundtable|awareness)(,(news|report|opinion|infographic|episode|story|product|history|initiative|roundtable|awareness))*$', maxLength: 120 }
         - name: category
           in: query
           description: Slug of a category. A main category includes its sub-categories.
@@ -227,6 +230,22 @@ paths:
           in: query
           description: Only initiatives in this state (5.5).
           schema: { type: string, enum: [ongoing, ended] }
+        - name: season
+          in: query
+          description: Only podcast episodes of this season (its number, 5.1). A section filter (5.9).
+          schema: { type: integer, minimum: 1, maximum: 32767 }
+        - name: sector
+          in: query
+          description: Only success stories and Made in Nablus products whose company is in this sector (its slug). A section filter (5.9).
+          schema: { $ref: '#/components/schemas/Slug' }
+        - name: era
+          in: query
+          description: Only history items of this era (its id, from `/eras`). A section filter (5.9).
+          schema: { type: integer, minimum: 1, maximum: 32767 }
+        - name: character
+          in: query
+          description: Only awareness cards said by this character (its slug). A section filter (5.9).
+          schema: { $ref: '#/components/schemas/Slug' }
         - name: order
           in: query
           description: |
@@ -452,7 +471,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/Slug' }]
       responses:
         '200':
-          description: The section.
+          description: The section, with the filters of its page.
           headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
           content:
             application/json:
@@ -460,9 +479,65 @@ paths:
                 type: object
                 required: [data]
                 properties:
-                  data: { $ref: '#/components/schemas/Section' }
+                  data:
+                    allOf:
+                      - { $ref: '#/components/schemas/Section' }
+                      - type: object
+                        required: [filters]
+                        properties:
+                          filters:
+                            description: |
+                              The filters of the section page (5.9, first version): podcast by `season`, success stories and Made
+                              in Nablus by `sector`, history by `era`, initiatives by `initiative_status`, awareness by `character`;
+                              the round table has none. `param` is the `/posts` parameter; only values with a live item are
+                              listed, each with its count. A filtered page is noindex, with the section page as its canonical.
+                            type: array
+                            items:
+                              type: object
+                              required: [param, name, options]
+                              properties:
+                                param: { enum: [season, sector, era, initiative_status, character] }
+                                name: { type: string }
+                                options:
+                                  type: array
+                                  items:
+                                    type: object
+                                    required: [value, name, posts_count]
+                                    properties:
+                                      value: { type: string }
+                                      name: { type: string }
+                                      posts_count: { type: integer, minimum: 1 }
         '304': { $ref: '#/components/responses/NotModified' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /eras:
+    get:
+      tags: [Taxonomy]
+      summary: The eras of Nablus economic history that have a live item, in the admin's order (5.4)
+      operationId: listEras
+      responses:
+        '200':
+          description: The eras, for the timeline and its filter (`/posts?era={id}`).
+          headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, name, year_from, year_to, posts_count]
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        year_from: { type: [integer, 'null'] }
+                        year_to: { type: [integer, 'null'] }
+                        posts_count: { type: integer, minimum: 1 }
+        '304': { $ref: '#/components/responses/NotModified' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /authors:
@@ -895,8 +970,8 @@ paths:
       summary: Every page of the site that is not a post or a video
       description: |
         The home page, the visible sections, active categories, published static pages, active authors, guests, visible
-        characters, visible playlists, tags that carry a live item, visible services, the currency and weather pages and
-        each visible city, and the video library. Noindex or canonical-elsewhere rows are left out.
+        characters, visible playlists, tags that carry a live item, visible services, the currency page and
+        each currency's own page, the weather page and each visible city, and the video library. Noindex or canonical-elsewhere rows are left out.
       operationId: sitemapPages
       responses:
         '200':
@@ -1258,9 +1333,10 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [code, name, symbol, mid, change_pct, direction]
+                      required: [code, path, name, symbol, mid, change_pct, direction]
                       properties:
                         code: { $ref: '#/components/schemas/CurrencyCode' }
+                        path: { type: string, description: "The currency's own page, e.g. `/currencies/usd`." }
                         name: { type: string }
                         symbol: { type: string }
                         mid: { $ref: '#/components/schemas/DecimalOrNull' }
@@ -3084,11 +3160,14 @@ components:
           oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }]
         facts:
           description: |
-            What a list needs of two kinds without opening each item: a history item's era and years (5.4, the timeline) and an
-            initiative's name and state (5.5). Null for every other kind.
+            What a list needs of each section kind without opening every item: a history item's era and years (5.4, the
+            timeline), an initiative's name and state (5.5), an episode's season and number (5.1), a success story's company,
+            person and figures (5.2), a product and its maker (5.3), a round table's date (5.6), an awareness card's type,
+            character and pose (5.7). Null for news, reports, opinion and infographics.
           oneOf:
             - { type: 'null' }
             - type: object
+              additionalProperties: false
               required: [era, period_label, year_from, year_to]
               properties:
                 era: { oneOf: [{ type: 'null' }, { type: object, required: [id, name], properties: { id: { type: integer }, name: { type: string } } }] }
@@ -3096,10 +3175,53 @@ components:
                 year_from: { type: [integer, 'null'] }
                 year_to: { type: [integer, 'null'] }
             - type: object
+              additionalProperties: false
               required: [initiative_name, status]
               properties:
                 initiative_name: { type: string }
                 status: { enum: [ongoing, ended] }
+            - type: object
+              additionalProperties: false
+              required: [season, episode_number]
+              properties:
+                season: { type: object, required: [number, title], properties: { number: { type: integer }, title: { type: [string, 'null'] } } }
+                episode_number: { type: integer }
+            - type: object
+              additionalProperties: false
+              required: [organization, person_name, figures]
+              properties:
+                organization: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }] }
+                person_name: { type: [string, 'null'] }
+                figures:
+                  type: array
+                  items: { type: object, required: [value, label], properties: { value: { type: string }, label: { type: string } } }
+            - type: object
+              additionalProperties: false
+              required: [product_name, organization]
+              properties:
+                product_name: { type: string }
+                organization: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Organization' }] }
+            - type: object
+              additionalProperties: false
+              required: [held_on]
+              properties:
+                held_on: { type: string, format: date }
+            - type: object
+              additionalProperties: false
+              required: [type, character, pose]
+              properties:
+                type: { type: object, required: [code, name], properties: { code: { type: string }, name: { type: string } } }
+                character:
+                  type: object
+                  required: [id, name, slug, accent_color]
+                  properties: { id: { type: integer }, name: { type: string }, slug: { type: string }, accent_color: { type: string } }
+                pose:
+                  type: object
+                  required: [code, name, image]
+                  properties:
+                    code: { type: string }
+                    name: { type: string }
+                    image: { oneOf: [{ type: 'null' }, { $ref: '#/components/schemas/Media' }] }
         views:
           description: |
             How many times the post was read, all time (22.12). **Only present when the admin shows view counts**
@@ -3464,9 +3586,10 @@ components:
     Direction: { enum: [up, down, same, null] }
     CurrencyRate:
       type: object
-      required: [code, name, symbol, decimals, mid, buy, sell, previous, change_pct, direction, is_manual, is_pegged, rate_date, published_at]
+      required: [code, path, name, symbol, decimals, mid, buy, sell, previous, change_pct, direction, is_manual, is_pegged, rate_date, published_at]
       properties:
         code: { $ref: '#/components/schemas/CurrencyCode' }
+        path: { type: string, description: "The currency's own page («سعر الدولار مقابل الشيكل اليوم»): `/currencies/{code}`, the code in lower case." }
         name: { type: string }
         symbol: { type: string }
         decimals: { type: integer, minimum: 0, maximum: 6 }

@@ -3,6 +3,7 @@
 namespace App\Seo;
 
 use App\Content\PostPath;
+use App\Markets\RateBoard;
 use App\Models\Post;
 use App\Services\ServiceBoard;
 use App\Weather\WeatherBoard;
@@ -28,7 +29,7 @@ final class SitemapBoard
     /** A sitemap holds at most 50,000 addresses; the list of the other pages stays well below it. */
     private const PAGES_LIMIT = 45000;
 
-    public function __construct(private ServiceBoard $services, private WeatherBoard $weather) {}
+    public function __construct(private ServiceBoard $services, private WeatherBoard $weather, private RateBoard $rates) {}
 
     /** @return array{posts_pages: int, posts_total: int, posts_updated_at: ?string, news_total: int} */
     public function index(): array
@@ -98,6 +99,9 @@ final class SitemapBoard
             }
         }
         $entries[] = ['path' => '/currencies', 'updated_at' => null];
+        foreach ($this->rates->rows() as $currency) {
+            $entries[] = ['path' => $currency['path'], 'updated_at' => null];
+        }
         $entries[] = ['path' => '/weather', 'updated_at' => null];
         foreach ($this->weather->cities() as $city) {
             $entries[] = ['path' => $city['path'], 'updated_at' => null];
