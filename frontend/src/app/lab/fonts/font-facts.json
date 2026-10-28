@@ -1,0 +1,231 @@
+{
+  "measured": "2026-10-28",
+  "method": "Google Fonts woff2 files as a browser receives them (Arabic and Latin subsets, weight axis only). Variability from the fvar table, weights from fvar or OS/2, digit widths from the hmtx table and from shaping 0-9 with HarfBuzz with and without the tnum feature.",
+  "fonts": [
+    {
+      "family": "Alexandria",
+      "variable": true,
+      "weights": "100–900",
+      "files": [
+        {
+          "weight": "100-900",
+          "arabic": 31348,
+          "latin": 30140
+        }
+      ],
+      "tnumFeature": true,
+      "digitsTabularByDefault": false,
+      "tabularAvailable": true,
+      "digitWidths": [
+        707,
+        375,
+        585,
+        589,
+        597,
+        618,
+        634,
+        571,
+        633,
+        632
+      ],
+      "digitWidthsWithTnum": [
+        700,
+        700,
+        700,
+        700,
+        700,
+        700,
+        700,
+        700,
+        700,
+        700
+      ]
+    },
+    {
+      "family": "Readex Pro",
+      "variable": true,
+      "weights": "160–700",
+      "files": [
+        {
+          "weight": "160-700",
+          "arabic": 22864,
+          "latin": 31428
+        }
+      ],
+      "tnumFeature": false,
+      "digitsTabularByDefault": false,
+      "tabularAvailable": false,
+      "digitWidths": [
+        607,
+        500,
+        548,
+        529,
+        620,
+        568,
+        557,
+        522,
+        579,
+        551
+      ],
+      "digitWidthsWithTnum": [
+        607,
+        500,
+        548,
+        529,
+        620,
+        568,
+        557,
+        522,
+        579,
+        551
+      ]
+    },
+    {
+      "family": "IBM Plex Sans Arabic",
+      "variable": false,
+      "weights": "100، 200، 300، 400، 500، 600، 700",
+      "files": [
+        {
+          "weight": "100",
+          "arabic": 43452,
+          "latin": 19548
+        },
+        {
+          "weight": "200",
+          "arabic": 45456,
+          "latin": 20484
+        },
+        {
+          "weight": "300",
+          "arabic": 45048,
+          "latin": 20284
+        },
+        {
+          "weight": "400",
+          "arabic": 42848,
+          "latin": 19164
+        },
+        {
+          "weight": "500",
+          "arabic": 45296,
+          "latin": 20088
+        },
+        {
+          "weight": "600",
+          "arabic": 45688,
+          "latin": 20500
+        },
+        {
+          "weight": "700",
+          "arabic": 44280,
+          "latin": 19504
+        }
+      ],
+      "tnumFeature": false,
+      "digitsTabularByDefault": true,
+      "tabularAvailable": true,
+      "digitWidths": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ],
+      "digitWidthsWithTnum": [
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600,
+        600
+      ]
+    },
+    {
+      "family": "Noto Naskh Arabic",
+      "variable": true,
+      "weights": "400–700",
+      "files": [
+        {
+          "weight": "400-700",
+          "arabic": 94032,
+          "latin": 19696
+        }
+      ],
+      "tnumFeature": false,
+      "digitsTabularByDefault": true,
+      "tabularAvailable": true,
+      "digitWidths": [
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559
+      ],
+      "digitWidthsWithTnum": [
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559,
+        559
+      ]
+    },
+    {
+      "family": "Cairo",
+      "variable": true,
+      "weights": "200–1000",
+      "files": [
+        {
+          "weight": "200-1000",
+          "arabic": 30896,
+          "latin": 33820
+        }
+      ],
+      "tnumFeature": false,
+      "digitsTabularByDefault": true,
+      "tabularAvailable": true,
+      "digitWidths": [
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560
+      ],
+      "digitWidthsWithTnum": [
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560,
+        560
+      ]
+    }
+  ]
+}
