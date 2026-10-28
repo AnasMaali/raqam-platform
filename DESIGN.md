@@ -33,7 +33,6 @@ may be used, the shapes of the logo, the typeface, and the rules for Arabic, rig
 are decided in the next steps and added here when they are:
 
 - the type scale (headline sizes), the neutral palette, spacing, radii and elevation;
-- the motion principles;
 - the overall visual direction (chosen from three home-page directions).
 
 Until then, no page may introduce a colour, typeface, spacing value or radius that is not in this file.
@@ -175,6 +174,74 @@ Not yet designed. These rules are already fixed by the product:
   image when motion is reduced or the device is weak.
 - **Video:** a light player (the picture and a play button) that loads YouTube (`youtube-nocookie`) only when pressed.
 - **Focus:** every interactive element shows a clearly visible focus ring in both themes.
+
+## Motion
+
+### Library
+
+**Motion** (MIT license) is the only motion library. GSAP was weighed and not chosen: it handles exits in React by
+hand, its license is not an open-source one, and its strength (long scroll-driven stories) works against a calm site
+on weak phones. Rive stays only for the eight awareness characters.
+
+Measured on 2026-10-28 by bundling each option the way the site would import it (React excluded, minified, gzip):
+
+| Option | gzip | Gives |
+|---|---|---|
+| `motion/react-mini` (on the browser's animation engine) | 3.4 KB | Small animations started from code |
+| `LazyMotion` + `m` + `domAnimation` | 32.2 KB | Enter and exit animations, gestures |
+| … + `domMax` | 46.1 KB | Dragging (the gallery) and layout changes |
+| GSAP core + `useGSAP` (not chosen) | 27.4 KB | |
+| GSAP + ScrollTrigger (not chosen) | 44.6 KB | |
+
+Motion advertises a 4.6 KB start with lazy features; bundled for real, the smallest working setup was 28 KB.
+
+### Budget
+
+- **The layout carries no motion code (0 KB).** There is no site-wide motion provider.
+- **CSS first:** press, hover, focus and colour changes are CSS transitions. The history section's kashida timeline uses
+  CSS scroll-driven animation (`animation-timeline: view()`), and a browser without it shows the line complete and
+  still.
+- **Motion only where CSS cannot do it:** exits (the mobile menu, the chat window, the image viewer), dragging (swiping
+  the gallery), layout changes. The component that needs it loads Motion with a dynamic import, at the moment it is
+  used. The gallery viewer loads `domMax` only when it opens.
+- **A check guards it:** the build fails if Motion is found in the scripts the home page or an article page loads first.
+- **Moving between pages:** no library. Either no transition, or the browser's own View Transitions. A browser without
+  them simply navigates.
+
+### Reduced motion
+
+- Each component that loads Motion reads `prefers-reduced-motion` itself (`useReducedMotion`): movement and scaling are
+  dropped and only opacity remains, or nothing.
+- CSS motion sits inside `@media (prefers-reduced-motion: no-preference)`.
+- The awareness characters show their still picture.
+- No information depends on motion to be understood.
+
+### Right to left
+
+- Transforms are physical: `x: 20` always moves right, whatever `dir` says. Directions are written once as constants
+  (from the start of the line to its end, that is from right to left), never as raw x values inside components.
+- In the gallery, "next" lies to the left, so swiping right moves forward.
+- Arabic text is never split into letters for an animation: that breaks the joins. Split by words or lines only.
+
+### Principles
+
+1. **Calm and precise.** Entrances 150–250 ms with ease-out, exits faster (120–180 ms). No bounce, no overshoot, no
+   wobble: trustworthy, never loud.
+2. **Numbers do not perform.** Rates and percentages appear at once. No counting up, no rolling digits. A change shows
+   as a short, light tint (under 600 ms) with its arrow and sign. A moving number cannot be read and does not inspire
+   trust.
+3. **From the past to the future.** Motion that expresses time travels in the reading direction, from right to left,
+   along the kashida line.
+4. **The slant is a signature, not decoration.** A reveal with a 55° slanted edge, at most once per page: the main
+   story's picture or a section opener.
+5. **Small to big.** The loading mark is the logo's two shapes: the small blue one, then the big cyan one. It is the
+   only recurring brand moment.
+6. **Nothing waits for motion.**
+   - Nothing animates before the largest element of the screen has painted (LCP), and that element never animates.
+   - Only transform and opacity are animated.
+   - No parallax on phones, and no taking over the scroll.
+7. **No endless motion.** The currency strip stands still and is swiped by hand; it is not a marquee. Anything that
+   moves on its own for more than 5 seconds has a pause control.
 
 ## Do's and Don'ts
 
