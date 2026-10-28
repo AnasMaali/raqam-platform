@@ -4,7 +4,10 @@ import { connection } from "next/server";
 
 import { apiGet } from "@/lib/server/api";
 
-const pages = [{ href: "/lab/brand", title: "الشعار", note: "كل نسخ الشعار على خلفية فاتحة وداكنة" }] as const;
+const pages = [
+  { href: "/lab/brand", title: "الشعار", note: "كل نسخ الشعار على خلفية فاتحة وداكنة" },
+  { href: "/lab/fonts", title: "الخطوط", note: "خمسة خطوط عربية: الأحجام، الأرقام، بجانب الشعار" },
+] as const;
 
 type SiteAnswer = { data: { name?: string } };
 
