@@ -1,0 +1,48 @@
+/* Direction A, "the directory": paper and ink, blue chapter heads, hairline rules, a thumb index on the edge. The
+   neutrals are this direction's proposal, to be locked in DESIGN.md if it is chosen. */
+.ha-page {
+  --ground: #ffffff;
+  --ink: #10131a;
+  --muted: #545b69;
+  --rule: #dadde4;
+  --chapter: #124fff;
+  --tab: #eef2ff;
+  --tab-ink: #124fff;
+  --accent: #21ceea;
+  background: var(--ground);
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ha-page {
+    --ground: #0b0e14;
+    --ink: #eef1f6;
+    --muted: #a8afbd;
+    --rule: #262b38;
+    --chapter: #89a7ff;
+    --tab: #141a28;
+    --tab-ink: #89a7ff;
+  }
+}
+
+.ha-page ::selection {
+  background: var(--chapter);
+  color: var(--ground);
+}
+
+.ha-page :focus-visible {
+  outline: 2px solid var(--chapter);
+  outline-offset: 2px;
+}
+
+/* The thumb index: each chapter's tab is cut on the brand's slant. */
+.ha-tab {
+  clip-path: polygon(0.6rem 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.ha-strip {
+  scrollbar-width: none;
+}
+.ha-strip::-webkit-scrollbar {
+  display: none;
+}
