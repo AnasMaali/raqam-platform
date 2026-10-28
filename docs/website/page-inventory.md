@@ -42,6 +42,7 @@ service contact clicks, page views and 404 reports.
 |---|---|---|---|---|
 | `/` | Home | `/home` (blocks in the admin's order) + the layout data | P0 | JSON-LD `NewsMediaOrganization` + `WebSite` with `SearchAction`. The block types: `hero`, `breaking`, `markets`, `latest`, `ad`, `category`, `most_read`, `videos`, `playlist`, `section`, `awareness`, `newsletter`. |
 | `/news/{id}/{slug}` | Article: news, report, opinion, infographic | `/posts/{id}/{slug}` | P0 | This template is shared by every kind (P0). Covers: canonical, Open Graph, the JSON-LD named by `kind.schema_type`, breadcrumb, authors with links (or «فريق رَقَم», 6.5), the dates, the correction note, the sponsored label with `rel="sponsored"`, tags, related items with "more from this category", the in-article ad, a newsletter box at the end. Infographic: large view with zoom and a download button (9.11). |
+| `/news` | Everything under `/news` | `/posts?kind=news,report,opinion,infographic&page=N` | P1 | The newest first, 12 per page. Needs `kind` to accept several kinds (backend change, below). |
 | `/category/{slug}` | Category | `/categories/{slug}`, `/posts?category={slug}&page=N` | P0 | An introduction, sub-categories, the newest first, 12 per page (4.6). RSS feed of its own. |
 | `/tag/{slug}` | Tag | `/tags/{slug}`, `/posts?tag={slug}` | P0 | Exists while at least one live item carries the tag. |
 | `/author/{slug}` | Writer | `/authors/{slug}`, `/posts?author={slug}` | P0 | `ProfilePage` + `Person` (23.9). |
@@ -55,17 +56,32 @@ the kind's own parts (`details` in `/posts/{id}`).
 
 | Address | Section | Data | Priority | Kind-specific parts |
 |---|---|---|---|---|
-| `/podcast` | Podcast | `/sections/podcast`, `/posts?section=podcast`, `/playlists` (seasons) | P0 | Episode number, season, guests, chapters that move the video to their time (5.1, 8.8). `VideoObject` with `Clip`. |
-| `/success-stories` | Success stories | `/sections/success-stories`, `/posts?section=success-stories` | P0 | Organisation, sector, city, year founded, highlighted figures (5.2). |
-| `/made-in-nablus` | Made in Nablus | `/sections/made-in-nablus`, `/posts?section=made-in-nablus` | P0 | Product and maker, sector, an optional contact link or phone, a large gallery (5.3, 9.6). |
-| `/history` | Nablus economic history | `/sections/history`, `/posts?section=history&order=timeline` | P0 | A timeline from the oldest to the newest: era, then year (5.4). |
+| `/podcast` | Podcast | `/sections/podcast`, `/posts?section=podcast&season={number}`, `/playlists` (seasons) | P0 | Episode number, season, guests, chapters that move the video to their time (5.1, 8.8). `VideoObject` with `Clip`. |
+| `/success-stories` | Success stories | `/sections/success-stories`, `/posts?section=success-stories&sector={slug}` | P0 | Organisation, sector, city, year founded, highlighted figures (5.2). |
+| `/made-in-nablus` | Made in Nablus | `/sections/made-in-nablus`, `/posts?section=made-in-nablus&sector={slug}` | P0 | Product and maker, sector, an optional contact link or phone, a large gallery (5.3, 9.6). |
+| `/history` | Nablus economic history | `/sections/history`, `/posts?section=history&order=timeline&era={id}`, `/eras` | P0 | A timeline from the oldest to the newest: era, then year (5.4). |
 | `/initiatives` | Initiatives | `/sections/initiatives`, `/posts?section=initiatives&initiative_status=ongoing\|ended` | P0 | Name, organiser, status filter, link (5.5). |
 | `/round-table` | Round table | `/sections/round-table`, `/posts?section=round-table` | P0 | Date, participants with photos, chapters (5.6). |
-| `/awareness` | Awareness | `/awareness` (the section, characters, newest cards), `/posts?section=awareness` | P0 | A card is a character speaking the information (7.11). The characters are Rive animations, with a still image under reduced motion or on weak devices (7.10). |
+| `/awareness` | Awareness | `/awareness` (the section, characters, newest cards), `/posts?section=awareness&character={slug}` | P0 | A card is a character speaking the information (7.11). The characters are Rive animations, with a still image under reduced motion or on weak devices (7.10). |
 | `/awareness/characters/{slug}` | One character | `/characters/{slug}`, `/characters/{slug}/cards` | P1 | Everything the character has said (7.13). |
 
 Every section page has an introduction, a featured item, the newest items, filters, and 12 items per page (5.9). Each
-section also has its own RSS feed.
+section also has its own RSS feed. List items carry the kind's `facts`, so a card shows the episode number and season,
+the story's organisation and highlighted figure, the product's maker, the round table's date or the card's character
+without opening the item.
+
+**Filters (first version).** The filters are decided as follows:
+
+- podcast: season;
+- success stories: sector;
+- Made in Nablus: sector;
+- history: era (the list from `/eras`);
+- initiatives: status;
+- awareness: character;
+- round table: no filter;
+- no section filters by city.
+
+A filtered page (any filter in the query) is `noindex`, and its canonical address is the section page itself.
 
 ## Video
 
@@ -80,6 +96,7 @@ section also has its own RSS feed.
 | Address | Page | Data | Priority | Notes |
 |---|---|---|---|---|
 | `/currencies` | Currencies | `/currencies`, `/currencies/converter`, `/currencies/{code}/history?days=30` | P0 | A table, the converter (shows whether the buy or the sell rate is used, 11.7), a 30-day chart (Recharts), "last updated", and a note that the rates are indicative. Indexable with a strong title (11.12). |
+| `/currencies/{code}` | One currency («سعر الدولار مقابل الشيكل اليوم») | `/currencies` (the currency's row), `/currencies/{code}/history?days=30` | P1 | Today's rate, buy and sell, the change, the converter preset to this currency, the chart. Indexable, in the sitemap. `code` is the ISO code in lower case (`/currencies/usd`). |
 | `/weather` | Weather | `/weather/widget`, `/weather/cities` | P0 | All cities. |
 | `/weather/{slug}` | One city («طقس نابلس اليوم») | `/weather/{slug}` | P0 | Now, low/high, humidity, wind, a 5-day forecast, day and night icons in the brand's style (12.6–12.8). Slugs are Arabic (`/weather/نابلس`). Indexable. |
 
@@ -130,14 +147,17 @@ gets the same template.
 
 ## API gaps
 
-| # | Gap | Who needs it | Priority | Proposal |
-|---|---|---|---|---|
-| 1 | No market indicators beyond currencies: gold, fuel prices, the stock exchange, inflation. | Home `markets` block, a future markets page | later | Waiting for a decision on whether to have them and on their sources. |
-| 2 | List items carry `facts` only for history and initiatives. Cards of the other section kinds cannot show their own facts without opening every item: an episode's number and season, a story's organisation and highlighted figure, a product's maker, a round table's date, an awareness card's character and pose. | Section pages, home `section` blocks, search results | P0 (section pages) | Add `facts` for episode, story, product, roundtable and awareness to list items. No schema change. |
-| 3 | The section filters of 5.9 are not specified, and the API has only `initiative_status`. Possible filters: season (podcast), sector and city (stories, products), era (history, with a list of eras for the timeline), character or information type (awareness). | Section pages | P1 | Decide which filters each section has, then add the matching `/posts` parameters and an `/eras` list. |
-| 4 | `kind` takes one value, so there is no single list of everything under `/news` (news + report + opinion + infographic). | A `/news` page, if wanted | P1 | Either no `/news` page (it is not in the decisions), or accept several kinds in `kind`. |
-| 5 | No filter for short videos (`is_short` exists on YouTube videos; uploads are short by definition, 8.11). | A shorts rail on the home page or the video library, if the design has one | P1 | A `short=1` parameter on `/videos`. |
-| 6 | The preview link opens the back end's own template, so a draft does not look like the published page. | Editors (21.8) | later | A signed, short-lived read of the draft for the website, plus a `/preview` page. |
+| # | Gap | Decision | Priority |
+|---|---|---|---|
+| 1 | No market indicators beyond currencies: gold, fuel prices, the stock exchange, inflation. | Waiting for a decision on whether to have them and on their sources. | later |
+| 2 | List items carry `facts` only for history and initiatives. | Add `facts` for episode, story, product, round table and awareness, with no extra query per item. | P0 (section pages) |
+| 3 | The API had only the initiative status filter. | Add `season`, `sector`, `era` and `character` to `/posts`, plus an `/eras` list. | P1 |
+| 4 | `kind` took one value, so there was no list of everything under `/news`. | `kind` accepts several kinds, comma-separated; the `/news` page is P1. | P1 |
+| 5 | No filter for short videos (`is_short` exists on YouTube videos; uploads are short by definition, 8.11). | A `short=1` parameter on `/videos` if the chosen home design has a shorts rail (decided in step 5). | P1 |
+| 6 | The preview link opens the back end's own template, so a draft does not look like the published page. | Later: a signed, short-lived read of the draft for the website, plus a `/preview` page. | later |
+| 7 | Currency pages had no address of their own. | `/currencies/{code}` (one page per visible currency), in the sitemap and with a `path` on each currency. | P1 |
+
+Gaps 2, 3, 4 and 7 are closed in one backend change with tests; none needs a schema change.
 
 ## For the design foundations (step 6)
 
