@@ -7,6 +7,21 @@ colors:
   brand-gray: "#8C8C8C"
   banner-blue: "#198FF4"
   banner-periwinkle: "#89A7FF"
+typography:
+  body:
+    fontFamily: "Alexandria, system-ui, sans-serif"
+    fontSize: "clamp(1rem, 0.9rem + 0.4vw, 1.125rem)"
+    fontWeight: 400
+    lineHeight: 1.8
+    letterSpacing: "0"
+  label:
+    fontFamily: "Alexandria, system-ui, sans-serif"
+    fontWeight: 500
+    letterSpacing: "0"
+  headline:
+    fontFamily: "Alexandria, system-ui, sans-serif"
+    fontWeight: 700
+    letterSpacing: "0"
 ---
 
 # رقم: design system
@@ -14,11 +29,10 @@ colors:
 ## Overview
 
 This is the first version. It records what is already fixed by the brand and by the product: the colours and how they
-may be used, the shapes of the logo, and the rules for Arabic, right-to-left, mobile-first pages. These are decided in
-the next steps and added here when they are:
+may be used, the shapes of the logo, the typeface, and the rules for Arabic, right-to-left, mobile-first pages. These
+are decided in the next steps and added here when they are:
 
-- the typefaces (a type study at phone and desktop sizes);
-- the neutral palette, spacing, radii and elevation;
+- the type scale (headline sizes), the neutral palette, spacing, radii and elevation;
 - the motion principles;
 - the overall visual direction (chosen from three home-page directions).
 
@@ -69,21 +83,56 @@ All of them must pass the ratios above in both themes.
 
 ## Typography
 
-Fixed:
+**One family for everything: Alexandria** (headlines, body text, interface and numbers). It was chosen in a type study
+of five Arabic typefaces at 375 px and 1440 px, with real headlines, body text, a currency table and numbers inside
+sentences (the lab page `/lab/fonts`, development only). Why it was chosen:
 
-- **Typefaces designed for Arabic**, under the Open Font License, self-hosted. They load with `font-display: swap` and a
-  metric-matched fallback, so text never jumps.
-- **Candidates for the type study:** Alexandria, Readex Pro, IBM Plex Sans Arabic, Noto Naskh Arabic. Cairo only if it
-  clearly wins. The study compares them at 375 px and 1440 px with real headlines, body text and numbers.
-- **Line height of at least 1.6 for body text.** Longer Arabic texts and an older audience call for generous leading.
+- Its geometric letters speak the same language as the logo's «ق».
+- At 16 px on a phone it reads larger and clearer than the other candidates. That matters for an older business
+  audience.
+- One variable file covers every weight (100–900).
+- Its tabular figures are real (`tnum`), measured in the font files.
+
+### Files
+
+- Under the Open Font License, served from this site, with `font-display: swap` and a metric-matched fallback so text
+  never jumps.
+- About 60 KB for every weight: 30.6 KB for the Arabic file and 29.4 KB for the Latin file, which holds the digits 0-9.
+- Only the Arabic file is preloaded. The Latin file loads when a page shows a number.
+- Possible later: a Latin file cut down to digits and symbols measured 9.7 KB instead of 29.4 KB.
+
+### Weights
+
+| Token | Weight | Use |
+|---|---|---|
+| `body` | 400 | Running text. On dark pages it may go down to 350 if the text looks heavy (the family is variable). |
+| `label` | 500 | Menus, buttons, labels, the currency strip. |
+| `headline` | 700 | Headlines and titles. |
+
+### Sizes and spacing
+
+- **Body text:** 16 px on a phone, 17–18 px on larger screens. It is fluid
+  (`clamp(1rem, 0.9rem + 0.4vw, 1.125rem)`): 16 px up to about 400 px wide, about 17.5 px on a tablet, 18 px from about
+  900 px.
+- **Line height 1.8 for body text**, never below 1.6 anywhere. Long Arabic texts and an older audience call for generous
+  leading.
+- Headline sizes are part of the type scale, decided with the visual direction.
 - **No letter-spacing on Arabic text**, ever. It breaks the joins between letters.
-- **Comfortable sizes:** body text never below 16 px on a phone. Sizes are fluid (`clamp()`) between the phone and desktop
-  values.
-- **Digits are 0-9** everywhere, also in Arabic text. Rates and tables use tabular figures, so the columns line up.
-- **The kashida is the logo's.** Running text and titles never use typed tatweel (ـ) to stretch words. It breaks search,
-  copying and screen readers.
 
-Decided by the type study: the families, the weights, the scale, and which face is used for headlines, body and numbers.
+### Numbers and dates
+
+- **Digits are 0-9** everywhere, also in Arabic text.
+- **Tabular figures only in tables and the currency strip** (`font-variant-numeric: tabular-nums`), so the columns line
+  up. Everywhere else the digits stay proportional; they sit better inside a sentence.
+- **Signs:** a rise is `+`, a fall is the minus sign `−` (U+2212), not a hyphen. A signed number or percentage is kept
+  left to right inside the Arabic line.
+- **Month names:** the Levantine names (تشرين الأول) by default. «pending client» to confirm.
+- Dates and numbers are formatted with the `Intl` APIs and the `-u-nu-latn` numbering, never by hand.
+
+### The kashida
+
+The kashida is the logo's. Running text and titles never use typed tatweel (ـ) to stretch words. It breaks search,
+copying and screen readers.
 
 ## Layout
 
