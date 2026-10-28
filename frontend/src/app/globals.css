@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Provisional values until the design tokens are locked; brand colours from the official colour file. */
+:root {
+  color-scheme: light dark;
+  --brand-blue: #124fff;
+  --brand-cyan: #21ceea;
+  --brand-gray: #8c8c8c;
+  --background: #ffffff;
+  --foreground: #10131a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-gray: var(--brand-gray);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0e14;
+    --foreground: #eef1f6;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, "Segoe UI", Tahoma, sans-serif;
+  line-height: 1.7;
+}

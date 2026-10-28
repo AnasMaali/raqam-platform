@@ -7,6 +7,7 @@ use App\Console\BrevoSetupCommand;
 use App\Console\CheckDiskCommand;
 use App\Console\CheckVideosCommand;
 use App\Console\CurrencyFetchCommand;
+use App\Console\DemoCommand;
 use App\Console\FeatureSwitchCommand;
 use App\Console\InstallCharactersCommand;
 use App\Console\InstallChatbotCommand;
@@ -78,6 +79,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([WatchSignInFailuresCommand::class])
     // Every install step in order, safe to repeat (phase 10b freeze).
     ->withCommands([RaqamInstallCommand::class])
+    // Made-up content for building the website against; refuses to run in production.
+    ->withCommands([DemoCommand::class])
     // Every listener is registered by hand in AppServiceProvider. With discovery on as well, a class in app/Listeners ran
     // twice for each event (two webhooks for every post change).
     ->withEvents(discover: false)

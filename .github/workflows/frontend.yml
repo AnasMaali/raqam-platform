@@ -1,0 +1,72 @@
+name: Frontend
+
+on:
+  push:
+    branches: [main, "feature/**"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+      - ".github/scripts/**"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+      - ".github/scripts/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, types, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+
+    # Made-up values: the build must work without a backend, and the bundle check looks for this token value.
+    env:
+      API_BASE_URL: http://127.0.0.1:9/api/v1
+      API_SITE_TOKEN: ci-only-site-token-not-a-secret
+      SITE_URL: https://example.org
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: ../.github/scripts/retry.sh npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npm run typecheck
+
+      # `npm run build` also fails when the browser bundle mentions the site token.
+      - name: Build
+        run: npm run build
+
+      - name: Development pages are gone in production
+        run: |
+          npx next start -p 3100 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3100/ && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/)" = 200
+          for path in /lab /lab/brand; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")
+            [ "$code" = 404 ] || { echo "::error::$path answered $code in production"; cat /tmp/next.log; exit 1; }
+          done
+
+      - name: Packages
+        run: npm audit --audit-level=low
