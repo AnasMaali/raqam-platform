@@ -58,15 +58,17 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Development pages are gone in production
+      # Development pages are gone in production, and the first load of the home page carries no motion code.
+      - name: Production checks
         run: |
           npx next start -p 3100 > /tmp/next.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3100/ && break; sleep 1; done
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/)" = 200
-          for path in /lab /lab/brand; do
+          for path in /lab /lab/brand /lab/fonts /lab/home-a /lab/home-b /lab/home-c; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")
             [ "$code" = 404 ] || { echo "::error::$path answered $code in production"; cat /tmp/next.log; exit 1; }
           done
+          npm run check:motion
 
       - name: Packages
         run: npm audit --audit-level=low

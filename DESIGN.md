@@ -32,9 +32,9 @@ This is the first version. It records what is already fixed by the brand and by 
 may be used, the shapes of the logo, the typeface, and the rules for Arabic, right-to-left, mobile-first pages. These
 are decided in the next steps and added here when they are:
 
-- the type scale (headline sizes), the neutral palette, spacing, radii and elevation;
-- the motion principles;
-- the overall visual direction (chosen from three home-page directions).
+- the type scale (headline sizes), the neutral palette, spacing, radii and elevation.
+
+The visual direction is chosen (see Visual direction below).
 
 Until then, no page may introduce a colour, typeface, spacing value or radius that is not in this file.
 
@@ -49,6 +49,59 @@ The design must satisfy both at once: fast to read, and serious enough to trust.
 **The idea to express.** «خلف كل رقم حكاية». A number always comes with its story, and the economy's history sits
 beside its future. The logo carries this in its own shapes: the small blue shape (`vivid-blue`) is the past, the big
 cyan shape is the future, and the kashida of the wordmark draws a line through time.
+
+## Visual direction
+
+Chosen from three home-page directions, each built with real demo content and checked at 375, 768 and 1440 px in
+light and dark: the directory, the kashida time line and the money changer's board. The base is **the directory**. It
+takes one element from each of the other two, and each element follows the directory's rules.
+
+### The directory (the base)
+
+The home page reads like an economic directory of the kind chambers of commerce publish: paper and blue ink.
+
+- **Chapters.** Every news category and every special section is a chapter (باب). A hairline rule opens it. Its name
+  stands in blue at the start, and its items sit beside it.
+- **Rank by space.** An item's weight shows in how many columns it takes, not in a louder colour or a decorative label
+  above its headline.
+- **Three items per chapter on phones**, with a link to the chapter's page. A chapter with nothing to show is left out.
+- **The thumb index on large screens.** Tabs cut on the brand's slant stay on the page's edge and lead to each chapter,
+  like the tabs on the edge of a printed directory.
+
+### From the board: a small currency board in the first screen
+
+- The board sits beside the lead story. It shows three currencies on phones and all of them from 1024 px.
+- It is drawn by the directory's rules: the page's own background, hairline rules, blue headings and tabular figures.
+  It is never a heavy dark block on a light page.
+- Like every rates display, it shows the date of the rates and the note that they are indicative.
+
+### From the kashida: the time line for history
+
+- The history chapter on the home page, the economic history section and the archive hang their items on one time line:
+  the kashida's stroke, with the «ق»'s hollow circle as each item's node and the year beside it.
+- The line may draw itself as the reader scrolls, in CSS only. With reduced motion, or in a browser without scroll-driven
+  animation, it is drawn complete and still.
+- It is used nowhere else, so it keeps its meaning.
+
+### Why
+
+- **Trust first.** The directory speaks to the business reader at first sight: ordered, calm, serious. Every sector has
+  a place of its own, and the page stays full with three to eight items a day.
+- **The dollar habit, without becoming a rates site.** The board answers the daily visit in the first screen. Drawn in
+  the directory's rules, it stays beside the news and not above it.
+- **The tagline where time is the real axis.** The time line makes «تاريخ الاقتصاد ومستقبله» literal for history and
+  the archive. As the axis of the whole home page it hid the sections and showed quiet news days, so it stays there.
+
+### Not taken
+
+- The board as a dark block, and the board's labelled rows for every section.
+- Time as the only order of the home page.
+
+### Risks to handle while building
+
+- The page is long on phones: three items per chapter, and a clear way back to the top and to the chapters.
+- The directory leans on pictures, and light pictures fade into a white page. Every picture keeps its frame and its
+  size.
 
 ## Colors
 
@@ -175,6 +228,74 @@ Not yet designed. These rules are already fixed by the product:
   image when motion is reduced or the device is weak.
 - **Video:** a light player (the picture and a play button) that loads YouTube (`youtube-nocookie`) only when pressed.
 - **Focus:** every interactive element shows a clearly visible focus ring in both themes.
+
+## Motion
+
+### Library
+
+**Motion** (MIT license) is the only motion library. GSAP was weighed and not chosen: it handles exits in React by
+hand, its license is not an open-source one, and its strength (long scroll-driven stories) works against a calm site
+on weak phones. Rive stays only for the eight awareness characters.
+
+Measured on 2026-10-28 by bundling each option the way the site would import it (React excluded, minified, gzip):
+
+| Option | gzip | Gives |
+|---|---|---|
+| `motion/react-mini` (on the browser's animation engine) | 3.4 KB | Small animations started from code |
+| `LazyMotion` + `m` + `domAnimation` | 32.2 KB | Enter and exit animations, gestures |
+| … + `domMax` | 46.1 KB | Dragging (the gallery) and layout changes |
+| GSAP core + `useGSAP` (not chosen) | 27.4 KB | |
+| GSAP + ScrollTrigger (not chosen) | 44.6 KB | |
+
+Motion advertises a 4.6 KB start with lazy features; bundled for real, the smallest working setup was 28 KB.
+
+### Budget
+
+- **The layout carries no motion code (0 KB).** There is no site-wide motion provider.
+- **CSS first:** press, hover, focus and colour changes are CSS transitions. The history section's kashida timeline uses
+  CSS scroll-driven animation (`animation-timeline: view()`), and a browser without it shows the line complete and
+  still.
+- **Motion only where CSS cannot do it:** exits (the mobile menu, the chat window, the image viewer), dragging (swiping
+  the gallery), layout changes. The component that needs it loads Motion with a dynamic import, at the moment it is
+  used. The gallery viewer loads `domMax` only when it opens.
+- **A check guards it:** the build fails if Motion is found in the scripts the home page or an article page loads first.
+- **Moving between pages:** no library. Either no transition, or the browser's own View Transitions. A browser without
+  them simply navigates.
+
+### Reduced motion
+
+- Each component that loads Motion reads `prefers-reduced-motion` itself (`useReducedMotion`): movement and scaling are
+  dropped and only opacity remains, or nothing.
+- CSS motion sits inside `@media (prefers-reduced-motion: no-preference)`.
+- The awareness characters show their still picture.
+- No information depends on motion to be understood.
+
+### Right to left
+
+- Transforms are physical: `x: 20` always moves right, whatever `dir` says. Directions are written once as constants
+  (from the start of the line to its end, that is from right to left), never as raw x values inside components.
+- In the gallery, "next" lies to the left, so swiping right moves forward.
+- Arabic text is never split into letters for an animation: that breaks the joins. Split by words or lines only.
+
+### Principles
+
+1. **Calm and precise.** Entrances 150–250 ms with ease-out, exits faster (120–180 ms). No bounce, no overshoot, no
+   wobble: trustworthy, never loud.
+2. **Numbers do not perform.** Rates and percentages appear at once. No counting up, no rolling digits. A change shows
+   as a short, light tint (under 600 ms) with its arrow and sign. A moving number cannot be read and does not inspire
+   trust.
+3. **From the past to the future.** Motion that expresses time travels in the reading direction, from right to left,
+   along the kashida line.
+4. **The slant is a signature, not decoration.** A reveal with a 55° slanted edge, at most once per page: the main
+   story's picture or a section opener.
+5. **Small to big.** The loading mark is the logo's two shapes: the small blue one, then the big cyan one. It is the
+   only recurring brand moment.
+6. **Nothing waits for motion.**
+   - Nothing animates before the largest element of the screen has painted (LCP), and that element never animates.
+   - Only transform and opacity are animated.
+   - No parallax on phones, and no taking over the scroll.
+7. **No endless motion.** The currency strip stands still and is swiped by hand; it is not a marquee. Anything that
+   moves on its own for more than 5 seconds has a pause control.
 
 ## Do's and Don'ts
 

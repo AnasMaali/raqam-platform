@@ -1,0 +1,133 @@
+/* Direction B, "the kashida": one time line runs down the page; every item hangs on it by a short kashida stroke.
+   The neutrals are this direction's proposal, to be locked in DESIGN.md if it is chosen. */
+.hb-page {
+  --ground: #ffffff;
+  --ink: #0f1729;
+  --muted: #535b6c;
+  --rule: #e2e5ec;
+  --spine: #124fff;
+  --now: #21ceea;
+  --label: #124fff;
+  --panel: #f3f6fb;
+  background: var(--ground);
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .hb-page {
+    --ground: #0a0f1c;
+    --ink: #edf1f7;
+    --muted: #a6aebe;
+    --rule: #1f2738;
+    --spine: #21ceea;
+    --now: #21ceea;
+    --label: #21ceea;
+    --panel: #111829;
+  }
+}
+
+.hb-page ::selection {
+  background: var(--spine);
+  color: var(--ground);
+}
+
+.hb-page :focus-visible {
+  outline: 2px solid var(--spine);
+  outline-offset: 2px;
+}
+
+/* The spine: a line on the start side of the stream. Items carry their node and a short stroke towards their text. */
+.hb-stream {
+  position: relative;
+  border-inline-start: 2px solid var(--spine);
+}
+
+.hb-node {
+  position: relative;
+}
+
+/* The hollow circle of the «ق», sitting on the line. */
+.hb-node::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--gap) - 7px);
+  top: 0.55em;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--spine);
+  background: var(--ground);
+}
+
+/* The kashida: a rounded stroke from the node towards the text. */
+.hb-node::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--gap) + 5px);
+  top: calc(0.55em + 5px);
+  width: calc(var(--gap) - 12px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--spine);
+}
+
+.hb-now::before {
+  background: var(--now);
+  border-color: var(--now);
+  width: 16px;
+  height: 16px;
+  inset-inline-start: calc(-1 * var(--gap) - 9px);
+  top: 0.4em;
+}
+
+/* A group on the line: its time written on the line itself. */
+.hb-group {
+  position: relative;
+}
+
+.hb-group-label {
+  position: relative;
+  display: inline-block;
+  background: var(--ground);
+  color: var(--label);
+  margin-inline-start: calc(-1 * var(--gap) - 1px);
+  padding-inline: 0 0.75rem;
+}
+
+.hb-strip {
+  scrollbar-width: none;
+}
+.hb-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* The line draws itself down as it comes into view, where the browser can tie animation to scrolling. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .hb-stream {
+      border-inline-start-color: transparent;
+    }
+    .hb-stream::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: -2px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--spine);
+      transform-origin: top;
+      animation: hb-draw linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 40%;
+    }
+  }
+}
+
+@keyframes hb-draw {
+  from {
+    transform: scaleY(0.15);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
