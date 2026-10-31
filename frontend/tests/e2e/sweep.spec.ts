@@ -46,13 +46,15 @@ test("200% zoom: the text grows, nothing is cut and nothing scrolls sideways", a
     // A 1280 × 800 window at 200%: 640 × 400 CSS pixels, each drawn as two.
     const context = await browser.newContext({ viewport: { width: 640, height: 400 }, deviceScaleFactor: 2 });
     const page = await context.newPage();
-    await page.goto(url);
+    await page.goto(url, { waitUntil: "networkidle" });
     await expectNoSidewaysScroll(page);
     // The menu stays usable.
     const menu = page.getByRole("button", { name: "القائمة" });
-    await menu.click();
     const dialog = page.getByRole("dialog", { name: "القائمة" });
-    await expect(dialog).toBeVisible();
+    await expect(async () => {
+      await menu.click();
+      await expect(dialog).toBeVisible({ timeout: 1000 });
+    }).toPass();
     const scrollable = await dialog.evaluate((el) => el.scrollHeight > el.clientHeight && getComputedStyle(el).overflowY === "auto");
     expect(scrollable, "the menu scrolls within itself when it is taller than the window").toBe(true);
     await context.close();

@@ -22,7 +22,11 @@ export function MobileMenu({ children }: { children: ReactNode }) {
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls="site-menu"
-        onClick={() => dialog.current?.showModal()}
+        // The browser's own command opens the menu before the page's script has loaded, where it is supported.
+        {...{ commandfor: "site-menu", command: "show-modal" }}
+        onClick={() => {
+          if (!dialog.current?.open) dialog.current?.showModal();
+        }}
         className="inline-flex size-11 items-center justify-center rounded-sm hover:bg-tint lg:hidden"
       >
         <Icon name="menu" />
