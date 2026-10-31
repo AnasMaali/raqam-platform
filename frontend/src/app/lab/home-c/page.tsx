@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { loadHome, postsOf, type Block, type Home, type Post } from "../_home/data";
 import { factsLine, storyFigure } from "../_home/facts";
 import { Ad, alexandria, Arrow, formatDate, Logo, Pic, since, weatherCredit } from "../_home/ui";
-import "./home-c.css";
+import s from "./home-c.module.css";
+import "../legacy.css";
 
 export const metadata: Metadata = { title: "الرئيسية: لوحة الصرّاف" };
 
@@ -57,7 +58,7 @@ function Board({ home }: { home: Home }) {
   const city = home.cities.find((c) => c.is_default) ?? home.cities[0];
 
   return (
-    <section aria-labelledby="board-title" className={`hc-board bg-[var(--board)] text-[15px] text-[var(--board-ink)]`}>
+    <section aria-labelledby="board-title" className={`${s.board} bg-[var(--board)] text-[15px] text-[var(--board-ink)]`}>
       <div className="flex items-center justify-between gap-3 border-b border-[var(--board-rule)] px-4 py-2.5">
         <h2 id="board-title" className="font-bold">
           أسعار اليوم مقابل الشيكل
@@ -145,7 +146,7 @@ function BoardRow({ id, label, href, posts, ranked = false }: { id: string; labe
   return (
     <section aria-labelledby={id} className="bg-[var(--sheet)]">
       <div className="flex items-stretch justify-between">
-        <h2 id={id} className={`hc-label bg-[var(--label-bg)] py-2 ps-4 pe-8 text-[15px] font-bold text-[var(--label-ink)]`}>
+        <h2 id={id} className={`${s.label} bg-[var(--label-bg)] py-2 ps-4 pe-8 text-[15px] font-bold text-[var(--label-ink)]`}>
           {label}
         </h2>
         {href && (
@@ -199,7 +200,7 @@ async function BoardHome() {
   const awareness = postsOf(home, "awareness")[0];
 
   return (
-    <div className={`hc-page ${alexandria.className} min-h-dvh`}>
+    <div className={`${s.page} ${alexandria.className} min-h-dvh`}>
       <Header home={home} />
       <main className="mx-auto max-w-[80rem] space-y-3 px-0 pb-10 sm:px-4 lg:px-8">
         <h1 className="sr-only">رقم: لوحة اليوم</h1>

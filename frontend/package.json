@@ -9,7 +9,11 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "check:bundle": "node scripts/check-client-bundle.mjs",
-    "check:motion": "node scripts/check-motion-free.mjs http://127.0.0.1:3100"
+    "check:motion": "node scripts/check-motion-free.mjs http://127.0.0.1:3100",
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:lighthouse": "node scripts/check-lighthouse.mjs http://127.0.0.1:3100/",
+    "fake-api": "node tests/fake-api/server.mjs 4010",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "motion": "14.7.1",
@@ -19,16 +23,21 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
+    "lighthouse": "13.5.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
   "engines": {
     "node": ">=24"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
   }
 }

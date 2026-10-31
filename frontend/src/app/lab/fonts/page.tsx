@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/server/api";
 
 import facts from "./font-facts.json";
 import { candidates } from "./fonts";
+import "../legacy.css";
 
 export const metadata: Metadata = { title: "الخطوط" };
 

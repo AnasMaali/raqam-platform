@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { loadHome, postsOf, type Home, type Post, type Video } from "../_home/data";
 import { factsLine, historyYear, storyFigure } from "../_home/facts";
 import { Ad, alexandria, Change, formatClock, formatDate, formatWeekday, Logo, Pic, since, weatherCredit } from "../_home/ui";
-import "./home-b.css";
+import s from "./home-b.module.css";
+import "../legacy.css";
 
 export const metadata: Metadata = { title: "الرئيسية: الكشيدة" };
 
@@ -103,7 +104,7 @@ function Rates({ home, compact = false }: { home: Home; compact?: boolean }) {
   const rates = compact ? home.rates.slice(0, 4) : home.rates;
 
   return (
-    <ul className={compact ? `hb-strip relative flex min-w-0 gap-5 overflow-x-auto text-sm` : "divide-y divide-[var(--rule)] text-[15px]"}>
+    <ul className={compact ? `${s.strip} relative flex min-w-0 gap-5 overflow-x-auto text-sm` : "divide-y divide-[var(--rule)] text-[15px]"}>
       {rates.map((r) => (
         <li key={r.code} className={compact ? "shrink-0" : "py-2"}>
           <a href={r.path} className={`inline-flex min-h-11 items-center gap-2 hover:text-[var(--spine)] ${compact ? "" : "w-full justify-between"}`}>
@@ -124,7 +125,7 @@ function Item({ entry, withPicture }: { entry: Entry; withPicture: boolean }) {
     const v = entry.video;
 
     return (
-      <li className={`hb-node pb-7`}>
+      <li className={`${s.node} pb-7`}>
         <p className="text-sm text-[var(--muted)]">{formatClock(v.published_at)} · فيديو</p>
         <a href={v.path} className="mt-1 flex items-start gap-3 hover:text-[var(--spine)]">
           <span className="relative mt-1 shrink-0 overflow-hidden">
@@ -146,7 +147,7 @@ function Item({ entry, withPicture }: { entry: Entry; withPicture: boolean }) {
   const facts = factsLine(p);
 
   return (
-    <li className={`hb-node pb-7`}>
+    <li className={`${s.node} pb-7`}>
       <p className="text-sm text-[var(--muted)]">
         {since(p.published_at)} · {p.category?.name ?? p.kind.name}
         {p.sponsor && <span className="ms-2 rounded-sm border border-[var(--rule)] px-1.5 text-xs">محتوى ممول</span>}
@@ -186,7 +187,7 @@ async function KashidaHome() {
   const mostRead = postsOf(home, "most_read");
 
   return (
-    <div className={`hb-page ${alexandria.className} min-h-dvh`}>
+    <div className={`${s.page} ${alexandria.className} min-h-dvh`}>
       <Header home={home} />
       <section aria-label="العملات اليوم" className="border-b border-[var(--rule)] lg:hidden">
         <div className="px-4 py-1">
@@ -197,9 +198,9 @@ async function KashidaHome() {
       <div className="mx-auto max-w-[78rem] px-4 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-14 lg:px-8">
         <main className="pt-6 lg:pt-10" style={{ "--gap": "1.5rem" } as React.CSSProperties}>
           <h1 className="sr-only">رقم: آخر الأخبار على خط الزمن</h1>
-          <div className={`hb-stream ps-6`}>
+          <div className={`${s.stream} ps-6`}>
             {lead && (
-              <article className={`hb-node hb-now pb-10`}>
+              <article className={`${s.node} ${s.now} pb-10`}>
                 <p className="text-sm font-bold text-[var(--label)]">الآن</p>
                 <h2 className="mt-1 text-[clamp(1.6rem,1.1rem+2.4vw,2.9rem)] leading-[1.3] font-bold text-balance">
                   <a href={lead.path} className="hover:text-[var(--spine)]">
@@ -217,8 +218,8 @@ async function KashidaHome() {
             )}
 
             {groups.map((g, gi) => (
-              <section key={g.title} aria-labelledby={`g-${gi}`} className="hb-group">
-                <h2 id={`g-${gi}`} className={`hb-group-label mb-5 text-xl font-bold`}>
+              <section key={g.title} aria-labelledby={`g-${gi}`} className={s.group}>
+                <h2 id={`g-${gi}`} className={`${s.groupLabel} mb-5 text-xl font-bold`}>
                   {g.title}
                 </h2>
                 <ul>
@@ -231,14 +232,14 @@ async function KashidaHome() {
             ))}
 
             {history.length > 0 && (
-              <section aria-labelledby="g-history" className={`hb-group pb-4`}>
-                <h2 id="g-history" className={`hb-group-label mb-2 text-xl font-bold`}>
+              <section aria-labelledby="g-history" className={`${s.group} pb-4`}>
+                <h2 id="g-history" className={`${s.groupLabel} mb-2 text-xl font-bold`}>
                   من تاريخ نابلس الاقتصادي
                 </h2>
                 <p className="mb-6 text-sm text-[var(--muted)]">الخط يكمل للخلف: من اليوم إلى أول القرن الماضي.</p>
                 <ul>
                   {history.map((p) => (
-                    <li key={p.id} className={`hb-node pb-7`}>
+                    <li key={p.id} className={`${s.node} pb-7`}>
                       <p dir="ltr" className="text-end text-2xl font-bold text-[var(--label)] tabular-nums">
                         {historyYear(p) ?? ""}
                       </p>
