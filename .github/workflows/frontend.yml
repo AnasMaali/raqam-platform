@@ -24,14 +24,15 @@ jobs:
   build:
     name: Lint, types, build
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: frontend
 
-    # Made-up values: the build must work without a backend, and the bundle check looks for this token value.
+    # Made-up values. The build and the tests read the fake API (made-up demo content), and the bundle check looks for
+    # this token value.
     env:
-      API_BASE_URL: http://127.0.0.1:9/api/v1
+      API_BASE_URL: http://127.0.0.1:4010/api/v1
       API_SITE_TOKEN: ci-only-site-token-not-a-secret
       SITE_URL: https://example.org
       NEXT_TELEMETRY_DISABLED: "1"
@@ -54,6 +55,15 @@ jobs:
       - name: Types
         run: npm run typecheck
 
+      # Every colour pair passes AA in light and dark, DESIGN.md's table matches the code, no colour written by hand.
+      - name: Design tokens
+        run: npm run check:tokens
+
+      - name: Fake API
+        run: |
+          node tests/fake-api/server.mjs 4010 > /tmp/fake-api.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://127.0.0.1:4010/api/v1/site && break; sleep 1; done
+
       # `npm run build` also fails when the browser bundle mentions the site token.
       - name: Build
         run: npm run build
@@ -64,11 +74,31 @@ jobs:
           npx next start -p 3100 > /tmp/next.log 2>&1 &
           for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3100/ && break; sleep 1; done
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/)" = 200
-          for path in /lab /lab/brand /lab/fonts /lab/home-a /lab/home-b /lab/home-c; do
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/no-such-page)" = 404
+          for path in /lab /lab/brand /lab/fonts /lab/home-a /lab/home-b /lab/home-c /lab/foundations; do
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")
             [ "$code" = 404 ] || { echo "::error::$path answered $code in production"; cat /tmp/next.log; exit 1; }
           done
           npm run check:motion
+
+      - name: Browser
+        run: ../.github/scripts/retry.sh npx playwright install --with-deps chromium
+
+      # At 375, 768 and 1440 px, plus the sweep from 320 to 1920 px, held sideways and at 200% zoom.
+      - name: Browser tests
+        run: npx playwright test
+
+      # A phone on a slow line: SEO 100, accessibility 95 or more, LCP under 2.5 s, CLS under 0.1.
+      - name: Lighthouse
+        run: npm run check:lighthouse
+
+      - name: Browser test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
 
       - name: Packages
         run: npm audit --audit-level=low
