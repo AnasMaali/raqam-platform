@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "../legacy.css";
 
 export const metadata: Metadata = { title: "الشعار" };
 
