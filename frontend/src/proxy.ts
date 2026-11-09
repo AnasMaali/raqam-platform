@@ -236,20 +236,51 @@ function checkCity(request: NextRequest, slug: string) {
   return checkPage(request, `/weather/${segment}`, `/weather/${segment}`);
 }
 
+/**
+ * The site's own folders: never a page, never checked. The matcher's last entry leaves the same folders out (a matcher
+ * must be written out as a literal, so it cannot read this list; tests/e2e/proxy-routes.spec.ts keeps them in step).
+ */
+export const leftAlone = ["_next", "api", "feeds", "lab", "brand", "og"] as const;
+
+/** What an address is, as this check reads it, before asking the platform anything. */
+export type RouteKind = "left-alone" | "currency" | "city" | "list" | "section" | "article" | "sub-route" | "not-a-page";
+
+export function routeOf(pathname: string): RouteKind {
+  // A file (it has an extension) is never a page.
+  if (/\.[A-Za-z0-9]+$/.test(pathname)) return "left-alone";
+  const parts = pathname.split("/").filter(Boolean);
+  if ((leftAlone as readonly string[]).includes(parts[0])) return "left-alone";
+  if (currencyPage.test(pathname)) return "currency";
+  if (cityPage.test(pathname)) return "city";
+  if (/^\/(category|tag|author|guest)\//.test(pathname)) return "list";
+  if (sectionList.test(pathname)) return "section";
+  if (article.test(pathname)) return "article";
+  if (subRoutes.has(parts[1])) return "sub-route";
+  // An address of one part is a page's own route or Next.js's real 404: the matcher sends only the sections here.
+  if (parts.length < 2) return "left-alone";
+
+  return "not-a-page";
+}
+
 export async function proxy(request: NextRequest) {
   if ((request.method !== "GET" && request.method !== "HEAD") || request.headers.has("rsc")) return NextResponse.next();
   const pathname = request.nextUrl.pathname;
-  // A file (it has an extension) is never a page.
-  if (/\.[A-Za-z0-9]+$/.test(pathname)) return NextResponse.next();
-  const currency = currencyPage.exec(pathname);
-  if (currency) return checkCurrency(request, currency[1]);
-  const city = cityPage.exec(pathname);
-  if (city) return checkCity(request, city[1]);
-  if (/^\/(category|tag|author|guest)\//.test(pathname)) return checkList(request, pathname);
-  const section = sectionList.exec(pathname);
-  if (section) return checkSection(request, section);
-  const match = article.exec(pathname);
-  if (!match) return subRoutes.has(pathname.split("/")[2]) ? NextResponse.next() : notFound(request);
+  switch (routeOf(pathname)) {
+    case "left-alone":
+    case "sub-route":
+      return NextResponse.next();
+    case "currency":
+      return checkCurrency(request, currencyPage.exec(pathname)![1]);
+    case "city":
+      return checkCity(request, cityPage.exec(pathname)![1]);
+    case "list":
+      return checkList(request, pathname);
+    case "section":
+      return checkSection(request, sectionList.exec(pathname)!);
+    case "not-a-page":
+      return notFound(request);
+  }
+  const match = article.exec(pathname)!;
 
   let verdict = recall(pathname);
   if (!verdict) {
