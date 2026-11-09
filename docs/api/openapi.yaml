@@ -2045,7 +2045,7 @@ paths:
         (subscribed or not, limit reached or not): a `challenge` to keep (e.g. in an httpOnly cookie of the site) and,
         when the limits allow, a 6-digit code goes to the address (valid 30 minutes, 5 tries). One address gets at most
         3 codes an hour and 6 a day, whoever asks; 10 requests an hour per visitor (429 `too_many`).
-        `placement` is the form: `footer`, `post_end` or `newsletter_page`; `path` the page (kept as consent proof only
+        `placement` is the form: `footer`, `post_end`, `newsletter_page` or `home` (the home page's newsletter block); `path` the page (kept as consent proof only
         once the code is confirmed).
       operationId: newsletterSubscribe
       requestBody:
@@ -2059,7 +2059,7 @@ paths:
                 website: { type: string, description: 'Honeypot: must stay empty.' }
                 email: { type: string, format: email, maxLength: 254 }
                 name: { type: [string, 'null'], minLength: 2, maxLength: 120 }
-                placement: { type: string, enum: [footer, post_end, newsletter_page] }
+                placement: { type: string, enum: [footer, post_end, newsletter_page, home] }
                 path: { type: [string, 'null'], maxLength: 500, description: "A path of the site, starting with /." }
                 turnstile_token: { type: string, maxLength: 2048 }
       responses:

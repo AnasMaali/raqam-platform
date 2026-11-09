@@ -120,7 +120,7 @@ CREATE TABLE subscribers (
                     CHECK (status IN ('pending', 'active', 'unsubscribed', 'bounced')),
   source_path       varchar(500),                         -- 19.9 consent proof: where (the page)
   source_placement  varchar(16)   NOT NULL                -- 19.3 / 19.9: which form on that page
-                    CHECK (source_placement IN ('footer', 'post_end', 'newsletter_page')),
+                    CHECK (source_placement IN ('footer', 'post_end', 'newsletter_page', 'home')),
   consent_ip_hash   sha256_hex,
   subscribed_at     timestamptz   NOT NULL DEFAULT now(), -- 19.9 consent proof: when
   confirmed_at      timestamptz,

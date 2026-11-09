@@ -332,6 +332,8 @@ SELECT pg_temp.expect_fail('subscribers: unknown form',
   $$INSERT INTO subscribers (email, status, confirmed_at, source_placement) VALUES ('n@example.com', 'active', now(), 'popup')$$);
 INSERT INTO subscribers (email, status, confirmed_at, source_path, source_placement)
   VALUES ('n@example.com', 'active', now(), '/news/1/x', 'post_end');
+INSERT INTO subscribers (email, status, confirmed_at, source_path, source_placement)
+  VALUES ('home@example.com', 'active', now(), '/', 'home');
 
 -- ---------------------------------------------------------------- audit log
 INSERT INTO audit_log (actor_user_id, action, subject_table, subject_id)

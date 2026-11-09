@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\Subscriber;
 use App\Newsletter\NewsletterLinks;
+use App\Newsletter\NewsletterSignup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Support\Facades\Cache;
@@ -209,6 +211,21 @@ test('an unsubscribed address that confirms again is subscribed again, with the 
 
     expect(DB::table('subscribers')->first(['status', 'unsubscribed_at', 'source_placement', 'source_path']))
         ->toEqual((object) ['status' => 'active', 'unsubscribed_at' => null, 'source_placement' => 'newsletter_page', 'source_path' => '/newsletter']);
+});
+
+test('the home page\'s newsletter block is a form of its own: the consent says the home page', function () {
+    $challenge = subscribeRequest(['placement' => 'home', 'path' => '/'])->assertStatus(202)->json('data.challenge');
+    confirmCode($challenge)->assertOk();
+
+    expect(DB::table('subscribers')->first(['source_placement', 'source_path']))->toEqual((object) ['source_placement' => 'home', 'source_path' => '/']);
+});
+
+test('the forms the API accepts, the names the panel shows and the database\'s list are the same', function () {
+    $check = DB::selectOne("SELECT pg_get_constraintdef(oid) AS def FROM pg_constraint WHERE conname = 'subscribers_source_placement_check'")->def;
+    preg_match_all("/'([a-z_]+)'::/", $check, $m);
+
+    expect($m[1])->toEqualCanonicalizing(NewsletterSignup::PLACEMENTS)
+        ->and(array_keys(Subscriber::PLACEMENTS))->toEqualCanonicalizing(NewsletterSignup::PLACEMENTS);
 });
 
 test('the subscriber\'s own link unsubscribes; any other signature is refused', function () {
