@@ -7,7 +7,13 @@ import { defineConfig, devices } from "@playwright/test";
  * The responsive sweep (320 to 1920, a phone held sideways, 200% zoom) runs once, in the "sweep" project.
  */
 const lab = process.env.LAB_URL;
-const api = { API_BASE_URL: "http://127.0.0.1:4010/api/v1", API_SITE_TOKEN: "ci-only-site-token-not-a-secret", SITE_URL: "https://example.org" };
+const api = {
+  API_BASE_URL: "http://127.0.0.1:4010/api/v1",
+  API_SITE_TOKEN: "ci-only-site-token-not-a-secret",
+  SITE_URL: "https://example.org",
+  TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+  SITE_WEBHOOK_SECRET: "ci-only-webhook-secret-not-a-secret",
+};
 
 export default defineConfig({
   testDir: "tests/e2e",

@@ -83,6 +83,31 @@ export type Menus = { header: MenuItem[]; footer_main: MenuItem[]; footer_legal:
 
 export type Site = {
   name: string;
+  logo: Media | null;
+  seo: SiteSeo;
   contact: { address: string | null; email: string | null; phone: string | null; whatsapp_url: string | null };
   social: { platform: string; name: string; url: string }[];
 };
+
+export type Video = {
+  id: number;
+  path: string;
+  title: string;
+  duration_seconds: number | null;
+  thumbnail_url: string | null;
+  published_at: string;
+};
+
+type Named = { name: string; slug: string };
+
+/** One block of the home page (GET /home), in the admin's order. */
+export type HomeBlock =
+  | { id: number; type: "hero" | "breaking" | "latest" | "awareness" | "most_read"; title: string; posts: Post[] }
+  | { id: number; type: "category"; title: string; category: Named & { id: number }; posts: Post[] }
+  | { id: number; type: "section"; title: string; section: Named & { key: string }; posts: Post[] }
+  | { id: number; type: "videos"; title: string; videos: Video[] }
+  | { id: number; type: "playlist"; title: string; playlist: Named; videos: Video[] }
+  | { id: number; type: "markets" | "newsletter"; title: string; sources?: Record<string, string> }
+  | { id: number; type: "ad"; title: string; placement: string; sources?: Record<string, string> };
+
+export type SiteSeo = { title_suffix: string | null; default_description: string | null; default_image: Media | null };

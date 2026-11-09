@@ -1,0 +1,73 @@
+/*
+ * The kashida's time line (DESIGN.md, Visual direction): one stroke on the start side; each item hangs on it by the
+ * «ق»'s hollow circle and a short rounded stroke towards its text. Used for history only, so it keeps its meaning.
+ */
+.line {
+  --gap: 1.75rem;
+  position: relative;
+  padding-inline-start: var(--gap);
+  border-inline-start: 2px solid var(--color-brand);
+}
+
+.node {
+  position: relative;
+}
+
+/* The hollow circle, on the line. */
+.node::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--gap) - 7px);
+  top: 0.25rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-brand);
+  background: var(--color-ground);
+}
+
+/* The kashida: a rounded stroke from the circle towards the year. */
+.node::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--gap) + 5px);
+  top: calc(0.25rem + 5px);
+  width: calc(var(--gap) - 11px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-brand);
+}
+
+/* The line draws itself down as it comes into view, in CSS only, where the browser ties animation to scrolling.
+   With reduced motion, or without scroll-driven animation, it is drawn complete and still. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .line {
+      border-inline-start-color: transparent;
+    }
+
+    .line::before {
+      content: "";
+      position: absolute;
+      inset-inline-start: -2px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--color-brand);
+      transform-origin: top;
+      animation: draw linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 40%;
+    }
+  }
+}
+
+@keyframes draw {
+  from {
+    transform: scaleY(0.1);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}

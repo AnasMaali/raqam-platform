@@ -20,7 +20,8 @@ export async function smallTargets(page: Page, scope = "body") {
     if (!root) return ["no scope"];
     for (const el of root.querySelectorAll<HTMLElement>("a[href], button, label:has(> input)")) {
       const style = getComputedStyle(el);
-      if (style.visibility === "hidden" || el.closest("[hidden], dialog:not([open])") || el.getClientRects().length === 0) continue;
+      // The honeypot field is out of sight and out of reach on purpose (aria-hidden, no tab stop).
+      if (style.visibility === "hidden" || el.closest("[hidden], [aria-hidden='true'], dialog:not([open])") || el.getClientRects().length === 0) continue;
       if (el.matches(".sr-only, .sr-only *") && !el.matches(":focus")) continue;
       if (el.className.includes("after:inset-0")) continue;
       const box = el.getBoundingClientRect();
@@ -34,3 +35,9 @@ export async function smallTargets(page: Page, scope = "body") {
 export async function useTheme(page: Page, theme: "light" | "dark") {
   await page.addInitScript((value) => window.localStorage.setItem("raqam-theme", value), theme);
 }
+
+/** The fake platform API the site reads in the tests (tests/fake-api/server.mjs). */
+export const fakeApi = "http://127.0.0.1:4010";
+
+/** The webhook secret the test server runs with (playwright.config.ts and the CI workflow). */
+export const webhookSecret = process.env.SITE_WEBHOOK_SECRET ?? "ci-only-webhook-secret-not-a-secret";
