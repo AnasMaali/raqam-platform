@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { PostDetail, Site } from "@/lib/types";
+import type { City, CityWeather, CurrencyRow, RatesMeta, PostDetail, Site } from "@/lib/types";
 
 import { serverEnv } from "./env";
 
@@ -90,5 +90,81 @@ export function articleStructuredData(post: PostDetail, crumbs: Crumb[], site: S
   return {
     "@context": "https://schema.org",
     "@graph": [article, breadcrumb, organization, ...(post.video?.structured_data ? [{ ...video, "@id": `${url}#video` }] : [])],
+  };
+}
+
+function breadcrumbOf(base: string, url: string, crumbs: Crumb[]) {
+  return {
+    "@type": "BreadcrumbList",
+    "@id": `${url}#breadcrumb`,
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: `${base}${encodeURI(c.path)}` })),
+  };
+}
+
+/** A page of the site (schema.org WebPage or CollectionPage), part of the site, in Arabic. */
+function pageNode(base: string, url: string, type: "WebPage" | "CollectionPage", name: string, extra: Record<string, unknown>) {
+  return { "@type": type, "@id": url, url, name, inLanguage: "ar", isPartOf: { "@id": `${base}/#website` }, breadcrumb: { "@id": `${url}#breadcrumb` }, ...extra };
+}
+
+/** One currency's rate against the shekel: the middle rate, its day, and the spread between buy and sell. */
+function exchangeRate(base: string, rate: CurrencyRow) {
+  const spread = rate.buy !== null && rate.sell !== null ? Number((Number(rate.sell) - Number(rate.buy)).toFixed(rate.decimals)) : null;
+
+  return {
+    "@type": "ExchangeRateSpecification",
+    "@id": `${base}${rate.path}#rate`,
+    currency: rate.code,
+    ...(rate.mid !== null
+      ? { currentExchangeRate: { "@type": "UnitPriceSpecification", price: Number(rate.mid), priceCurrency: "ILS", ...(rate.rate_date ? { validFrom: rate.rate_date } : {}) } }
+      : {}),
+    ...(spread !== null ? { exchangeRateSpread: spread } : {}),
+  };
+}
+
+/** /currencies: the page, the list of today's rates, its breadcrumb. */
+export function currenciesStructuredData(rates: CurrencyRow[], meta: RatesMeta, name: string, crumbs: Crumb[]) {
+  const base = serverEnv().siteUrl.origin;
+  const url = `${base}/currencies`;
+  const list = { "@type": "ItemList", numberOfItems: rates.length, itemListElement: rates.map((r, i) => ({ "@type": "ListItem", position: i + 1, item: exchangeRate(base, r) })) };
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [pageNode(base, url, "CollectionPage", name, { ...(meta.published_at ? { dateModified: meta.published_at } : {}), mainEntity: list }), breadcrumbOf(base, url, crumbs)],
+  };
+}
+
+/** /currencies/{code}: the page about one currency's rate, and its breadcrumb. */
+export function currencyStructuredData(rate: CurrencyRow, name: string, crumbs: Crumb[]) {
+  const base = serverEnv().siteUrl.origin;
+  const url = `${base}${rate.path}`;
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [pageNode(base, url, "WebPage", name, { ...(rate.published_at ? { dateModified: rate.published_at } : {}), mainEntity: exchangeRate(base, rate) }), breadcrumbOf(base, url, crumbs)],
+  };
+}
+
+/** /weather: the page and the list of the cities' pages. */
+export function weatherStructuredData(cities: City[], name: string, crumbs: Crumb[]) {
+  const base = serverEnv().siteUrl.origin;
+  const url = `${base}/weather`;
+  const list = {
+    "@type": "ItemList",
+    numberOfItems: cities.length,
+    itemListElement: cities.map((c, i) => ({ "@type": "ListItem", position: i + 1, url: `${base}${encodeURI(c.path)}`, name: `طقس ${c.name}` })),
+  };
+
+  return { "@context": "https://schema.org", "@graph": [pageNode(base, url, "CollectionPage", name, { mainEntity: list }), breadcrumbOf(base, url, crumbs)] };
+}
+
+/** /weather/{slug}: the page about one city (a Place with its coordinates), and its breadcrumb. */
+export function cityStructuredData(city: CityWeather, name: string, crumbs: Crumb[]) {
+  const base = serverEnv().siteUrl.origin;
+  const url = `${base}${encodeURI(city.path)}`;
+  const place = { "@type": "Place", "@id": `${url}#place`, name: city.name, geo: { "@type": "GeoCoordinates", latitude: city.latitude, longitude: city.longitude } };
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [pageNode(base, url, "WebPage", name, { ...(city.now ? { dateModified: city.now.observed_at } : {}), about: { "@id": place["@id"] } }), place, breadcrumbOf(base, url, crumbs)],
   };
 }

@@ -17,17 +17,23 @@ import { NextResponse, type NextRequest } from "next/server";
  * The list pages (a category, a tag, a writer, a guest; 12 items a page) are checked the same way: an unknown one, a
  * tag no live item carries and a page past the last answer 404, and /page/1 moves to the list's own address. So are
  * the section pages and /news: a hidden section, an unknown filter value and a page past the last answer 404.
+ *
+ * A currency's page and a city's page too: an unknown or hidden currency or city answers 404, and a currency code in
+ * another case moves to its lower-case address (/currencies/USD to /currencies/usd).
  */
 
 const article = /^\/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)\/([1-9]\d{0,9})(?:\/([^/]+))?\/?$/;
 
-// Pages of their own under a section's prefix (not posts): left to their routes.
-const subRoutes = new Set(["characters"]);
+// Pages of their own under a section's prefix (not posts), left to their routes. None is built yet: the characters'
+// pages (/awareness/characters/{slug}) join this list with their route.
+const subRoutes = new Set<string>([]);
 
 const list = /^\/(category|tag|author|guest)\/([^/]+)(?:\/page\/([^/]+))?\/?$/;
 const sectionList = /^\/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)(?:\/page\/([^/]+))?\/?$/;
 // The filters a section page reads (5.9); anything else in the query is ignored, here as on the page.
 const sectionFilters = ["season", "sector", "era", "initiative_status", "character"];
+const currencyPage = /^\/currencies\/([^/]+)\/?$/;
+const cityPage = /^\/weather\/([^/]+)\/?$/;
 const listEntities = { category: "categories", tag: "tags", author: "authors", guest: "guests" } as const;
 const perPage = 12;
 
@@ -36,6 +42,11 @@ export const config = {
     "/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)/:id/:slug*",
     "/(category|tag|author|guest)/:slug/:rest*",
     "/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)",
+    "/currencies/:code",
+    "/weather/:slug",
+    // Any other address of two or three parts would reach the article's route and stream a 200 before it finds
+    // nothing: the check answers 404 first. The site's own folders and files are left alone.
+    "/((?!_next/|api/|feeds/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
   ],
 };
 
@@ -186,9 +197,54 @@ async function checkSection(request: NextRequest, match: RegExpExecArray) {
   return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
 }
 
+/** Whether a currency's or a city's page exists: the platform's own address for it answers 200 or 404 (HEAD). */
+async function askPlatform(path: string): Promise<Verdict | null> {
+  const answer = await platform(path, "HEAD");
+  if (!answer) return null;
+  if (answer.status === 404) return { kind: "missing" };
+
+  return answer.status === 200 ? { kind: "page" } : null;
+}
+
+async function checkPage(request: NextRequest, key: string, path: string) {
+  let verdict = recall(key);
+  if (!verdict) {
+    const answer = await askPlatform(path);
+    if (!answer) return NextResponse.next();
+    verdict = answer;
+    remember(key, verdict);
+  }
+
+  return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
+}
+
+function checkCurrency(request: NextRequest, code: string) {
+  if (!/^[A-Za-z]{3}$/.test(code)) return notFound(request);
+  if (code !== code.toLowerCase()) return NextResponse.redirect(new URL(`/currencies/${code.toLowerCase()}`, request.url), { status: 301 });
+
+  return checkPage(request, `/currencies/${code}`, `/currencies/${code}/history?days=7`);
+}
+
+// The platform's other weather addresses, never a city's.
+const notCities = new Set(["widget", "cities"]);
+
+function checkCity(request: NextRequest, slug: string) {
+  if (notCities.has(slug)) return notFound(request);
+  // The address keeps the slug percent-encoded, as the platform's address takes it.
+  const segment = encodeURIComponent(decoded(slug));
+
+  return checkPage(request, `/weather/${segment}`, `/weather/${segment}`);
+}
+
 export async function proxy(request: NextRequest) {
   if ((request.method !== "GET" && request.method !== "HEAD") || request.headers.has("rsc")) return NextResponse.next();
   const pathname = request.nextUrl.pathname;
+  // A file (it has an extension) is never a page.
+  if (/\.[A-Za-z0-9]+$/.test(pathname)) return NextResponse.next();
+  const currency = currencyPage.exec(pathname);
+  if (currency) return checkCurrency(request, currency[1]);
+  const city = cityPage.exec(pathname);
+  if (city) return checkCity(request, city[1]);
   if (/^\/(category|tag|author|guest)\//.test(pathname)) return checkList(request, pathname);
   const section = sectionList.exec(pathname);
   if (section) return checkSection(request, section);

@@ -72,6 +72,19 @@ The seven sections and `/news` (`src/components/sections/SectionView.tsx`) use t
 also answers 404 for an unknown filter value, a hidden section and a page past the last. A section's feed is at
 `/feeds/sections/{slug}`.
 
+## Currencies and weather
+
+`/currencies`, `/currencies/{code}` (the ISO code in lower case), `/weather` and `/weather/{slug}` (Arabic slugs) read
+the platform's rates and weather (`src/lib/server/markets.ts`). `src/proxy.ts` answers 404 for an unknown or hidden
+currency or city, and 301 for a code in another case (`/currencies/USD`). It also answers 404 for any other address of
+two or three parts that is not a page (`/x/1/a`), which would otherwise reach the article's route and stream a 200.
+
+The rate chart uses Recharts, loaded by the currency page only, with a dynamic import, when the chart comes near the
+screen. A browser test checks that no other page loads it. The converter's rules (`src/lib/markets.ts`) follow the
+platform: from a currency to the shekel at the buy rate, the other way at the sell rate.
+
+The fake API's rates and cities come from `tests/fake-api/capture-markets.mjs`, apart from the content fixtures.
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go

@@ -38,3 +38,11 @@ export function formatDegrees(value: number) {
 
 /** 27 تشرين الأول 2026، 6:13 م: an article's own dates, with the year (decision 1.4). */
 export const formatDateTime = (iso: string) => `${longDate.format(new Date(iso))}، ${clock.format(new Date(iso))}`;
+
+const weekday = new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: zone });
+
+/** A forecast day ("2026-11-10") by its name: الثلاثاء. Read at noon, so no time zone moves it to another day. */
+export const formatWeekday = (day: string) => weekday.format(new Date(`${day}T12:00:00Z`));
+
+/** 10 تشرين الثاني: a day of the month, without the year. */
+export const formatDayMonth = (day: string) => dayMonth.format(new Date(`${day}T12:00:00Z`));

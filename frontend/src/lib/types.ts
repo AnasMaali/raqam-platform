@@ -39,7 +39,29 @@ export type Rate = {
 
 export type BoardRate = Rate & { buy: string | null; sell: string | null };
 
-export type RatesMeta = { rate_date: string | null; note: string };
+/** A currency's full row on /currencies: its symbol, display decimals, the day before, and how the rate was made. */
+export type CurrencyRow = BoardRate & {
+  symbol: string;
+  decimals: number;
+  previous: string | null;
+  is_manual: boolean;
+  is_pegged: boolean;
+  rate_date: string | null;
+  published_at: string | null;
+};
+
+export type RatesMeta = { rate_date: string | null; note: string; published_at?: string | null };
+
+/** What the converter needs of each currency, and which rate each direction uses (11.7). */
+export type ConverterData = {
+  base: "ILS";
+  currencies: { code: string; name: string; symbol: string; decimals: number; buy: string | null; sell: string | null; is_manual: boolean }[];
+  rules: { to_base: { rate: "buy" | "sell"; text: string }; from_base: { rate: "buy" | "sell"; text: string } };
+};
+
+export type RateHistory = { code: string; name: string; symbol: string; decimals: number; points: { date: string; mid: string }[] };
+
+export type WeatherCondition = { code: number; text: string; icon: string };
 
 export type City = {
   slug: string;
@@ -48,11 +70,27 @@ export type City = {
   is_default: boolean;
   now: {
     temperature: number;
-    condition: { code: number; text: string; icon: string };
+    condition: WeatherCondition;
     is_day: boolean;
     observed_at: string;
     stale: boolean;
   } | null;
+};
+
+/** One city's page: the reading with today's low and high, humidity and wind, and the days ahead (12.6–12.8). */
+export type CityWeather = Omit<City, "now"> & {
+  latitude: number;
+  longitude: number;
+  now:
+    | (NonNullable<City["now"]> & {
+        feels_like: number | null;
+        today: { min: number; max: number } | null;
+        humidity: number | null;
+        wind_kmh: number | null;
+        wind_deg: number | null;
+      })
+    | null;
+  forecast: { date: string; min: number; max: number; condition: WeatherCondition }[];
 };
 
 export type AdImage = Media & { mime_type: string };

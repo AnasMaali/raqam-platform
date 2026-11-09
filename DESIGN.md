@@ -416,6 +416,27 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   («الكل» and each value with its count; the chosen one filled in brand), the featured item («مميّز», then left out of the
   list), then the list template's items and pages. History lists its items on the kashida's line from the oldest.
   Awareness shows its characters as cards, which are its filter.
+- **Currency pages.** `/currencies`: the headline «أسعار العملات مقابل الشيكل اليوم», the rates' day, «آخر تحديث» and the
+  platform's note that the rates are indicative; a table of buy, sell and the change (each currency links to its page);
+  a line under it for the currencies pegged to the dollar; the converter beside it from 1024 px. `/currencies/{code}`:
+  «سعر الدولار مقابل الشيكل اليوم», buy and sell in the figure size, the change and the middle rate, the converter set to
+  the currency (beside the rest from 1024 px), the 30-day chart, the last ten days (newest first, each with its change),
+  the other currencies.
+  Rates and changes use tabular figures; a change always has its arrow and its sign as well as its colour.
+- **Converter.** The amount (0-9, Arabic-Indic or Persian digits, ٫ or a point), the currency, and the direction as two
+  choices («من الدولار إلى الشيكل» / «من الشيكل إلى الدولار»). The result is written as «100.00 دولار أمريكي = 357.10
+  شيكل», then the rate it used («بحسب سعر الشراء: 1 دولار أمريكي = 3.571 شيكل») and the platform's rule. A word that is
+  not a number gets a message on the field. The first result is drawn on the server.
+- **Rate chart.** The middle rate over 30 days as a brand line over a faint brand area, hairline grid, muted labels.
+  Time runs from the start side, as the reading does: the oldest day on the right, the axis of rates on the right too.
+  Nothing animates. Its box keeps its height while it loads; it loads (Recharts, its own chunk) only on the currency page
+  and only when it comes near the screen. Its caption says the highest and lowest rate with their days; the table of
+  the last days carries the same figures for screen readers.
+- **Weather pages.** `/weather`: «طقس فلسطين اليوم», a card for every city (its drawing, the temperature, the condition;
+  an old reading says when it was taken). `/weather/{slug}`: «طقس نابلس اليوم», now (a large drawing, the temperature,
+  the condition, how it feels, the time of the reading), today's low and high, humidity, the wind with where it blows
+  from, the five days (day name and date, drawing, condition, high and low), and the other cities. "Weather data ©
+  OpenWeather" on every page that shows weather.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),
