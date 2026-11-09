@@ -15,7 +15,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * in time. Client navigations (RSC requests) are left to the page, which handles all of these itself.
  *
  * The list pages (a category, a tag, a writer, a guest; 12 items a page) are checked the same way: an unknown one, a
- * tag no live item carries and a page past the last answer 404, and /page/1 moves to the list's own address.
+ * tag no live item carries and a page past the last answer 404, and /page/1 moves to the list's own address. So are
+ * the section pages and /news: a hidden section, an unknown filter value and a page past the last answer 404.
  */
 
 const article = /^\/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)\/([1-9]\d{0,9})(?:\/([^/]+))?\/?$/;
@@ -24,6 +25,9 @@ const article = /^\/(news|podcast|success-stories|made-in-nablus|history|initiat
 const subRoutes = new Set(["characters"]);
 
 const list = /^\/(category|tag|author|guest)\/([^/]+)(?:\/page\/([^/]+))?\/?$/;
+const sectionList = /^\/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)(?:\/page\/([^/]+))?\/?$/;
+// The filters a section page reads (5.9); anything else in the query is ignored, here as on the page.
+const sectionFilters = ["season", "sector", "era", "initiative_status", "character"];
 const listEntities = { category: "categories", tag: "tags", author: "authors", guest: "guests" } as const;
 const perPage = 12;
 
@@ -31,6 +35,7 @@ export const config = {
   matcher: [
     "/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)/:id/:slug*",
     "/(category|tag|author|guest)/:slug/:rest*",
+    "/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)",
   ],
 };
 
@@ -129,10 +134,64 @@ async function checkList(request: NextRequest, pathname: string) {
   return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
 }
 
+/**
+ * Whether a section page exists: the section is visible, its filter values are ones it offers, and past the first page,
+ * the page has an item (one item asked for, per_page=1).
+ */
+async function askSection(slug: string, page: number, filters: [string, string][]): Promise<Verdict | null> {
+  if (slug !== "news") {
+    const section = await platform(`/sections/${slug}`, filters.length ? "GET" : "HEAD");
+    if (!section) return null;
+    if (section.status === 404) return { kind: "missing" };
+    if (section.status !== 200) return null;
+    if (filters.length) {
+      const body = (await section.json().catch(() => null)) as { data?: { filters?: { param: string; options: { value: string }[] }[] } } | null;
+      const offered = body?.data?.filters;
+      if (!offered) return null;
+      const known = filters.every(([param, value]) => offered.some((f) => f.param === param && f.options.some((o) => o.value === value)));
+      if (!known) return { kind: "missing" };
+    }
+  } else if (filters.length) return { kind: "missing" };
+  if (page === 1) return { kind: "page" };
+
+  const query = new URLSearchParams(slug === "news" ? { kind: "news,report,opinion,infographic" } : { section: slug });
+  for (const [param, value] of filters) query.set(param, value);
+  query.set("per_page", "1");
+  query.set("page", String((page - 1) * perPage + 1));
+  const items = await platform(`/posts?${query}`, "GET");
+  if (!items || items.status !== 200) return null;
+  const body = (await items.json().catch(() => null)) as { data?: unknown[] } | null;
+  if (!Array.isArray(body?.data)) return null;
+
+  return body.data.length > 0 ? { kind: "page" } : { kind: "missing" };
+}
+
+async function checkSection(request: NextRequest, match: RegExpExecArray) {
+  const [, slug, rawPage] = match;
+  const filters = sectionFilters.flatMap((param) => (request.nextUrl.searchParams.has(param) ? [[param, request.nextUrl.searchParams.get(param)!] as [string, string]] : []));
+  const search = new URLSearchParams(filters).toString();
+  // /page/1 is the section's own address, with its filters.
+  if (rawPage === "1") return NextResponse.redirect(new URL(`/${slug}${search ? `?${search}` : ""}`, request.url), { status: 301 });
+  if (rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) return notFound(request);
+
+  const key = `${request.nextUrl.pathname}?${search}`;
+  let verdict = recall(key);
+  if (!verdict) {
+    const answer = await askSection(slug, rawPage ? Number(rawPage) : 1, filters);
+    if (!answer) return NextResponse.next();
+    verdict = answer;
+    remember(key, verdict);
+  }
+
+  return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
+}
+
 export async function proxy(request: NextRequest) {
   if ((request.method !== "GET" && request.method !== "HEAD") || request.headers.has("rsc")) return NextResponse.next();
   const pathname = request.nextUrl.pathname;
   if (/^\/(category|tag|author|guest)\//.test(pathname)) return checkList(request, pathname);
+  const section = sectionList.exec(pathname);
+  if (section) return checkSection(request, section);
   const match = article.exec(pathname);
   if (!match) return subRoutes.has(pathname.split("/")[2]) ? NextResponse.next() : notFound(request);
 

@@ -100,9 +100,52 @@ function listRoute(pathname) {
   return null;
 }
 
+// The section pages' data (capture.mjs): each section, all its items, the characters, the feeds, three pages of /news.
+const sections = fromFile("sections-pages");
+
+// A section item's value for a filter, read from its facts as the platform's filters would match it.
+const factOf = {
+  season: (p) => String(p.facts?.season?.number ?? ""),
+  sector: (p) => p.facts?.organization?.sector?.slug ?? "",
+  era: (p) => String(p.facts?.era?.id ?? ""),
+  initiative_status: (p) => p.facts?.status ?? "",
+  character: (p) => p.facts?.character?.slug ?? "",
+};
+
+/** A page of a section's (or /news's) items: filtered, featured only if asked, `per_page` 1 to 12 as the platform. */
+function sectionPosts(params) {
+  let items = params.get("section") ? sections.items[params.get("section")] : params.get("kind") === "news,report,opinion,infographic" ? sections.news : undefined;
+  if (!items) return null;
+  for (const [param, read] of Object.entries(factOf)) if (params.has(param)) items = items.filter((p) => read(p) === params.get(param));
+  if (params.get("featured") === "1") items = items.filter((p) => p.is_featured);
+  // History is captured on its timeline; without order=timeline the platform gives the newest first, as here.
+  if (params.get("section") === "history" && params.get("order") !== "timeline") items = [...items].sort((a, b) => b.published_at.localeCompare(a.published_at));
+  const size = Math.min(12, Math.max(1, Number(params.get("per_page") ?? 12)));
+  const page = Math.max(1, Number(params.get("page") ?? 1));
+
+  return { data: items.slice((page - 1) * size, page * size), meta: { page, per_page: size, total: items.length, last_page: Math.max(1, Math.ceil(items.length / size)) } };
+}
+
+function sectionRoute(pathname) {
+  const one = /^\/api\/v1\/sections\/([^/]+)$/.exec(pathname);
+  if (one) {
+    const data = sections.detail[one[1]];
+    return data ? { status: 200, body: { data } } : { status: 404, body: { error: { code: "not_found", message: "غير موجود." } } };
+  }
+  if (pathname === "/api/v1/awareness") return { status: 200, body: { data: sections.awareness } };
+  const feed = /^\/api\/v1\/feeds\/sections\/([^/]+)$/.exec(pathname);
+  if (feed) {
+    const data = sections.feeds[feed[1]];
+    return data ? { status: 200, body: { data } } : { status: 404, body: { error: { code: "not_found", message: "غير موجود." } } };
+  }
+  return null;
+}
+
 // A list of posts: one of the captured lists, paged 12 at a time as the platform does (per_page is 12 whatever is
 // asked, except a smaller number for "more from …"); otherwise the posts fixture filtered.
 function posts(params) {
+  const ofSection = sectionPosts(params);
+  if (ofSection) return ofSection;
   const kind = ["category", "tag", "author", "guest"].find((k) => params.get(k));
   const captured = kind ? lists.items[`${kind}:${params.get(kind)}`] : undefined;
   if (captured) {
@@ -172,6 +215,8 @@ createServer(async (request, response) => {
     return response.end(request.method === "HEAD" ? undefined : JSON.stringify(answer.body));
   }
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
+  const sectionAnswer = sectionRoute(url.pathname);
+  if (sectionAnswer) return json(sectionAnswer.status, sectionAnswer.body);
   const listAnswer = listRoute(url.pathname);
   if (listAnswer) return json(listAnswer.status, listAnswer.body);
   let name = routes[url.pathname];

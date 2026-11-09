@@ -412,6 +412,10 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   description (a writer or a guest: picture, role, bio and links), a category's sub-categories and its RSS feed. Then
   12 items a page, the newest first: on phones a small picture beside each headline, from 640 px a grid of cards.
   «السابق», the pages around the current one, «التالي». A category with nothing yet says «لا مواد هنا بعد.».
+- **Section pages and /news.** The section's name and introduction, its RSS feed, its filters as rows of links
+  («الكل» and each value with its count; the chosen one filled in brand), the featured item («مميّز», then left out of the
+  list), then the list template's items and pages. History lists its items on the kashida's line from the oldest.
+  Awareness shows its characters as cards, which are its filter.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),

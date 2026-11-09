@@ -67,6 +67,11 @@ page. `src/proxy.ts` checks list addresses the same way as articles:
 
 A category's RSS feed is at `/feeds/categories/{slug}` (the `feeds` prefix is reserved for feeds).
 
+The seven sections and `/news` (`src/components/sections/SectionView.tsx`) use the same pages. Their filters are links
+(`/podcast?season=2`). A filtered page is noindex, and its canonical address is the section's own page. The address check
+also answers 404 for an unknown filter value, a hidden section and a page past the last. A section's feed is at
+`/feeds/sections/{slug}`.
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go

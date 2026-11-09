@@ -92,6 +92,11 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$category")" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$category/page/9")" = 404
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100/feeds/categories${category#/category}")" = 200
+          # A section answers 200, a page past its last 404, an unknown filter value 404, its feed 200.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/podcast)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/podcast/page/99)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100/podcast?season=99")" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/feeds/sections/podcast)" = 200
           # The webhook route refuses an unsigned message.
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"type":"all"}' http://127.0.0.1:3100/api/revalidate)" = 401
           npm run check:motion
