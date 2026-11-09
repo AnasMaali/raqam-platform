@@ -121,10 +121,10 @@ describe('newsletter', function () {
         expect(rejected(fn () => DB::table('subscribers')->insert(['email' => 'n@example.com', 'status' => 'active', 'confirmed_at' => now(), 'source_placement' => 'popup'])))
             ->toThrow(QueryException::class, '"subscribers_source_placement_check"');
 
-        foreach (['footer', 'post_end', 'newsletter_page'] as $i => $placement) {
+        foreach (['footer', 'post_end', 'newsletter_page', 'home'] as $i => $placement) {
             DB::table('subscribers')->insert(['email' => "n{$i}@example.com", 'status' => 'active', 'confirmed_at' => now(), 'source_placement' => $placement]);
         }
-        expect(DB::table('subscribers')->count())->toBe(3);
+        expect(DB::table('subscribers')->count())->toBe(4);
     });
 });
 

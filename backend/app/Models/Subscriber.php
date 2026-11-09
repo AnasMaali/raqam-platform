@@ -11,7 +11,7 @@ class Subscriber extends Model
 
     public const STATUSES = ['pending' => 'بانتظار التأكيد', 'active' => 'مشترك', 'unsubscribed' => 'ألغى الاشتراك', 'bounced' => 'بريد مرتد'];
 
-    public const PLACEMENTS = ['footer' => 'الفوتر', 'post_end' => 'نهاية مادة', 'newsletter_page' => 'صفحة النشرة'];
+    public const PLACEMENTS = ['footer' => 'الفوتر', 'post_end' => 'نهاية مادة', 'newsletter_page' => 'صفحة النشرة', 'home' => 'الرئيسية'];
 
     protected function casts(): array
     {

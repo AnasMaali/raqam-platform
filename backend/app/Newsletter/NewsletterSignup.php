@@ -32,7 +32,7 @@ use RuntimeException;
  */
 final class NewsletterSignup
 {
-    public const PLACEMENTS = ['footer', 'post_end', 'newsletter_page'];
+    public const PLACEMENTS = ['footer', 'post_end', 'newsletter_page', 'home'];
 
     /**
      * @param  array<string, mixed>  $input  email, name, placement, path, turnstile_token
