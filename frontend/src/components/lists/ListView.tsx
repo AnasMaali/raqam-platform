@@ -88,7 +88,8 @@ export async function listMetadata(kind: ListKind, rawSlug: string, rawPage?: st
       canonical: page === 1 && entity.seo?.canonical_url ? entity.seo.canonical_url : path,
       ...(kind === "category" ? { types: { "application/rss+xml": [{ url: encodeURI(`/feeds/categories/${entity.slug}`), title: `رَقَم: ${entity.name}` }] } } : {}),
     },
-    robots: entity.seo?.noindex ? { index: false, follow: true } : undefined,
+    // The editor's choice, and a category with nothing in it yet (until its first item).
+    robots: entity.seo?.noindex || loaded.list.total === 0 ? { index: false, follow: true } : undefined,
     openGraph: {
       type: kind === "author" || kind === "guest" ? "profile" : "website",
       url: path,
@@ -137,16 +138,20 @@ function structuredData(kind: ListKind, entity: ListEntity, list: ListPage, page
   return { "@context": "https://schema.org", "@graph": [page_, ...(person ? [person] : []), breadcrumb] };
 }
 
-/** «السابق», the pages around this one, «التالي». */
-function Pagination({ kind, slug, page, lastPage }: { kind: ListKind; slug: string; page: number; lastPage: number }) {
+/**
+ * «السابق», the pages around this one, «التالي». A page's address is the list's own (`base`) for the first and
+ * `base/page/{n}` for the others, with the same query (a section's filters).
+ */
+export function Pagination({ page, lastPage, base, query = "" }: { page: number; lastPage: number; base: string; query?: string }) {
   if (lastPage <= 1) return null;
+  const href = (n: number) => `${base}${n > 1 ? `/page/${n}` : ""}${query ? `?${query}` : ""}`;
   const shown = [...new Set([1, page - 1, page, page + 1, lastPage])].filter((n) => n >= 1 && n <= lastPage).sort((a, b) => a - b);
   const link = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm px-3 hover:bg-tint hover:text-brand";
 
   return (
     <nav aria-label="صفحات القائمة" className="mt-10 flex flex-wrap items-center justify-center gap-1 border-t border-line pt-6">
       {page > 1 && (
-        <Link href={listPath(kind, slug, page - 1)} className={`${link} gap-1`}>
+        <Link href={href(page - 1)} className={`${link} gap-1`}>
           <Icon name="end" size={16} className="rotate-180" />
           السابق
         </Link>
@@ -165,7 +170,7 @@ function Pagination({ kind, slug, page, lastPage }: { kind: ListKind; slug: stri
                 {n}
               </span>
             ) : (
-              <Link href={listPath(kind, slug, n)} className={`${link} figures`}>
+              <Link href={href(n)} className={`${link} figures`}>
                 <span className="sr-only">صفحة </span>
                 {n}
               </Link>
@@ -174,7 +179,7 @@ function Pagination({ kind, slug, page, lastPage }: { kind: ListKind; slug: stri
         ))}
       </ol>
       {page < lastPage && (
-        <Link href={listPath(kind, slug, page + 1)} className={`${link} gap-1`}>
+        <Link href={href(page + 1)} className={`${link} gap-1`}>
           التالي
           <Icon name="end" size={16} />
         </Link>
@@ -278,7 +283,7 @@ export async function ListView({ kind, rawSlug, rawPage }: { kind: ListKind; raw
           </>
         )}
 
-        <Pagination kind={kind} slug={entity.slug} page={page} lastPage={list.lastPage} />
+        <Pagination page={page} lastPage={list.lastPage} base={listPath(kind, entity.slug)} />
       </div>
       <JsonLd data={structuredData(kind, entity, list, page, crumbs)} />
     </>

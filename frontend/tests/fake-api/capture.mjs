@@ -126,3 +126,23 @@ listFixture.items["category:تصنيف-فارغ"] = [];
 listFixture.index.categories.push({ name: "تصنيف فارغ", slug: "تصنيف-فارغ", children: [] });
 listFixture.feeds["طاقة"] = media((await get(`/feeds/categories/${encodeURIComponent("طاقة")}`)).data);
 writeFileSync(new URL("./fixtures/lists.json", import.meta.url), JSON.stringify(listFixture) + "\n");
+
+// The section pages: each section with its filters, all its items (history on its timeline order), the awareness
+// characters, the sections' feeds, and the first three pages of /news.
+const sectionSlugs = ["podcast", "success-stories", "made-in-nablus", "history", "initiatives", "round-table", "awareness"];
+const sectionFixture = { detail: {}, items: {}, feeds: {}, awareness: null, news: [] };
+for (const slug of sectionSlugs) {
+  sectionFixture.detail[slug] = media((await get(`/sections/${slug}`)).data);
+  const items = [];
+  for (let page = 1; ; page++) {
+    const body = await get(`/posts?section=${slug}&per_page=12&page=${page}${slug === "history" ? "&order=timeline" : ""}`);
+    items.push(...media(body.data));
+    if (page >= body.meta.last_page) break;
+  }
+  sectionFixture.items[slug] = items;
+  sectionFixture.feeds[slug] = media((await get(`/feeds/sections/${slug}`)).data);
+  console.log("section", slug, items.length);
+}
+sectionFixture.awareness = media((await get("/awareness")).data);
+for (let page = 1; page <= 3; page++) sectionFixture.news.push(...media((await get(`/posts?kind=news,report,opinion,infographic&per_page=12&page=${page}`)).data));
+writeFileSync(new URL("./fixtures/sections-pages.json", import.meta.url), JSON.stringify(sectionFixture) + "\n");

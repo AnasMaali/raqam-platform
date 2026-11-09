@@ -88,6 +88,8 @@ test.describe("pages of a list", () => {
     const response = await page.goto(path("category", "تصنيف-فارغ"));
     expect(response?.status()).toBe(200);
     await expect(page.getByText("لا مواد هنا بعد.")).toBeVisible();
+    // Kept out of search engines until its first item.
+    await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", /noindex/);
   });
 });
 
