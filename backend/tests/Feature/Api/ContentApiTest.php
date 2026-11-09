@@ -256,6 +256,24 @@ test('every kind of the news family lives under /news, and the sections under th
     }
 });
 
+test('the answer names the post\'s public address in X-Raqam-Path, percent-encoded, also to HEAD and on a move', function () {
+    $post = publish('opinion', ['title' => 'رأي في السوق']);
+    $path = api("/posts/{$post->id}")->json('data.path');
+    $encoded = implode('/', array_map('rawurlencode', explode('/', $path)));
+
+    expect($path)->toStartWith("/news/{$post->id}/")->and($encoded)->not->toBe($path);
+    api("/posts/{$post->id}")->assertOk()->assertHeader('X-Raqam-Path', $encoded);
+    api("/posts/{$post->id}/".rawurlencode($post->fresh()->slug))->assertOk()->assertHeader('X-Raqam-Path', $encoded);
+    // HEAD: the same header, no body, so the site can check an address cheaply.
+    $head = $this->call('HEAD', "/api/v1/posts/{$post->id}/".rawurlencode($post->fresh()->slug));
+    $head->assertOk()->assertHeader('X-Raqam-Path', $encoded);
+    expect($head->getContent())->toBe('');
+    // An old slug: the move names the address too.
+    api("/posts/{$post->id}/".rawurlencode('عنوان-قديم'))->assertStatus(301)->assertHeader('X-Raqam-Path', $encoded);
+    // Unknown and deleted posts carry no address.
+    api('/posts/999999')->assertNotFound()->assertHeaderMissing('X-Raqam-Path');
+});
+
 test('a deleted post answers 410, in the trash and after it was removed for good', function () {
     $post = publish('news');
     $this->saver->trash($post);

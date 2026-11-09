@@ -347,7 +347,7 @@ paths:
         '200': { $ref: '#/components/responses/Post' }
         '301':
           description: The slug is an old one.
-          headers: { Location: { schema: { type: string } } }
+          headers: { Location: { schema: { type: string } }, X-Raqam-Path: { $ref: '#/components/headers/PostPath' } }
           content:
             application/json:
               schema:
@@ -2671,6 +2671,11 @@ components:
     ETag:
       description: Validator for `If-None-Match`.
       schema: { type: string }
+    PostPath:
+      description: |
+        The post's public address (`path`), each part percent-encoded (a header holds ASCII only). Sent on the post and on
+        the move from an old slug, and to `HEAD`, so the site can check an address before its page without the body.
+      schema: { type: string, example: /news/12/%D8%B9%D9%86%D9%88%D8%A7%D9%86 }
     CacheControl:
       description: How long a shared cache may keep the answer.
       schema: { type: string }
@@ -2678,7 +2683,7 @@ components:
   responses:
     Post:
       description: The post.
-      headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' } }
+      headers: { ETag: { $ref: '#/components/headers/ETag' }, Cache-Control: { $ref: '#/components/headers/CacheControl' }, X-Raqam-Path: { $ref: '#/components/headers/PostPath' } }
       content:
         application/json:
           schema:

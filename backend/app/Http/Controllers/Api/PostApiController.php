@@ -65,13 +65,25 @@ class PostApiController extends ApiController
             return $this->missing($id);
         }
 
-        if ($slug !== null && $slug !== $post->slug) {
-            $path = PostPath::for($post->kind_code, $post->id, $post->slug);
+        $path = PostPath::for($post->kind_code, $post->id, $post->slug);
 
-            return response()->json(['path' => $path], 301)->header('Location', url('/api/v1/posts/'.$post->id.'/'.rawurlencode($post->slug)));
+        if ($slug !== null && $slug !== $post->slug) {
+            return response()->json(['path' => $path], 301)
+                ->header('Location', url('/api/v1/posts/'.$post->id.'/'.rawurlencode($post->slug)))
+                ->header('X-Raqam-Path', self::headerPath($path));
         }
 
-        return response()->json(['data' => $this->presenter->detail($post)]);
+        return response()->json(['data' => $this->presenter->detail($post)])->header('X-Raqam-Path', self::headerPath($path));
+    }
+
+    /**
+     * The post's public address for the X-Raqam-Path header, so the site can check an address with a HEAD request
+     * (no body) and send a visitor at a wrong one to the right one. Each part is percent-encoded: a header holds ASCII
+     * only, and the slug is Arabic.
+     */
+    private static function headerPath(string $path): string
+    {
+        return implode('/', array_map('rawurlencode', explode('/', $path)));
     }
 
     /** The posts of one kind's table whose company is in the sector. */
