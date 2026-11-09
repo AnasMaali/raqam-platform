@@ -274,6 +274,24 @@ test('the answer names the post\'s public address in X-Raqam-Path, percent-encod
     api('/posts/999999')->assertNotFound()->assertHeaderMissing('X-Raqam-Path');
 });
 
+test('/posts gives fewer items a page when asked (per_page 1 to 12), and never more than 12', function () {
+    foreach (range(1, 14) as $i) {
+        publish('news', ['title' => "خبر رقم {$i}"]);
+    }
+
+    $one = api('/posts?per_page=1&page=3')->assertOk();
+    validateAgainstPath($one->json(), '/posts');
+    expect($one->json('data'))->toHaveCount(1)
+        ->and($one->json('meta'))->toBe(['page' => 3, 'per_page' => 1, 'total' => 14, 'last_page' => 14])
+        ->and($one->json('links.next'))->toContain('per_page=1')->toContain('page=4');
+    expect(api('/posts?per_page=5')->json('data'))->toHaveCount(5);
+    // The default stays 12.
+    expect(api('/posts')->json('meta.per_page'))->toBe(12)->and(api('/posts')->json('data'))->toHaveCount(12);
+    foreach (['0', '13', '100', 'x'] as $wrong) {
+        api("/posts?per_page={$wrong}")->assertStatus(422);
+    }
+});
+
 test('a deleted post answers 410, in the trash and after it was removed for good', function () {
     $post = publish('news');
     $this->saver->trash($post);

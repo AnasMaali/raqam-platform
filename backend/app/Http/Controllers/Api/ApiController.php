@@ -49,7 +49,7 @@ abstract class ApiController extends Controller
 
         return response()->json([
             'data' => $data,
-            'meta' => ['page' => $p->currentPage(), 'per_page' => self::PER_PAGE, 'total' => $p->total(), 'last_page' => max(1, $p->lastPage())],
+            'meta' => ['page' => $p->currentPage(), 'per_page' => $p->perPage(), 'total' => $p->total(), 'last_page' => max(1, $p->lastPage())],
             'links' => ['next' => $p->hasMorePages() ? $link($p->currentPage() + 1) : null, 'prev' => $p->currentPage() > 1 ? $link($p->currentPage() - 1) : null],
         ]);
     }

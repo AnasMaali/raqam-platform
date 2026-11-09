@@ -27,6 +27,8 @@ class PostApiController extends ApiController
             // The section filters (5.9): podcast season (its number), sector of a success story's or a product's company,
             // history era (its id; eras have no slug), the character of an awareness card.
             'season' => $number, 'sector' => $slug, 'era' => $number, 'character' => $slug,
+            // Fewer items than a page (a box of related items, the site's address check); never more than 12.
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:'.self::PER_PAGE],
         ]);
 
         $posts = Post::query()->live()
@@ -52,7 +54,7 @@ class PostApiController extends ApiController
                 fn ($b) => $b->orderByRaw('(SELECT e.sort_order FROM history_entries h JOIN eras e ON e.id = h.era_id WHERE h.post_id = posts.id) NULLS LAST')
                     ->orderByRaw('(SELECT h.year_from FROM history_entries h WHERE h.post_id = posts.id) NULLS LAST')->orderBy('published_at')->orderBy('id'),
                 fn ($b) => $b->orderByDesc('published_at')->orderByDesc('id'))
-            ->paginate(self::PER_PAGE, page: (int) ($q['page'] ?? 1));
+            ->paginate((int) ($q['per_page'] ?? self::PER_PAGE), page: (int) ($q['page'] ?? 1));
 
         return $this->pageOf($posts, $this->presenter->summaries(collect($posts->items())), array_diff_key($q, ['page' => 1]));
     }
