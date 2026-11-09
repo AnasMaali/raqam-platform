@@ -46,14 +46,24 @@ The build needs the API: a failed request while building stops it, so a page fra
 ## Articles
 
 One template for every kind: `src/app/(pages)/[section]/[id]/[slug]`. A streamed page has already answered 200 by the
-time it learns a post is gone, so `src/proxy.ts` asks the platform first (a `HEAD` on `/posts/{id}/{slug}`) for article
-addresses only:
-- an old slug, or no slug: 301 to the current address;
-- an unknown or removed post, or a malformed address: 404 (a rewritten page keeps its own status, so the platform's 410
-  is served as 404);
+time it learns a post is gone, so `src/proxy.ts` asks the platform first (a `HEAD` on `/posts/{id}/{slug}`, whose
+`X-Raqam-Path` header names the post's address) for article addresses only:
+- an old slug, no slug, or another section's prefix: 301 to the current address;
+- an unknown or removed post, or a malformed address: 404 (a rewritten page keeps its own status, so the platform's
+  410 is served as 404: an exception to decision 23);
 - otherwise, the page.
 
-If the platform does not answer within 2.5 s, the page decides alone.
+Each answer is kept in memory (at most 5000 addresses): a page or a move for 60 s, a missing post for 30 s. A 429 or
+5xx is never kept, and the page decides alone, as it does when the platform does not answer within 2.5 s. If the
+platform fails while the page renders, the page says «تعذّر تحميل المادة الآن» for that request only.
+
+## Page cache
+
+`cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go
+first). Next.js's own cache writes each page to a file named after its address, and a percent-encoded Arabic slug
+passes the 255-byte limit of a file name, so those pages were never kept. The webhook's tags empty the matching pages.
+After a restart the cache is empty, and each page renders on its first visit. One server only: a second instance
+would need a shared store.
 
 ## Browser tests
 

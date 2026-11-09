@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+
 import type { NextConfig } from "next";
 
 // A browser-visible variable must never carry a credential: NEXT_PUBLIC_* values are copied
@@ -28,6 +30,10 @@ const nextConfig: NextConfig = {
     // One post: the webhook refreshes it at once (an edit, a correction, a take-down); the hour is a safety net.
     post: { stale: 300, revalidate: 3600, expire: 604800 },
   },
+  // Pages kept in memory, not in files named after their address (an Arabic slug passes the 255-byte limit of a
+  // file name): cache-handler.js.
+  cacheHandler: resolve("cache-handler.js"),
+  cacheMaxMemorySize: 0,
   poweredByHeader: false,
   reactStrictMode: true,
   // Tailwind runs on every stylesheet of the site. A CSS module must stay a module after it: renaming every file to

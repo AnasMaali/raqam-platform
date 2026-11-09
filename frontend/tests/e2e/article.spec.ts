@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, fakeApi, smallTargets, useTheme } from "./helpers";
 
 /*
  * The article template, shared by every kind, against the fake API's posts (one of each kind, and a made-up variant
@@ -58,10 +58,10 @@ test.describe("addresses", () => {
     }
   });
 
-  test("the right slug under another section's prefix ends at the one address", async ({ page }) => {
-    await page.goto(encodeURI(`/podcast/${news.id}/${news.slug}`));
-    await expect(page).toHaveURL(new RegExp(`${encodeURI(news.path)}$`));
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(news.title);
+  test("the right slug under another section's prefix answers 301 to the one address", async ({ request }) => {
+    const response = await request.get(encodeURI(`/podcast/${news.id}/${news.slug}`), { maxRedirects: 0 });
+    expect(response.status()).toBe(301);
+    expect(decodeURI(new URL(response.headers().location, "http://x").pathname)).toBe(news.path);
   });
 
   test("an unknown, removed or malformed post answers 404 inside the frame", async ({ page, request }) => {
@@ -75,6 +75,34 @@ test.describe("addresses", () => {
     await page.goto(`/unknown-section/300/x${run}`);
     await expect(page.getByRole("heading", { level: 1, name: "الصفحة غير موجودة" })).toBeVisible();
     await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", /noindex/);
+  });
+});
+
+test.describe("the check before the page", () => {
+  // How many times the site asked the platform (HEAD) about one post address.
+  const checks = async (request: APIRequestContext, id: number, slug: string) =>
+    ((await (await request.get(`${fakeApi}/__requests?path=${encodeURIComponent(`/api/v1/posts/${id}/${slug}`)}`)).json()) as { count: number }).count;
+
+  test("two visits to the same address ask the platform once: a page, a move and a missing post", async ({ request }) => {
+    const run = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const cases = [
+      { id: 900200, slug: `صفحة-${run}`, status: 200 },
+      { id: byKind("news").id, slug: `قديم-${run}`, status: 301 },
+      { id: (Date.now() % 900_000_000) + 100_000, slug: `x-${run}`, status: 404 },
+    ];
+    for (const c of cases) {
+      for (let visit = 0; visit < 2; visit++) {
+        const response = await request.get(encodeURI(`/news/${c.id}/${c.slug}`), { maxRedirects: 0 });
+        expect(response.status(), `${c.slug} visit ${visit + 1}`).toBe(c.status);
+      }
+      expect(await checks(request, c.id, c.slug), c.slug).toBe(1);
+    }
+  });
+
+  test("a platform error is not kept: the next visit asks again", async ({ request }) => {
+    const slug = `x-${Date.now()}`;
+    for (let visit = 0; visit < 2; visit++) await request.get(`/news/900503/${slug}`, { maxRedirects: 0 });
+    expect(await checks(request, 900503, slug)).toBe(2);
   });
 });
 

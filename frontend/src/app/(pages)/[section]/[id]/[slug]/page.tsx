@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
+import { connection } from "next/server";
 
 import { AdSlot } from "@/components/ads/AdSlot";
 import {
@@ -45,12 +46,21 @@ export async function generateStaticParams() {
 
 type Params = PageProps<"/[section]/[id]/[slug]">["params"];
 
-async function load(params: Params): Promise<{ answer: PostAnswer; requested: string }> {
+type Loaded = { answer: PostAnswer | { status: "unavailable" }; requested: string };
+
+async function load(params: Params): Promise<Loaded> {
   const { section, id, slug } = await params;
   const decoded = safeDecode(slug);
   if (!(postPrefixes as readonly string[]).includes(section) || !/^[1-9]\d{0,9}$/.test(id) || decoded === null) return { answer: { status: "gone" }, requested: "" };
 
-  return { answer: await getPost(Number(id), decoded), requested: `/${section}/${id}/${decoded}` };
+  try {
+    return { answer: await getPost(Number(id), decoded), requested: `/${section}/${id}/${decoded}` };
+  } catch (error) {
+    // The platform failed (an error, too many requests): nothing is kept, and the page says so.
+    console.error(`[site] post ${id} is unavailable: ${(error as Error).message}`);
+
+    return { answer: { status: "unavailable" }, requested: "" };
+  }
 }
 
 function safeDecode(value: string): string | null {
@@ -107,6 +117,17 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function ArticlePage({ params }: { params: Params }) {
   const { answer, requested } = await load(params);
+  if (answer.status === "unavailable") {
+    // Rendered for this request only, so a passing failure is never kept as the article's page.
+    await connection();
+
+    return (
+      <div className="mx-auto max-w-page px-4 py-16 sm:px-6 lg:px-8">
+        <h1 className="text-title font-bold">تعذّر تحميل المادة الآن</h1>
+        <p className="mt-4 max-w-text text-lead text-muted">حدّث الصفحة بعد قليل.</p>
+      </div>
+    );
+  }
   if (answer.status === "gone") notFound();
   if (answer.status === "moved") permanentRedirect(encodeURI(answer.path));
   const { post } = answer;
