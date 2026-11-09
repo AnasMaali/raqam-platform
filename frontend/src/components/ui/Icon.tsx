@@ -12,6 +12,10 @@ const paths = {
   end: "M14.5 5.5 8 12l6.5 6.5",
   down: "M6 9.5l6 6 6-6",
   up: "M12 19V5.5M6.5 11 12 5.5 17.5 11",
+  // Play points right in every language: it is the player's sign, not a direction of reading.
+  play: "M8 5.5v13l10.5-6.5L8 5.5Z",
+  download: "M12 4.5v11M7 11l5 5 5-5M5 19.5h14",
+  expand: "M14.5 4.5h5v5M9.5 19.5h-5v-5M19.5 4.5 13.5 10.5M4.5 19.5l6-6",
 } as const;
 
 export type IconName = keyof typeof paths;

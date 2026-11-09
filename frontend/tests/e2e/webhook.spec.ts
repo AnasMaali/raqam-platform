@@ -58,7 +58,8 @@ test.describe("the platform's webhook", () => {
   });
 
   test("refuses an old copy (more than five minutes) and one dated ahead", async ({ request }) => {
-    for (const t of [now() - 301, now() - 3600, now() + 301]) {
+    // Clear of the five-minute edge either way, so a busy machine's second or two cannot move one inside it.
+    for (const t of [now() - 330, now() - 3600, now() + 330]) {
       const response = await signed(request, { type: "home", change: "layout", paths: ["/"] }, t);
       expect(response.status(), String(t)).toBe(401);
     }

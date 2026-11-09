@@ -111,3 +111,67 @@ export type HomeBlock =
   | { id: number; type: "ad"; title: string; placement: string; sources?: Record<string, string> };
 
 export type SiteSeo = { title_suffix: string | null; default_description: string | null; default_image: Media | null };
+
+/** A picture as a post's own media list gives it (gallery, share image): sizes, caption and credit. */
+export type Picture = Media & { caption: string | null; credit: string | null };
+
+export type Organization = {
+  name: string;
+  slug: string;
+  website: string | null;
+  sector: { name: string; slug: string } | null;
+  city: { name: string; slug: string } | null;
+  founded_year: number | null;
+  logo: Picture | null;
+};
+
+export type VideoChapter = { start: number; time: string; title: string };
+
+export type VideoDetail = Video & {
+  description: string | null;
+  youtube: { id: string; is_short: boolean; watch_url: string; embed_url: string } | null;
+  upload: { url: string; mime_type: string } | null;
+  chapters: VideoChapter[];
+  structured_data: Record<string, unknown> | null;
+};
+
+export type Guest = {
+  role: { code: string; name: string };
+  guest: { name: string; slug: string; job_title: string | null; bio: string | null; photo: Picture | null; organization: { name: string } | null };
+};
+
+export type Character = { name: string; slug: string; accent_color: string | null };
+
+/** What each kind adds to the shared article (the `details` of /posts/{id}). */
+export type PostDetails =
+  | { kind: "infographic"; download: Picture | null }
+  | { kind: "episode"; season: { number: number; title: string | null } | null; episode_number: number | null }
+  | { kind: "story"; organization: Organization | null; person_name: string | null; figures: { value: string; label: string }[] }
+  | { kind: "product"; product_name: string | null; organization: Organization | null; contact_url: string | null; contact_phone: string | null }
+  | { kind: "history"; era: { id: number; name: string } | null; period_label: string | null; year_from: number | null; year_to: number | null }
+  | { kind: "initiative"; initiative_name: string | null; organizer: Organization | null; status: "ongoing" | "ended"; url: string | null }
+  | { kind: "roundtable"; held_on: string | null }
+  | { kind: "awareness"; type: { code: string; name: string } | null; character: Character | null; pose: { code: string; name: string; image: Picture | null } | null };
+
+export type PostDetail = Omit<Post, "kind" | "cover" | "category" | "authors" | "sponsor"> & {
+  kind: { code: string; name: string; schema_type: string };
+  subtitle: string | null;
+  slug: string;
+  updated_at: string;
+  cover: Picture | null;
+  category: { id: number; name: string; slug: string } | null;
+  authors: { id: number; name: string; slug: string }[];
+  sponsor: (Organization & { name: string }) | null;
+  body_html: string;
+  tags: { name: string; slug: string }[];
+  video: VideoDetail | null;
+  awareness_cards: (Post & { awareness?: PostDetails })[];
+  gallery: Picture[];
+  guests: Guest[];
+  details: PostDetails | null;
+  related: Post[];
+  correction: { note: string; corrected_at: string } | null;
+  seo: { title: string | null; description: string | null; canonical_url: string | null; noindex: boolean; share_image: Picture | null };
+};
+
+export type Section = { key: string; name: string; slug: string };

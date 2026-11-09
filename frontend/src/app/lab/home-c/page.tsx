@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 
 import { loadHome, postsOf, type Block, type Home, type Post } from "../_home/data";
@@ -103,9 +104,9 @@ function Board({ home }: { home: Home }) {
         </tbody>
       </table>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-[var(--board-rule)] px-4 py-2.5 text-[var(--board-muted)]">
-        <a href="/currencies" className="inline-flex min-h-11 items-center gap-1 font-bold text-[var(--board-ink)] hover:underline lg:hidden">
+        <Link href="/currencies" className="inline-flex min-h-11 items-center gap-1 font-bold text-[var(--board-ink)] hover:underline lg:hidden">
           كل العملات <Icon name="next" />
-        </a>
+        </Link>
         <p className="hidden lg:block">{home.rateNote}</p>
         {city?.now && (
           <p>

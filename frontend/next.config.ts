@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     breaking: { stale: 300, revalidate: 60, expire: 3600 },
     // The home page: the webhook refreshes it at once; the time limit catches a scheduled post going live.
     home: { stale: 300, revalidate: 120, expire: 86400 },
+    // One post: the webhook refreshes it at once (an edit, a correction, a take-down); the hour is a safety net.
+    post: { stale: 300, revalidate: 3600, expire: 604800 },
   },
   poweredByHeader: false,
   reactStrictMode: true,

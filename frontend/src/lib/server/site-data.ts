@@ -2,7 +2,7 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { AdSlot, BoardRate, City, HomeBlock, Menus, Post, Rate, RatesMeta, Site } from "@/lib/types";
+import type { AdSlot, BoardRate, City, HomeBlock, Menus, Post, Rate, RatesMeta, Section, Site } from "@/lib/types";
 
 import { apiGet } from "./api";
 import { tags } from "./cache-tags";
@@ -91,6 +91,24 @@ async function cachedHome() {
   return (await apiGet<{ data: HomeBlock[] }>("/home")).data;
 }
 
+/** The visible special sections (names and addresses), for breadcrumbs and "more from this section". */
+async function cachedSections() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(tags.menus, tags.everything);
+
+  return (await apiGet<{ data: Section[] }>("/sections")).data;
+}
+
+/** The newest posts of one category or section, for "more from …" under an article. */
+async function cachedPostsOf(filter: "category" | "section", slug: string) {
+  "use cache";
+  cacheLife("home");
+  cacheTag(tags.posts, tags.everything);
+
+  return (await apiGet<{ data: Post[] }>(`/posts?${filter}=${encodeURIComponent(slug)}&per_page=5`)).data;
+}
+
 type Campaign = AdSlot["ads"][number];
 
 /** One campaign, weighted (weight 80 shows twice as often as 40), among those whose dates still hold. */
@@ -129,3 +147,5 @@ export const getWeather = () => softly("weather", cachedWeather);
 export const getBreaking = () => softly("breaking news", cachedBreaking);
 export const getAds = () => softly("ads", cachedAds);
 export const getHome = () => softly("home page", cachedHome);
+export const getSections = () => softly("sections", cachedSections);
+export const getPostsOf = (filter: "category" | "section", slug: string) => softly(`posts of ${filter} ${slug}`, () => cachedPostsOf(filter, slug));

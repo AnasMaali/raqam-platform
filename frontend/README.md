@@ -43,6 +43,18 @@ The build needs the API: a failed request while building stops it, so a page fra
   platform's challenge in an httpOnly cookie. They accept JSON from the site's own pages only (Origin). The form needs
   `TURNSTILE_SITE_KEY`; the content security policy (hardening) must allow `challenges.cloudflare.com`.
 
+## Articles
+
+One template for every kind: `src/app/(pages)/[section]/[id]/[slug]`. A streamed page has already answered 200 by the
+time it learns a post is gone, so `src/proxy.ts` asks the platform first (a `HEAD` on `/posts/{id}/{slug}`) for article
+addresses only:
+- an old slug, or no slug: 301 to the current address;
+- an unknown or removed post, or a malformed address: 404 (a rewritten page keeps its own status, so the platform's 410
+  is served as 404);
+- otherwise, the page.
+
+If the platform does not answer within 2.5 s, the page decides alone.
+
 ## Browser tests
 
 The tests read a fake API (`tests/fake-api/`, made-up demo content captured by `capture.mjs`), never a real platform.

@@ -1,7 +1,7 @@
 // A stand-in for the platform API, for the build and the browser tests in CI: it answers the site's requests from the
 // fixtures captured by capture.mjs (made-up demo content) and serves one placeholder picture for every media file.
 //   node tests/fake-api/server.mjs [port]   (default 4010; API_BASE_URL=http://127.0.0.1:4010/api/v1)
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 const port = Number(process.argv[2] ?? 4010);
@@ -49,7 +49,30 @@ const routes = {
   "/api/v1/weather/widget": "weather",
   "/api/v1/ads": "ads",
   "/api/v1/home": "home",
+  "/api/v1/sections": "sections",
 };
+
+// One post as the platform answers its address: 200 with the current slug, 301 to the current address with an old
+// one, 410 for the one removed id below, 404 otherwise.
+const removedPost = 900410;
+function post(id, slug) {
+  if (id === removedPost) return { status: 410, body: { error: { code: "gone", message: "حُذفت هذه المادة." } } };
+  const file = new URL(`./fixtures/posts/${id}.json`, import.meta.url);
+  if (!existsSync(file)) return { status: 404, body: { error: { code: "not_found", message: "غير موجود" } } };
+  const body = JSON.parse(readFileSync(file, "utf8"));
+  if (slug !== undefined && slug !== body.data.slug) return { status: 301, body: { path: body.data.path }, location: `/api/v1/posts/${id}/${encodeURIComponent(body.data.slug)}` };
+
+  return { status: 200, body };
+}
+
+// A list of posts, filtered the way the site asks for "more from this category or section".
+function posts(params) {
+  let data = fixture("posts").data;
+  if (params.get("category")) data = data.filter((p) => p.category?.slug === params.get("category"));
+  if (params.get("section")) data = data.filter((p) => p.path.split("/")[1] === params.get("section"));
+
+  return { data: data.slice(0, Number(params.get("per_page") ?? 12)) };
+}
 
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
@@ -86,6 +109,13 @@ createServer(async (request, response) => {
     response.writeHead(302, { Location: "https://example.org/" });
     return response.end();
   }
+  const single = /^\/api\/v1\/posts\/(\d+)(?:\/([^/]+))?$/.exec(url.pathname);
+  if (single) {
+    const answer = post(Number(single[1]), single[2] === undefined ? undefined : decodeURIComponent(single[2]));
+    response.writeHead(answer.status, { "Content-Type": "application/json", ...(answer.location ? { Location: answer.location } : {}) });
+    return response.end(JSON.stringify(answer.body));
+  }
+  if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
   let name = routes[url.pathname];
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") === "1") name = "breaking";
   if (!name) {

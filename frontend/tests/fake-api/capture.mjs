@@ -1,6 +1,6 @@
 // Captures the fixtures of the fake API from a local platform filled with `php artisan raqam:demo` (made-up content).
 // Run from frontend/: node tests/fake-api/capture.mjs  (reads API_BASE_URL and API_SITE_TOKEN from .env.local).
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 const env = Object.fromEntries(
   readFileSync(new URL("../../.env.local", import.meta.url), "utf8")
@@ -20,7 +20,11 @@ const endpoints = {
   ads: "/ads",
   breaking: "/posts?breaking=1",
   home: "/home",
+  sections: "/sections",
 };
+
+// One post of every kind, for the article template.
+const kinds = ["news", "report", "opinion", "infographic", "episode", "story", "product", "history", "initiative", "roundtable", "awareness"];
 
 // Pictures point at the fake API's one placeholder; only the sizes the site asks for are kept.
 const media = (value) => {
@@ -37,9 +41,12 @@ const media = (value) => {
     }
     return out;
   }
-  if (typeof value === "string" && value.startsWith(storage)) return `http://127.0.0.1:4010/media/${value.slice(storage.length).split("/").pop()}`;
+  // Addresses inside text too (an article's body holds its pictures' addresses).
+  if (typeof value === "string" && value.includes(storage)) return value.replaceAll(new RegExp(`${storage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^"\\s]*/([^/"\\s]+)`, "g"), "http://127.0.0.1:4010/media/$1");
   return value;
 };
+
+const get = async (path) => (await fetch(base + path, { headers: { Accept: "application/json", "X-Raqam-Site-Token": env.API_SITE_TOKEN } })).json();
 
 for (const [name, path] of Object.entries(endpoints)) {
   const response = await fetch(base + path, { headers: { Accept: "application/json", "X-Raqam-Site-Token": env.API_SITE_TOKEN } });
@@ -50,3 +57,47 @@ for (const [name, path] of Object.entries(endpoints)) {
   writeFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), JSON.stringify(media(body)) + "\n");
   console.log(name, response.status);
 }
+
+// The posts: each kind's newest item as the platform answers /posts/{id}, and their list.
+mkdirSync(new URL("./fixtures/posts/", import.meta.url), { recursive: true });
+const summaries = [];
+for (const kind of kinds) {
+  const item = (await get(`/posts?kind=${kind}&per_page=1`)).data[0];
+  if (!item) continue;
+  const post = media(await get(`/posts/${item.id}`));
+  writeFileSync(new URL(`./fixtures/posts/${item.id}.json`, import.meta.url), JSON.stringify(post) + "\n");
+  summaries.push(media(item));
+  console.log("post", kind, item.id);
+}
+
+// A made-up variant for the states the demo has none of: sponsored, corrected, without an author or a picture, a long
+// title. Its id cannot clash with a real one.
+const opinion = JSON.parse(readFileSync(new URL(`./fixtures/posts/${summaries.find((p) => p.kind.code === "opinion").id}.json`, import.meta.url), "utf8"));
+const maker = summaries.find((p) => p.kind.code === "product");
+const makerPost = JSON.parse(readFileSync(new URL(`./fixtures/posts/${maker.id}.json`, import.meta.url), "utf8"));
+const id = 900001;
+const slug = "مادة-ممولة-للاختبار";
+const variant = {
+  data: {
+    ...opinion.data,
+    id,
+    slug,
+    path: `/news/${id}/${slug}`,
+    title: "مادة ممولة للاختبار بعنوان طويل جداً يمتد على أكثر من سطر واحد ليختبر التفاف العناوين الطويلة في الصفحة على كل المقاسات",
+    cover: null,
+    authors: [],
+    tags: [],
+    related: [],
+    sponsor: makerPost.data.details.organization,
+    correction: { note: "صُحّح رقم في الفقرة الثانية: النسبة 12% لا 21%.", corrected_at: opinion.data.updated_at },
+    body_html: `<p>فقرة أولى من مادة ممولة.</p><p>فقرة فيها <a href="https://sponsor.example/offer" target="_blank" rel="noopener">رابط للراعي</a> ورابط <a href="/news">داخلي</a>.</p><p>فقرة ثالثة.</p><p>فقرة رابعة بعد الإعلان.</p>`,
+    seo: { ...opinion.data.seo, title: "مادة ممولة للاختبار", share_image: null, noindex: true },
+  },
+};
+writeFileSync(new URL(`./fixtures/posts/${id}.json`, import.meta.url), JSON.stringify(variant) + "\n");
+// A list item has only the summary's fields.
+const detailOnly = new Set(["body_html", "tags", "video", "awareness_cards", "gallery", "guests", "details", "related", "correction", "seo", "revision"]);
+const summary = Object.fromEntries(Object.entries(variant.data).filter(([key]) => !detailOnly.has(key)));
+summaries.push(summary);
+writeFileSync(new URL("./fixtures/posts.json", import.meta.url), JSON.stringify({ data: summaries }) + "\n");
+console.log("posts", summaries.length);
