@@ -212,11 +212,13 @@ test.describe("each kind's own parts", () => {
   test("history, an initiative, a round table and an awareness card show their facts", async ({ page }) => {
     const history = detail(byKind("history").id);
     await page.goto(encodeURI(history.path));
-    await expect(page.getByText(history.details.era.name)).toBeVisible();
+    // In the item's own facts box (the side column may list other items of the same era).
+    const facts = page.getByRole("complementary", { name: "بطاقة المادة" });
+    await expect(facts.getByText(history.details.era.name, { exact: true })).toBeVisible();
 
     const initiative = detail(byKind("initiative").id);
     await page.goto(encodeURI(initiative.path));
-    await expect(page.getByText(initiative.details.status === "ongoing" ? "جارية" : "منتهية", { exact: true })).toBeVisible();
+    await expect(facts.getByText(initiative.details.status === "ongoing" ? "جارية" : "منتهية", { exact: true })).toBeVisible();
 
     const table = detail(byKind("roundtable").id);
     await page.goto(encodeURI(table.path));
