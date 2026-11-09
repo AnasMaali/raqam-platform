@@ -99,6 +99,14 @@ test.describe("the check before the page", () => {
     }
   });
 
+  test("an address of another shape is a 404 from the first visit; the site's files are left alone", async ({ request }) => {
+    const run = Date.now();
+    for (const path of [`/x${run}/1/a`, `/x${run}/123`, `/x${run}/a/b`, `/awareness/characters/x${run}`, `/news/x${run}/a`]) {
+      expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+    }
+    for (const path of ["/og/default.png", "/brand/logo-512.png"]) expect((await request.get(path)).status(), path).toBe(200);
+  });
+
   test("a platform error is not kept: the next visit asks again", async ({ request }) => {
     const slug = `x-${Date.now()}`;
     for (let visit = 0; visit < 2; visit++) await request.get(`/news/900503/${slug}`, { maxRedirects: 0 });

@@ -97,6 +97,16 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/podcast/page/99)" = 404
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100/podcast?season=99")" = 404
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/feeds/sections/podcast)" = 200
+          # The markets and weather pages: 200, a code in another case 301, an unknown currency or city 404; any other
+          # address of two or three parts 404.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/currencies)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/currencies/usd)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/currencies/USD)" = 301
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/currencies/xyz)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/weather)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/weather/%D9%86%D8%A7%D8%A8%D9%84%D8%B3)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/weather/xyz)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/xyz/1/abc)" = 404
           # The webhook route refuses an unsigned message.
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"type":"all"}' http://127.0.0.1:3100/api/revalidate)" = 401
           npm run check:motion

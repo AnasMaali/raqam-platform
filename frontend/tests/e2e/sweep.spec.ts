@@ -29,6 +29,9 @@ const pages = [
   { name: "history", url: "/history" },
   { name: "awareness", url: "/awareness" },
   { name: "writer, page 2", url: encodeURI("/author/محمد-صالح/page/2") },
+  { name: "currencies", url: "/currencies" },
+  { name: "dollar", url: "/currencies/usd" },
+  { name: "city weather", url: encodeURI("/weather/نابلس") },
   { name: "components", url: labUrl("/lab/foundations") },
 ];
 

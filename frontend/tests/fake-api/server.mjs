@@ -34,7 +34,7 @@ function newsletter(step, body, request) {
   return { status: 200, body: { data: { confirmed: true } } };
 }
 
-// How many times the site checked each post address with HEAD (GET /__requests?path=/api/v1/posts/…).
+// How many times the site checked a post's, a currency's or a city's address with HEAD (GET /__requests?path=/api/v1/…).
 const asked = new Map();
 
 const readBody = (request) =>
@@ -163,6 +163,26 @@ function posts(params) {
   return { data: data.slice(0, Number(params.get("per_page") ?? 12)) };
 }
 
+// The markets and weather pages' data (capture-markets.mjs): the converter, each currency's 30 days, every city.
+const markets = fromFile("markets");
+const notFoundAnswer = { status: 404, body: { error: { code: "not_found", message: "غير موجود." } } };
+
+function marketsRoute(pathname) {
+  if (pathname === "/api/v1/currencies/converter") return { status: 200, body: markets.converter };
+  const history = /^\/api\/v1\/currencies\/([A-Za-z]{3})\/history$/.exec(pathname);
+  if (history) {
+    const data = markets.history[history[1].toUpperCase()];
+    return data ? { status: 200, body: data } : notFoundAnswer;
+  }
+  if (pathname === "/api/v1/weather/cities") return { status: 200, body: markets.cities };
+  const city = /^\/api\/v1\/weather\/([^/]+)$/.exec(pathname);
+  if (city && city[1] !== "widget") {
+    const data = markets.city[decodeURIComponent(city[1])];
+    return data ? { status: 200, body: data } : notFoundAnswer;
+  }
+  return null;
+}
+
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
   return { ...body, data: body.data.map((slot) => ({ ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) })) };
@@ -215,6 +235,14 @@ createServer(async (request, response) => {
     return response.end(request.method === "HEAD" ? undefined : JSON.stringify(answer.body));
   }
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
+  const marketsAnswer = marketsRoute(url.pathname);
+  if (marketsAnswer) {
+    if (request.method === "HEAD") {
+      const key = decodeURIComponent(url.pathname);
+      asked.set(key, (asked.get(key) ?? 0) + 1);
+    }
+    return json(marketsAnswer.status, marketsAnswer.body);
+  }
   const sectionAnswer = sectionRoute(url.pathname);
   if (sectionAnswer) return json(sectionAnswer.status, sectionAnswer.body);
   const listAnswer = listRoute(url.pathname);
