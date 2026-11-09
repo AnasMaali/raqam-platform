@@ -82,10 +82,10 @@ jobs:
             code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")
             [ "$code" = 404 ] || { echo "::error::$path answered $code in production"; cat /tmp/next.log; exit 1; }
           done
-          # An article answers 200 at its address, a permanent redirect at an old one, 404 when unknown.
+          # An article answers 200 at its address, 301 at an old one, 404 when unknown (src/proxy.ts).
           article=$(node -e 'console.log(encodeURI(require("./tests/fake-api/fixtures/posts.json").data[0].path))')
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$article")" = 200
-          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100/news/300/old-slug")" = 308
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100/news/300/old-slug")" = 301
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100/news/12345/x")" = 404
           # The webhook route refuses an unsigned message.
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{"type":"all"}' http://127.0.0.1:3100/api/revalidate)" = 401
