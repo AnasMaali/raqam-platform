@@ -80,8 +80,39 @@ function post(id, slug) {
   return { status: 200, body, path };
 }
 
-// A list of posts, filtered the way the site asks for "more from this category or section".
+// The list pages' data: entities, every item of four lists, indexes, a category feed (capture.mjs).
+const lists = fromFile("lists");
+const plural = { categories: "category", tags: "tag", authors: "author", guests: "guest" };
+
+function listRoute(pathname) {
+  const index = /^\/api\/v1\/(categories|tags|authors|guests)$/.exec(pathname);
+  if (index) return { status: 200, body: { data: lists.index[index[1]] ?? [] } };
+  const one = /^\/api\/v1\/(categories|tags|authors|guests)\/([^/]+)$/.exec(pathname);
+  if (one) {
+    const entity = lists.entities[plural[one[1]]][decodeURIComponent(one[2])];
+    return entity ? { status: 200, body: { data: entity } } : { status: 404, body: { error: { code: "not_found", message: "غير موجود." } } };
+  }
+  const feed = /^\/api\/v1\/feeds\/categories\/([^/]+)$/.exec(pathname);
+  if (feed) {
+    const data = lists.feeds[decodeURIComponent(feed[1])];
+    return data ? { status: 200, body: { data } } : { status: 404, body: { error: { code: "not_found", message: "غير موجود." } } };
+  }
+  return null;
+}
+
+// A list of posts: one of the captured lists, paged 12 at a time as the platform does (per_page is 12 whatever is
+// asked, except a smaller number for "more from …"); otherwise the posts fixture filtered.
 function posts(params) {
+  const kind = ["category", "tag", "author", "guest"].find((k) => params.get(k));
+  const captured = kind ? lists.items[`${kind}:${params.get(kind)}`] : undefined;
+  if (captured) {
+    const asked = Number(params.get("per_page") ?? 12);
+    const size = asked < 12 ? asked : 12;
+    const page = Math.max(1, Number(params.get("page") ?? 1));
+    const last = Math.max(1, Math.ceil(captured.length / size));
+    return { data: captured.slice((page - 1) * size, page * size), meta: { page, per_page: size, total: captured.length, last_page: last } };
+  }
+  if (kind && kind !== "category") return { data: [], meta: { page: 1, per_page: 12, total: 0, last_page: 1 } };
   let data = fixture("posts").data;
   if (params.get("category")) data = data.filter((p) => p.category?.slug === params.get("category"));
   if (params.get("section")) data = data.filter((p) => p.path.split("/")[1] === params.get("section"));
@@ -141,6 +172,8 @@ createServer(async (request, response) => {
     return response.end(request.method === "HEAD" ? undefined : JSON.stringify(answer.body));
   }
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
+  const listAnswer = listRoute(url.pathname);
+  if (listAnswer) return json(listAnswer.status, listAnswer.body);
   let name = routes[url.pathname];
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") === "1") name = "breaking";
   if (!name) {

@@ -13,6 +13,9 @@ import { NextResponse, type NextRequest } from "next/server";
  * one per visit: a page or a move for 60 s, a missing post for 30 s, at most 5000 addresses (the oldest go first). A
  * 429 or 5xx from the platform is never kept and the page decides alone, as it does when the platform does not answer
  * in time. Client navigations (RSC requests) are left to the page, which handles all of these itself.
+ *
+ * The list pages (a category, a tag, a writer, a guest; 12 items a page) are checked the same way: an unknown one, a
+ * tag no live item carries and a page past the last answer 404, and /page/1 moves to the list's own address.
  */
 
 const article = /^\/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)\/([1-9]\d{0,9})(?:\/([^/]+))?\/?$/;
@@ -20,8 +23,15 @@ const article = /^\/(news|podcast|success-stories|made-in-nablus|history|initiat
 // Pages of their own under a section's prefix (not posts): left to their routes.
 const subRoutes = new Set(["characters"]);
 
+const list = /^\/(category|tag|author|guest)\/([^/]+)(?:\/page\/([^/]+))?\/?$/;
+const listEntities = { category: "categories", tag: "tags", author: "authors", guest: "guests" } as const;
+const perPage = 12;
+
 export const config = {
-  matcher: ["/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)/:id/:slug*"],
+  matcher: [
+    "/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)/:id/:slug*",
+    "/(category|tag|author|guest)/:slug/:rest*",
+  ],
 };
 
 type Verdict = { kind: "page" } | { kind: "moved"; to: string } | { kind: "missing" };
@@ -54,16 +64,21 @@ const decoded = (path: string) => {
   }
 };
 
-/** What the platform says about one address, or null when it cannot say now (no answer, 429, 5xx). */
-async function ask(id: string, slug: string | undefined): Promise<Verdict | null> {
+/** One request to the platform, with the site token; null when it does not answer in time. */
+function platform(path: string, method: "HEAD" | "GET") {
   const base = (process.env.API_BASE_URL ?? "").replace(/\/+$/, "");
-  if (!base) return null;
+  if (!base) return Promise.resolve(null);
   const headers = new Headers({ Accept: "application/json" });
   const token = process.env.API_SITE_TOKEN?.trim();
   if (token) headers.set("X-Raqam-Site-Token", token);
 
+  return fetch(`${base}${path}`, { method, headers, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(2500) }).catch(() => null);
+}
+
+/** What the platform says about one address, or null when it cannot say now (no answer, 429, 5xx). */
+async function ask(id: string, slug: string | undefined): Promise<Verdict | null> {
   // "-" is never a slug: the platform then answers with a move to the current address.
-  const answer = await fetch(`${base}/posts/${id}/${slug ?? "-"}`, { method: "HEAD", headers, redirect: "manual", cache: "no-store", signal: AbortSignal.timeout(2500) }).catch(() => null);
+  const answer = await platform(`/posts/${id}/${slug ?? "-"}`, "HEAD");
   if (!answer) return null;
   if (answer.status === 404 || answer.status === 410) return { kind: "missing" };
 
@@ -78,9 +93,46 @@ async function ask(id: string, slug: string | undefined): Promise<Verdict | null
   return null;
 }
 
+/** Whether a list and its page exist: the list itself (HEAD), then, past the first page, one item of that page. */
+async function askList(kind: keyof typeof listEntities, slug: string, page: number): Promise<Verdict | null> {
+  const entity = await platform(`/${listEntities[kind]}/${slug}`, "HEAD");
+  if (!entity) return null;
+  if (entity.status === 404) return { kind: "missing" };
+  if (entity.status !== 200) return null;
+  if (page === 1) return { kind: "page" };
+
+  // The page asked for: a page past the last has no items. (The platform's pages are 12 items, as the site's.)
+  const items = await platform(`/posts?${kind}=${slug}&per_page=${perPage}&page=${page}`, "GET");
+  if (!items || items.status !== 200) return null;
+  const body = (await items.json().catch(() => null)) as { data?: unknown[] } | null;
+  if (!Array.isArray(body?.data)) return null;
+
+  return body.data.length > 0 ? { kind: "page" } : { kind: "missing" };
+}
+
+async function checkList(request: NextRequest, pathname: string) {
+  const match = list.exec(pathname);
+  if (!match) return notFound(request);
+  const [, kind, slug, rawPage] = match as unknown as [string, keyof typeof listEntities, string, string | undefined];
+  // /page/1 is the list's own address.
+  if (rawPage === "1") return NextResponse.redirect(new URL(`/${kind}/${slug}`, request.url), { status: 301 });
+  if (rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) return notFound(request);
+
+  let verdict = recall(pathname);
+  if (!verdict) {
+    const answer = await askList(kind, slug, rawPage ? Number(rawPage) : 1);
+    if (!answer) return NextResponse.next();
+    verdict = answer;
+    remember(pathname, verdict);
+  }
+
+  return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
+}
+
 export async function proxy(request: NextRequest) {
   if ((request.method !== "GET" && request.method !== "HEAD") || request.headers.has("rsc")) return NextResponse.next();
   const pathname = request.nextUrl.pathname;
+  if (/^\/(category|tag|author|guest)\//.test(pathname)) return checkList(request, pathname);
   const match = article.exec(pathname);
   if (!match) return subRoutes.has(pathname.split("/")[2]) ? NextResponse.next() : notFound(request);
 

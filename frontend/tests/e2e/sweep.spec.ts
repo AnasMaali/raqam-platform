@@ -24,6 +24,8 @@ const pages = [
   { name: "404", url: "/no-such-page" },
   { name: "article", url: encodeURI("/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي") },
   { name: "episode", url: encodeURI("/podcast/282/الحلقة-10-دروس-مشاريع-تعثرت") },
+  { name: "category", url: encodeURI("/category/طاقة") },
+  { name: "writer, page 2", url: encodeURI("/author/محمد-صالح/page/2") },
   { name: "components", url: labUrl("/lab/foundations") },
 ];
 

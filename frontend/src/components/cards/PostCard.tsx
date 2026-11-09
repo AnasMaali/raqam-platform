@@ -123,3 +123,19 @@ export function RankedCard({ post, rank, level = 3 }: { post: Post; rank: number
     </article>
   );
 }
+
+/**
+ * An item of a list page: on phones a small picture beside the headline, so twelve items stay a short page; from
+ * 640 px the picture above, like a feature card.
+ */
+export function ListCard({ post, level = 3 }: { post: Post; level?: Level }) {
+  return (
+    <article className={`${frame} grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-3 sm:block`}>
+      <Pic media={post.cover} sizes="(min-width: 64rem) 30vw, (min-width: 40rem) 50vw, 7rem" className="sm:mb-3" />
+      <div className={post.cover ? "" : "col-span-2"}>
+        <Headline post={post} level={level} className="text-body font-bold sm:text-subheading" />
+        <PostMeta post={post} className="mt-1 sm:mt-2" />
+      </div>
+    </article>
+  );
+}
