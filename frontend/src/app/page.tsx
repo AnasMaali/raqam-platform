@@ -1,13 +1,20 @@
-export default function Home() {
+import { BreakingBar } from "@/components/site/BreakingBar";
+import { Main } from "@/components/site/Main";
+import { getBreaking } from "@/lib/server/site-data";
+
+/** The home page. Its content (the directory) is the next package; the frame and the breaking bar are already real. */
+export default async function Home() {
+  const breaking = await getBreaking();
+
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-6 px-4 py-16">
-      <h1>
-        {/* eslint-disable-next-line @next/next/no-img-element -- a vector logo needs no image optimisation */}
-        <img src="/brand/logo-ar-vertical.svg" alt="رقم" width={252} height={234} className="h-auto w-40 dark:hidden" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/logo-ar-vertical-white.svg" alt="رقم" width={252} height={234} className="hidden h-auto w-40 dark:block" />
-      </h1>
-      <p>الموقع قيد البناء.</p>
-    </main>
+    <>
+      <BreakingBar posts={breaking} />
+      <Main>
+        <div className="mx-auto max-w-page px-4 py-16 sm:px-6 lg:px-8">
+          <h1 className="text-title font-bold">رقم: تاريخ الاقتصاد ومستقبله</h1>
+          <p className="mt-4 max-w-text text-lead text-muted">الموقع قيد البناء.</p>
+        </div>
+      </Main>
+    </>
   );
 }

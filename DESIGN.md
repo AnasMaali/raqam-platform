@@ -7,6 +7,40 @@ colors:
   brand-gray: "#8C8C8C"
   banner-blue: "#198FF4"
   banner-periwinkle: "#89A7FF"
+  ground: "#FFFFFF"
+  surface: "#F4F6FA"
+  tint: "#EEF2FF"
+  ink: "#10131A"
+  muted: "#535A68"
+  line: "#DCDFE6"
+  line-strong: "#7D8491"
+  brand: "#124FFF"
+  rise: "#0B7A43"
+  fall: "#C0322B"
+  breaking: "#B42318"
+  breaking-surface: "#FDEEEC"
+  success: "#0B7A43"
+  error: "#C0322B"
+  ground-dark: "#0B0E14"
+  surface-dark: "#131824"
+  tint-dark: "#141B2E"
+  ink-dark: "#EEF1F6"
+  muted-dark: "#A7AEBC"
+  line-dark: "#262C3A"
+  line-strong-dark: "#6B7384"
+  brand-dark: "#89A7FF"
+  rise-dark: "#4CC38A"
+  fall-dark: "#FF8F87"
+  breaking-dark: "#FF8F87"
+  breaking-surface-dark: "#2A1517"
+rounded:
+  xs: "2px"
+  sm: "4px"
+  md: "8px"
+spacing:
+  unit: "4px"
+  page: "84rem"
+  text: "42rem"
 typography:
   body:
     fontFamily: "Alexandria, system-ui, sans-serif"
@@ -22,21 +56,40 @@ typography:
     fontFamily: "Alexandria, system-ui, sans-serif"
     fontWeight: 700
     letterSpacing: "0"
+  display:
+    fontSize: "clamp(1.75rem, 1.35rem + 1.9vw, 3rem)"
+    lineHeight: 1.3
+  title:
+    fontSize: "clamp(1.5rem, 1.25rem + 1.15vw, 2.25rem)"
+    lineHeight: 1.35
+  heading:
+    fontSize: "clamp(1.375rem, 1.25rem + 0.6vw, 1.75rem)"
+    lineHeight: 1.4
+  subheading:
+    fontSize: "clamp(1.125rem, 1.06rem + 0.3vw, 1.3125rem)"
+    lineHeight: 1.55
+  lead:
+    fontSize: "clamp(1.0625rem, 1rem + 0.3vw, 1.25rem)"
+    lineHeight: 1.8
+  small:
+    fontSize: "0.875rem"
+    lineHeight: 1.7
+  tiny:
+    fontSize: "0.8125rem"
+    lineHeight: 1.6
 ---
 
 # رقم: design system
 
 ## Overview
 
-This is the first version. It records what is already fixed by the brand and by the product: the colours and how they
-may be used, the shapes of the logo, the typeface, and the rules for Arabic, right-to-left, mobile-first pages. These
-are decided in the next steps and added here when they are:
+It records what the brand and the product fix (the colours and how they may be used, the shapes of the logo, the
+typeface, the rules for Arabic, right-to-left, mobile-first pages), the chosen visual direction, and the locked tokens:
+colours for light and dark with their measured contrast, the type scale, spacing, radii and elevation. The tokens live in
+`frontend/src/app/globals.css`; Tailwind's own palette, sizes and radii are switched off there.
 
-- the type scale (headline sizes), the neutral palette, spacing, radii and elevation.
-
-The visual direction is chosen (see Visual direction below).
-
-Until then, no page may introduce a colour, typeface, spacing value or radius that is not in this file.
+No page may introduce a colour, typeface, size, spacing value or radius that is not in this file. A new value is added
+here first, then used.
 
 **Character.** Trustworthy, close, clear. Never loud: no sensational styling and nothing that looks like clickbait.
 Two readers set the bar:
@@ -118,21 +171,71 @@ cyan as #2AD7FF; on screen it is always `caribbean-blue`.
 
 The numbers are contrast ratios. Body text needs 4.5 or more; large text and interface shapes need 3 or more.
 
+### The site's colours
+
+Every colour the site draws with is one of these tokens (`src/app/globals.css`). Tailwind's own palette is switched off,
+so a class outside them draws nothing. The brand colours above are the source; the tokens are what pages use.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `ground` | #FFFFFF | #0B0E14 | The page. |
+| `surface` | #F4F6FA | #131824 | A quiet surface: the footer, a picture's frame before it loads. |
+| `tint` | #EEF2FF | #141B2E | A chapter tab, the hover of a control. |
+| `ink` | #10131A | #EEF1F6 | Text. |
+| `muted` | #535A68 | #A7AEBC | Secondary text: dates, notes, the line under a headline. |
+| `line` | #DCDFE6 | #262C3A | Hairline rules between items (decoration, no contrast needed). |
+| `line-strong` | #7D8491 | #6B7384 | The border of a control, which must be seen (3:1). |
+| `brand` | #124FFF | #89A7FF | Links, chapter names, the focus ring. `vivid-blue` on light, `banner-periwinkle` on dark. |
+| `on-brand` | #FFFFFF | #0B0E14 | Text on a `brand` surface (a chosen option, the skip link). |
+| `rise` | #0B7A43 | #4CC38A | A rise, with its arrow and its + sign. |
+| `fall` | #C0322B | #FF8F87 | A fall, with its arrow and its − sign. |
+| `breaking` | #B42318 | #FF8F87 | The «عاجل» label. |
+| `breaking-surface` | #FDEEEC | #2A1517 | The breaking bar. |
+| `success` | #0B7A43 | #4CC38A | A form that went through. |
+| `error` | #C0322B | #FF8F87 | A form error. |
+| `past` | #124FFF | #124FFF | The brand's small blue shape, as a shape. |
+| `future` | #21CEEA | #21CEEA | The brand's big cyan shape, as a shape. Never text on light. |
+| `logo-past`, `logo-future` | blue, cyan | white, white | The header logo, drawn inline: the official white version on dark pages. |
+| `scrim` | 55% of #0B0E14 | the same | Behind an open dialog. |
+
+**Contrast, measured from the code** (`npm run check:tokens` fails the build when a pair drops below its ratio, or
+when this table no longer matches the code):
+
+<!-- contrast:start -->
+| Pair | Light | Dark | Needs | Use |
+|---|---|---|---|---|
+| `ink` on `ground` | 18.58 | 17.06 | 4.5 | Text |
+| `ink` on `surface` | 17.17 | 15.67 | 4.5 | Text on the footer and picture frames |
+| `ink` on `tint` | 16.62 | 15.13 | 4.5 | Text on a tab |
+| `muted` on `ground` | 6.93 | 8.67 | 4.5 | Secondary text |
+| `muted` on `surface` | 6.41 | 7.96 | 4.5 | Secondary text in the footer |
+| `muted` on `breaking-surface` | 6.14 | 7.74 | 4.5 | The time in the breaking bar |
+| `brand` on `ground` | 5.85 | 8.31 | 4.5 | Links, chapter names, focus ring |
+| `brand` on `surface` | 5.41 | 7.63 | 4.5 | Links in the footer |
+| `brand` on `tint` | 5.23 | 7.37 | 4.5 | A chapter tab's name |
+| `on-brand` on `brand` | 5.85 | 8.31 | 4.5 | Text on a brand-coloured control |
+| `ink` on `breaking-surface` | 16.47 | 15.23 | 4.5 | The breaking headline |
+| `ground` on `breaking` | 6.57 | 8.77 | 4.5 | The «عاجل» label |
+| `breaking` on `ground` | 6.57 | 8.77 | 4.5 | «عاجل» in a card's line |
+| `rise` on `ground` | 5.41 | 8.72 | 4.5 | A rise |
+| `fall` on `ground` | 5.63 | 8.77 | 4.5 | A fall |
+| `success` on `ground` | 5.41 | 8.72 | 4.5 | A success message |
+| `error` on `ground` | 5.63 | 8.77 | 4.5 | An error message |
+| `line-strong` on `ground` | 3.76 | 4.06 | 3 | A control's border |
+| `line-strong` on `surface` | 3.48 | 3.73 | 3 | A control's border in the footer |
+<!-- contrast:end -->
+
 ### Named rules
 
-- **The cyan is the future.** `caribbean-blue` marks what points forward: a highlight, a rise, what is new. Use it
-  sparingly, so it keeps that meaning.
+- **The cyan is the future.** `caribbean-blue` (`future`) marks what points forward: a highlight, what is new, the
+  brand's big shape. Use it sparingly, so it keeps that meaning. A rise in a rate is `rise`, a green that can carry
+  text in both themes.
 - **Blue speaks, cyan shines.** On light pages `vivid-blue` carries text and links, and cyan stays a shape. On dark pages
-  the cyan becomes the brightest colour and may carry text. `vivid-blue` there is for large text and shapes only.
+  links and chapter names move to `banner-periwinkle` (8.31), and `vivid-blue` stays for shapes.
 - **Rises and falls are never colour alone.** Currency changes show an arrow and a sign (+ or −) as well as any colour.
-
-### Still to decide
-
-- The neutrals: background, surfaces, text and lines, in light and dark. The code holds provisional values only.
-- The semantic colours (success, warning, error, rise, fall).
-- The exact pair of link colours for light and dark.
-
-All of them must pass the ratios above in both themes.
+- **Breaking is quiet.** A tinted bar and a small slanted label. No flashing, no motion, no red block across the page.
+- **The theme.** The device's setting by default. The header's switch picks light or dark; the footer and the phone menu
+  also offer «حسب الجهاز» to go back. The choice is kept in the browser only, and applied before the page paints.
 
 ## Typography
 
@@ -169,7 +272,22 @@ sentences (the lab page `/lab/fonts`, development only). Why it was chosen:
   900 px.
 - **Line height 1.8 for body text**, never below 1.6 anywhere. Long Arabic texts and an older audience call for generous
   leading.
-- Headline sizes are part of the type scale, decided with the visual direction.
+- **The type scale.** Seven sizes and a figure size, fluid between a 375 px phone and a 1440 px screen. Tailwind's own
+  sizes are switched off; a page uses these names only.
+
+  | Token | Phone → large screen | Line height | Use |
+  |---|---|---|---|
+  | `text-display` | 28 → 48 px | 1.3 | The main story's headline. |
+  | `text-title` | 24 → 36 px | 1.35 | A page's title (`h1`). |
+  | `text-heading` | 22 → 28 px | 1.4 | A chapter's name, a section heading. |
+  | `text-subheading` | 18 → 21 px | 1.55 | A card's headline, a block's heading. |
+  | `text-lead` | 17 → 20 px | 1.8 | A summary under a headline. |
+  | `text-body` | 16 → 18 px | 1.8 | Running text, list headlines. |
+  | `text-small` | 14 px | 1.7 | The line under a headline, menus, tables, the currency strip. |
+  | `text-tiny` | 13 px | 1.6 | The word «إعلان», the weather credit, a rates note. Never a sentence to read. |
+  | `text-figure` | 32 → 48 px | 1.2 | A story's number, the temperature. |
+
+  Headlines are balanced over their lines (`text-wrap: balance`).
 - **No letter-spacing on Arabic text**, ever. It breaks the joins between letters.
 
 ### Numbers and dates
@@ -189,14 +307,20 @@ copying and screen readers.
 
 ## Layout
 
+- **Spacing.** One step is 4 px (Tailwind's spacing unit). The steps in use: 4, 8, 12, 16, 24, 32, 40, 48, 64 px. Tight
+  inside a group, generous between groups, more space above a heading than below it.
+- **The page.** Content stops at 84 rem (1344 px) and sits in the middle beyond it. Side gutters: 16 px on phones, 24 px
+  from 640 px, 32 px from 1024 px. Running text stops at 42 rem (about 70 characters).
+- **Breakpoints.** 640, 768, 1024, 1280, 1536 px (`sm` to `2xl`). Every component is checked at 320, 375, 414, 768, 1024,
+  1280, 1440 and 1920 px, on a phone held sideways, and at 200% zoom.
 - **Mobile first.** Base styles are for the phone; wider layouts are added with `min-width` queries only. Every page is
   checked at 375, then 768, then 1440 px. Nothing scrolls sideways down to 320 px.
 - **Right to left first.** `dir="rtl"`, logical CSS properties only (`margin-inline-start`, `inset-inline-end`, …).
   Directional icons such as arrows and "next" are mirrored; the logo and its slanted shapes never are.
 - **Screen height** uses `dvh`/`svh`, never `100vh`.
 - **Touch targets of at least 44 × 44 px.** Nothing works by hover alone.
-- **The first screen on a phone** shows the most important story, with the currency strip visible (the dollar rate is a
-  daily habit). The featured story comes after them.
+- **The first screen on a phone** shows the most important story and the currency board (the dollar rate is a daily
+  habit). On the home page the board takes the strip's place; every other page keeps the thin strip under the header.
 - **Full with little content.** The site is built for about 3–8 items a day. A page or block never shows an empty
   section or a list waiting to fill; a block with nothing to show is left out.
 - **Light pages.** Media below the first screen loads lazily, and every reserved space (ads, images, embeds) keeps its
@@ -212,18 +336,62 @@ The brand's own form language, taken from the logo:
 - **Small to big, past to future.** Pairs of shapes in growing sizes tell the passage of time.
 - **The kashida as a timeline.** The long stroke of the wordmark becomes the line of the history section's timeline.
 
-Corner radii are decided with the other tokens. The logo's shapes have softly rounded corners, not sharp ones and not
-pills.
+**Corner radii.** The logo's shapes have softly rounded corners, not sharp ones and not pills. Three radii only:
+
+| Token | Size | Use |
+|---|---|---|
+| `rounded-xs` | 2 px | Small labels («محتوى ممول»), the chosen option inside a control. |
+| `rounded-sm` | 4 px | Buttons, controls, the skip link. |
+| `rounded-md` | 8 px | Larger surfaces, when one is needed. |
+
+Pictures and the directory's rules have square corners: a printed directory's.
+
+**The slant in code.** `slant-end` cuts the end of a shape (its left) like the logo's parallelograms. The cut is 0.7 × the
+shape's height for about 55°: 1.75 rem for a 44 px tab, set by `--slant` for other heights.
+
+**Elevation.** One shadow, `shadow-raised`, for what floats over the page (a menu's list, «للأعلى»). Everything else is
+flat, separated by hairline rules.
 
 ## Components
 
-Not yet designed. These rules are already fixed by the product:
+Built in `frontend/src/components/` and shown with all their states on the development page `/lab/foundations`.
 
-- **Currency strip:** shows the date of the rates and the note that they are indicative.
-- **Ads:** every slot keeps its size even while empty, and carries the word «إعلان».
+- **Header.** The logo without the slogan (`logo-ar-header.svg`, drawn inline so it follows the theme), search, the
+  theme switch and, below 1024 px, the menu button. From 1024 px the menu is a second row, and an item with children
+  (the platform's sections) opens a list under it. Without the menus (the API is down) it still shows the logo, search
+  and the theme switch.
+- **Phone menu.** The browser's own modal dialog from the start side: the focus stays inside, Escape closes it, the focus
+  returns to the button, the page behind does not scroll. It holds the menu with its groups written out (the chapters
+  are there too) and the full theme choice.
+- **Skip link.** The first stop for the keyboard, «انتقل إلى المحتوى», visible when focused.
+- **Theme.** A switch in the header (light or dark), and «حسب الجهاز / فاتح / داكن» in the footer and the phone menu.
+- **Breaking bar.** Only when there is breaking news: a tinted bar, a slanted «عاجل» label, the newest headline and its
+  time.
+- **Currency strip.** Thin, under the header of every page but the home page. Swiped by hand, never moving on its own.
+  It ends with the rates' date and «أسعار استرشادية».
+- **Currency board.** On the home page, beside the main story: three currencies on phones, all of them from 1024 px.
+  Buy, sell and change, with the date and the platform's note that the rates are indicative.
+- **Weather.** The default city with a drawn icon, the temperature and the condition; a stale reading says when it was
+  taken; a few other cities; "Weather data © OpenWeather" always visible. Left out when no city has a reading.
+- **Ad slot.** The word «إعلان» above it, its box reserved at the slot's phone size below 768 px and its desktop size
+  above. A slot with no campaign shows the platform's «أعلن معنا» banner, or nothing at all (nothing reserved) when the
+  slot says so. Links go through the platform's counting link with its `rel`.
+- **Cards.** The main story (a large headline and summary beside a wide picture), a card with a picture (a success
+  story shows its figure first), a compact card (headline and line), a ranked card (most read). The headline is the
+  card's one link, stretched over the card; the focus ring goes round the whole card. Without a picture a card stays
+  complete, with no empty box. Sponsored items carry «محتوى ممول» with the sponsor's name.
+- **Chapters.** On phones and tablets a short row of slanted tabs, «الأبواب», after the first screen; from 1280 px the
+  same tabs stand on the page's edge and stay while reading.
+- **«للأعلى».** Appears a screen and a half down, goes back to the header.
+- **Footer.** The full logo with its slogan, «خلف كل رقم حكاية، وخلف كل حكاية اقتصاد يتشكّل», the about and policy menus,
+  the social accounts the admin made visible, the theme choice.
+- **Pictures.** Every picture keeps its frame and its size: its box is reserved by its ratio (16:9 for the main story,
+  3:2 for cards) and a hairline edge keeps a light picture from fading into a white page.
+
+Still fixed by the product, for the components to come:
+
 - **Sponsored content:** labelled «محتوى ممول», with `rel="sponsored"` on its links. It must always be visibly different
   from editorial content.
-- **Weather:** every place that shows weather says "Weather data © OpenWeather".
 - **Awareness card:** a character speaking the information in a speech bubble. The character is animated, with a still
   image when motion is reduced or the device is weak.
 - **Video:** a light player (the picture and a play button) that loads YouTube (`youtube-nocookie`) only when pressed.
@@ -255,7 +423,9 @@ Motion advertises a 4.6 KB start with lazy features; bundled for real, the small
 - **CSS first:** press, hover, focus and colour changes are CSS transitions. The history section's kashida timeline uses
   CSS scroll-driven animation (`animation-timeline: view()`), and a browser without it shows the line complete and
   still.
-- **Motion only where CSS cannot do it:** exits (the mobile menu, the chat window, the image viewer), dragging (swiping
+- **The phone menu is CSS too:** the native dialog slides in with `@starting-style` and slides out with
+  `transition-behavior: allow-discrete`. A browser without them opens and closes it at once.
+- **Motion only where CSS cannot do it:** exits CSS cannot express (the chat window, the image viewer), dragging (swiping
   the gallery), layout changes. The component that needs it loads Motion with a dynamic import, at the moment it is
   used. The gallery viewer loads `domMax` only when it opens.
 - **A check guards it:** the build fails if Motion is found in the scripts the home page or an article page loads first.

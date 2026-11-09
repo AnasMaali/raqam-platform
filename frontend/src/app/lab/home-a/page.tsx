@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { loadHome, postsOf, type Block, type Home, type Post } from "../_home/data";
 import { factsLine, storyFigure } from "../_home/facts";
 import { Ad, alexandria, Change, Logo, Pic, since, weatherCredit, formatDate } from "../_home/ui";
-import "./home-a.css";
+import s from "./home-a.module.css";
+import "../legacy.css";
 
 export const metadata: Metadata = { title: "الرئيسية: الدليل" };
 
@@ -64,7 +65,7 @@ function RatesStrip({ home }: { home: Home }) {
         <h2 id="rates-a" className="shrink-0 py-2 text-xs font-medium text-[var(--muted)]">
           العملات {home.rateDate && <span className="whitespace-nowrap">· {formatDate(`${home.rateDate}T12:00:00Z`)}</span>}
         </h2>
-        <ul className={`ha-strip relative flex min-w-0 snap-x gap-6 overflow-x-auto py-2 text-sm`}>
+        <ul className={`${s.strip} relative flex min-w-0 snap-x gap-6 overflow-x-auto py-2 text-sm`}>
           {home.rates.map((r) => (
             <li key={r.code} className="flex shrink-0 snap-start items-center gap-2">
               <a href={r.path} className="inline-flex min-h-11 items-center gap-2 hover:text-[var(--chapter)]">
@@ -242,13 +243,13 @@ function ThumbIndex({ chapters }: { chapters: Chapter[] }) {
       <ul className="sticky top-6 space-y-1">
         {chapters.map((c) => (
           <li key={c.id}>
-            <a href={`#${anchor(c)}`} className={`ha-tab flex min-h-11 items-center bg-[var(--tab)] ps-3 pe-5 text-sm font-medium text-[var(--tab-ink)] hover:bg-[var(--chapter)] hover:text-[var(--ground)]`}>
+            <a href={`#${anchor(c)}`} className={`${s.tab} flex min-h-11 items-center bg-[var(--tab)] ps-3 pe-5 text-sm font-medium text-[var(--tab-ink)] hover:bg-[var(--chapter)] hover:text-[var(--ground)]`}>
               {c.type === "category" ? c.category.name : c.section.name}
             </a>
           </li>
         ))}
         <li>
-          <a href="#bab-markets" className={`ha-tab flex min-h-11 items-center bg-[var(--tab)] ps-3 pe-5 text-sm font-medium text-[var(--tab-ink)] hover:bg-[var(--chapter)] hover:text-[var(--ground)]`}>
+          <a href="#bab-markets" className={`${s.tab} flex min-h-11 items-center bg-[var(--tab)] ps-3 pe-5 text-sm font-medium text-[var(--tab-ink)] hover:bg-[var(--chapter)] hover:text-[var(--ground)]`}>
             الأسواق والطقس
           </a>
         </li>
@@ -281,16 +282,16 @@ async function DirectoryHome() {
   const between = home.ads.find((a) => a.code === "between_sections");
 
   return (
-    <div className={`ha-page ${alexandria.className} min-h-dvh`}>
+    <div className={`${s.page} ${alexandria.className} min-h-dvh`}>
       <Header home={home} />
       <RatesStrip home={home} />
       <main>
         <h1 className="sr-only">رقم: دليل الاقتصاد اليوم</h1>
         <nav aria-label="أبواب الصفحة" className="mx-auto max-w-[84rem] border-b border-[var(--rule)] px-4 py-2 lg:px-8 xl:hidden">
-          <ul className={`ha-strip relative flex min-w-0 gap-2 overflow-x-auto pb-1`}>
+          <ul className={`${s.strip} relative flex min-w-0 gap-2 overflow-x-auto pb-1`}>
             {chapters.map((c) => (
               <li key={c.id} className="shrink-0">
-                <a href={`#${anchor(c)}`} className={`ha-tab flex min-h-11 items-center bg-[var(--tab)] ps-3 pe-5 text-sm font-medium text-[var(--tab-ink)]`}>
+                <a href={`#${anchor(c)}`} className={`${s.tab} flex min-h-11 items-center bg-[var(--tab)] ps-3 pe-5 text-sm font-medium text-[var(--tab-ink)]`}>
                   {c.type === "category" ? c.category.name : c.section.name}
                 </a>
               </li>

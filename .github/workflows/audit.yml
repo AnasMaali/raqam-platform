@@ -33,10 +33,19 @@ jobs:
         with:
           node-version: 24
 
+      # What reaches the visitor fails the run on any known vulnerability.
       - name: Website packages
         working-directory: frontend
+        run: npm audit --omit=dev --audit-level=low
+
+      # Development tools (the website's and the browser tests') are listed but do not fail the run: their fixes
+      # often wait for the tool's own release, and forcing a newer version under a tool can break it without a sign.
+      - name: Website development tools (report only)
+        working-directory: frontend
+        continue-on-error: true
         run: npm audit --audit-level=low
 
-      - name: Browser-test packages
+      - name: Browser-test packages (report only)
         working-directory: e2e
+        continue-on-error: true
         run: npm audit --audit-level=low

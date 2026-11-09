@@ -1,0 +1,20 @@
+/*
+ * The design studies of steps 3 to 5 were written before the tokens were locked, with Tailwind's own sizes and colours.
+ * This sheet gives them back those utilities, generated only from the study files, so the studies keep their look while
+ * the site itself has the tokens alone. New lab pages do not import it.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+
+@source "./page.tsx";
+@source "./brand";
+@source "./fonts";
+@source "./_home";
+@source "./home-a";
+@source "./home-b";
+@source "./home-c";
+
+/* The studies draw their own header and footer: the site's frame steps aside on them. */
+[data-site-frame] {
+  display: none !important;
+}

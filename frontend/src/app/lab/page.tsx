@@ -3,10 +3,15 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 
 import { apiGet } from "@/lib/server/api";
+import "./legacy.css";
 
 const pages = [
   { href: "/lab/brand", title: "الشعار", note: "كل نسخ الشعار على خلفية فاتحة وداكنة" },
   { href: "/lab/fonts", title: "الخطوط", note: "خمسة خطوط عربية: الأحجام، الأرقام، بجانب الشعار" },
+  { href: "/lab/home-a", title: "الرئيسية: الدليل", note: "الاتجاه المختار (الخطوة 5)" },
+  { href: "/lab/home-b", title: "الرئيسية: الكشيدة", note: "اتجاه الخطوة 5" },
+  { href: "/lab/home-c", title: "الرئيسية: لوحة الصرّاف", note: "اتجاه الخطوة 5" },
+  { href: "/lab/foundations", title: "الأساس", note: "الألوان والأحجام وكل المكوّنات بكل حالاتها" },
 ] as const;
 
 type SiteAnswer = { data: { name?: string } };

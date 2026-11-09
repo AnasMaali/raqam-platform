@@ -1,0 +1,80 @@
+/* The menu sheet: full height, on the start side (the right, in this right-to-left site). */
+.sheet {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  margin: 0;
+  width: min(24rem, 100%);
+  height: 100dvh;
+  max-width: 100%;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0;
+  border: 0;
+  border-inline-end: 1px solid var(--line);
+  background: var(--ground);
+  color: var(--ink);
+}
+
+.sheet::backdrop {
+  /* A backdrop may not inherit the page's variables in older browsers. */
+  background: var(--scrim, rgb(11 14 20 / 0.55));
+}
+
+/* Entry 220 ms ease-out, exit 160 ms: from the right edge, the start of the line. Physical: +x is always right. */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet,
+  .sheet::backdrop {
+    transition:
+      translate 160ms cubic-bezier(0.4, 0, 1, 1),
+      opacity 160ms cubic-bezier(0.4, 0, 1, 1),
+      display 160ms allow-discrete,
+      overlay 160ms allow-discrete;
+  }
+
+  .sheet:not([open]) {
+    translate: 100% 0;
+  }
+
+  .sheet[open] {
+    translate: 0 0;
+    transition-duration: 220ms;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @starting-style {
+    .sheet[open] {
+      translate: 100% 0;
+    }
+  }
+}
+
+/* With reduced motion it only fades. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet::backdrop {
+    transition:
+      opacity 120ms linear,
+      display 120ms allow-discrete,
+      overlay 120ms allow-discrete;
+  }
+}
+
+.sheet:not([open]),
+.sheet:not([open])::backdrop {
+  opacity: 0;
+}
+
+.sheet[open],
+.sheet[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .sheet[open],
+  .sheet[open]::backdrop {
+    opacity: 0;
+  }
+}

@@ -1,7 +1,7 @@
 /* Direction C, "the money changer's board": a dark rate board heads the page, and every section below keeps the
    board's grammar of rows, a label cell and value cells. Inside the board there is one type size; rank is weight and
    reversal. The neutrals are this direction's proposal, to be locked in DESIGN.md if it is chosen. */
-.hc-page {
+.page {
   --ground: #f2f4f8;
   --sheet: #ffffff;
   --ink: #0e1422;
@@ -21,7 +21,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .hc-page {
+  .page {
     --ground: #070a10;
     --sheet: #0e131d;
     --ink: #eef1f6;
@@ -35,21 +35,21 @@
   }
 }
 
-.hc-page ::selection {
+.page ::selection {
   background: var(--label-bg);
   color: var(--label-ink);
 }
 
-.hc-page :focus-visible {
+.page :focus-visible {
   outline: 2px solid var(--link);
   outline-offset: 2px;
 }
 
-.hc-board :focus-visible {
+.board :focus-visible {
   outline-color: var(--board-head);
 }
 
 /* The label cell of a row is cut on the brand's slant at its end (the left, in this right-to-left site). */
-.hc-label {
+.label {
   clip-path: polygon(0.9rem 0, 100% 0, 100% 100%, 0 100%);
 }
