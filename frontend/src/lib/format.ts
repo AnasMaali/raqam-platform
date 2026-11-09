@@ -35,3 +35,6 @@ export function formatDegrees(value: number) {
 
   return `${rounded < 0 ? minus : ""}${Math.abs(rounded)}°`;
 }
+
+/** 27 تشرين الأول 2026، 6:13 م: an article's own dates, with the year (decision 1.4). */
+export const formatDateTime = (iso: string) => `${longDate.format(new Date(iso))}، ${clock.format(new Date(iso))}`;

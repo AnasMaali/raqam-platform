@@ -24,6 +24,8 @@ export async function smallTargets(page: Page, scope = "body") {
       if (style.visibility === "hidden" || el.closest("[hidden], [aria-hidden='true'], dialog:not([open])") || el.getClientRects().length === 0) continue;
       if (el.matches(".sr-only, .sr-only *") && !el.matches(":focus")) continue;
       if (el.className.includes("after:inset-0")) continue;
+      // A link inside a sentence is sized by its text (WCAG 2.5.8, inline exception).
+      if (el.closest("[data-inline-links]")) continue;
       const box = el.getBoundingClientRect();
       if (box.width < 44 || box.height < 44) small.push(`${el.tagName.toLowerCase()} "${(el.textContent || el.getAttribute("aria-label") || "").trim().slice(0, 30)}" ${Math.round(box.width)}×${Math.round(box.height)}`);
     }

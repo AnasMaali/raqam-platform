@@ -8,7 +8,8 @@ import { join } from "node:path";
 
 import { chromium } from "playwright";
 
-const urls = process.argv.slice(2);
+// Percent-encoded, so an Arabic address reaches the browser as one argument.
+const urls = process.argv.slice(2).map((u) => new URL(u).href);
 if (urls.length === 0) {
   console.error("Usage: node scripts/check-lighthouse.mjs <url> [url…]");
   process.exit(2);

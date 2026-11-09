@@ -1,7 +1,7 @@
 // A stand-in for the platform API, for the build and the browser tests in CI: it answers the site's requests from the
 // fixtures captured by capture.mjs (made-up demo content) and serves one placeholder picture for every media file.
 //   node tests/fake-api/server.mjs [port]   (default 4010; API_BASE_URL=http://127.0.0.1:4010/api/v1)
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 
 const port = Number(process.argv[2] ?? 4010);
@@ -34,6 +34,9 @@ function newsletter(step, body, request) {
   return { status: 200, body: { data: { confirmed: true } } };
 }
 
+// How many times the site checked each post address with HEAD (GET /__requests?path=/api/v1/posts/…).
+const asked = new Map();
+
 const readBody = (request) =>
   new Promise((resolve) => {
     let text = "";
@@ -49,7 +52,42 @@ const routes = {
   "/api/v1/weather/widget": "weather",
   "/api/v1/ads": "ads",
   "/api/v1/home": "home",
+  "/api/v1/sections": "sections",
 };
+
+// One post as the platform answers its address: 200 with the current slug, 301 to the current address with an old
+// one (both name the address in X-Raqam-Path), 410 for the removed id below, 503 for the failing one, 404 otherwise.
+const removedPost = 900410;
+const failingPost = 900503;
+// Any slug is this post's current one, so a test can ask for a page address no earlier test has asked for.
+const anySlugPost = 900200;
+const headerPath = (path) => path.split("/").map(encodeURIComponent).join("/");
+function post(id, slug) {
+  if (id === removedPost) return { status: 410, body: { error: { code: "gone", message: "حُذفت هذه المادة." } } };
+  if (id === failingPost) return { status: 503, body: { error: { code: "unavailable", message: "الخدمة غير متاحة." } } };
+  if (id === anySlugPost && slug) {
+    const base = JSON.parse(readFileSync(new URL("./fixtures/posts/900001.json", import.meta.url), "utf8"));
+    const data = { ...base.data, id, slug, path: `/news/${id}/${slug}`, seo: { ...base.data.seo, noindex: true } };
+
+    return { status: 200, body: { data }, path: headerPath(data.path) };
+  }
+  const file = new URL(`./fixtures/posts/${id}.json`, import.meta.url);
+  if (!existsSync(file)) return { status: 404, body: { error: { code: "not_found", message: "غير موجود" } } };
+  const body = JSON.parse(readFileSync(file, "utf8"));
+  const path = headerPath(body.data.path);
+  if (slug !== undefined && slug !== body.data.slug) return { status: 301, body: { path: body.data.path }, location: `/api/v1/posts/${id}/${encodeURIComponent(body.data.slug)}`, path };
+
+  return { status: 200, body, path };
+}
+
+// A list of posts, filtered the way the site asks for "more from this category or section".
+function posts(params) {
+  let data = fixture("posts").data;
+  if (params.get("category")) data = data.filter((p) => p.category?.slug === params.get("category"));
+  if (params.get("section")) data = data.filter((p) => p.path.split("/")[1] === params.get("section"));
+
+  return { data: data.slice(0, Number(params.get("per_page") ?? 12)) };
+}
 
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
@@ -86,6 +124,23 @@ createServer(async (request, response) => {
     response.writeHead(302, { Location: "https://example.org/" });
     return response.end();
   }
+  if (url.pathname === "/__requests") return json(200, { count: asked.get(url.searchParams.get("path")) ?? 0 });
+  const single = /^\/api\/v1\/posts\/(\d+)(?:\/([^/]+))?$/.exec(url.pathname);
+  if (single) {
+    // The site's check (HEAD), counted by address, so the tests can see it is kept and not repeated.
+    if (request.method === "HEAD") {
+      const key = decodeURIComponent(url.pathname);
+      asked.set(key, (asked.get(key) ?? 0) + 1);
+    }
+    const answer = post(Number(single[1]), single[2] === undefined ? undefined : decodeURIComponent(single[2]));
+    response.writeHead(answer.status, {
+      "Content-Type": "application/json",
+      ...(answer.location ? { Location: answer.location } : {}),
+      ...(answer.path ? { "X-Raqam-Path": answer.path } : {}),
+    });
+    return response.end(request.method === "HEAD" ? undefined : JSON.stringify(answer.body));
+  }
+  if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
   let name = routes[url.pathname];
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") === "1") name = "breaking";
   if (!name) {

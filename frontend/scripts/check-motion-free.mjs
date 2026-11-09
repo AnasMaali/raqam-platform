@@ -7,7 +7,7 @@
 const base = process.argv[2] ?? "http://127.0.0.1:3100";
 const extra = process.argv.slice(3);
 
-// The home page now; the article route joins this list when the article page is built.
+// The home page, and the routes given (package.json passes an article too).
 const routes = extra.length > 0 ? extra : ["/"];
 
 // Text that survives minification: the first from motion/react (full or lazy), the second from motion/mini.

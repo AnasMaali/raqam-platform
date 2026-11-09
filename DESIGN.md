@@ -398,6 +398,18 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   - videos and a playlist: a row of pictures with their length, swiped by hand;
   - the ad slot between chapters, and the newsletter.
   Three items per chapter below 1024 px.
+- **Article.** One template for every kind (news, report, opinion, infographic and the items of the seven sections).
+  A breadcrumb, then the kind's label («رأي», «تقرير», «الموسم 2 · الحلقة 10»), the headline, the subtitle, the
+  writers (linked, or «فريق رَقَم») and the dates with their year. Sponsored content says «محتوى ممول» with the sponsor
+  before anything else, and its links to other sites are marked as paid. A correction is stated at the top with its
+  date. Then the picture with its caption and credit (an episode or a round table puts its video there; an infographic
+  is shown at the column's width with «افتح بالحجم الكامل» and «نزّل الصورة»; an awareness card shows its character
+  speaking), the kind's facts in a tinted box (a story's figures and company, a product's maker and contact, an
+  initiative's organiser and state, a history item's era and years, a round table's date), the text in a reading
+  column of 42rem with the ad after its third paragraph, the guests, the gallery, the tags, related items, and the
+  newsletter. From 1024 px a side column holds «المزيد من …» and the side ad.
+- **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
+  chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),
   then a confirmation. A new code can be asked for after the platform's wait; the address can be changed. The human
   check (Turnstile) loads only when the reader reaches the form. Errors are the platform's own sentences, on the field.
@@ -410,7 +422,6 @@ Still fixed by the product, for the components to come:
   from editorial content.
 - **Awareness card:** a character speaking the information in a speech bubble. The character is animated, with a still
   image when motion is reduced or the device is weak.
-- **Video:** a light player (the picture and a play button) that loads YouTube (`youtube-nocookie`) only when pressed.
 - **Focus:** every interactive element shows a clearly visible focus ring in both themes.
 
 ## Motion
