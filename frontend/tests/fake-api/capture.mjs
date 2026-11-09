@@ -101,3 +101,28 @@ const summary = Object.fromEntries(Object.entries(variant.data).filter(([key]) =
 summaries.push(summary);
 writeFileSync(new URL("./fixtures/posts.json", import.meta.url), JSON.stringify({ data: summaries }) + "\n");
 console.log("posts", summaries.length);
+
+// The list pages: four real lists with every page of their items (a category over two pages, a tag, a writer over
+// three, a guest), the indexes the build reads, the category's feed, and a made-up empty category.
+const lists = { category: ["طاقة"], tag: ["الطاقة-الشمسية"], author: ["محمد-صالح"], guest: ["عمر-الحسن"] };
+const plural = { category: "categories", tag: "tags", author: "authors", guest: "guests" };
+const listFixture = { entities: { category: {}, tag: {}, author: {}, guest: {} }, items: {}, index: {}, feeds: {} };
+for (const [kind, slugs] of Object.entries(lists)) {
+  for (const slug of slugs) {
+    listFixture.entities[kind][slug] = media((await get(`/${plural[kind]}/${encodeURIComponent(slug)}`)).data);
+    const items = [];
+    for (let page = 1; ; page++) {
+      const body = await get(`/posts?${kind}=${encodeURIComponent(slug)}&per_page=12&page=${page}`);
+      items.push(...media(body.data));
+      if (page >= body.meta.last_page) break;
+    }
+    listFixture.items[`${kind}:${slug}`] = items;
+    console.log("list", kind, slug, items.length);
+  }
+  listFixture.index[plural[kind]] = Object.values(listFixture.entities[kind]).map((e) => ({ name: e.name, slug: e.slug }));
+}
+listFixture.entities.category["تصنيف-فارغ"] = { id: 900, name: "تصنيف فارغ", slug: "تصنيف-فارغ", description: "تصنيف بلا مواد، للاختبار.", is_highlighted: false, children: [] };
+listFixture.items["category:تصنيف-فارغ"] = [];
+listFixture.index.categories.push({ name: "تصنيف فارغ", slug: "تصنيف-فارغ", children: [] });
+listFixture.feeds["طاقة"] = media((await get(`/feeds/categories/${encodeURIComponent("طاقة")}`)).data);
+writeFileSync(new URL("./fixtures/lists.json", import.meta.url), JSON.stringify(listFixture) + "\n");

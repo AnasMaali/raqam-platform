@@ -57,6 +57,16 @@ Each answer is kept in memory (at most 5000 addresses): a page or a move for 60 
 5xx is never kept, and the page decides alone, as it does when the platform does not answer within 2.5 s. If the
 platform fails while the page renders, the page says «تعذّر تحميل المادة الآن» for that request only.
 
+## Lists
+
+A category, a tag, a writer and a guest share one template (`src/components/lists/ListView.tsx`): 12 items a page. The
+first page is the list's own address (`/category/طاقة`); the others end in `/page/{n}`, and each is its own canonical
+page. `src/proxy.ts` checks list addresses the same way as articles:
+- an unknown list, a tag no live item carries, a page past the last, `/page/0` or a word: 404;
+- `/page/1`: 301 to the list itself.
+
+A category's RSS feed is at `/feeds/categories/{slug}` (the `feeds` prefix is reserved for feeds).
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go

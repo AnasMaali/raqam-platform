@@ -408,6 +408,10 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   initiative's organiser and state, a history item's era and years, a round table's date), the text in a reading
   column of 42rem with the ad after its third paragraph, the guests, the gallery, the tags, related items, and the
   newsletter. From 1024 px a side column holds «المزيد من …» and the side ad.
+- **List pages.** One template for a category, a tag, a writer and a guest. A breadcrumb, then the list's name, its
+  description (a writer or a guest: picture, role, bio and links), a category's sub-categories and its RSS feed. Then
+  12 items a page, the newest first: on phones a small picture beside each headline, from 640 px a grid of cards.
+  «السابق», the pages around the current one, «التالي». A category with nothing yet says «لا مواد هنا بعد.».
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),
