@@ -90,6 +90,24 @@ platform: from a currency to the shekel at the buy rate, the other way at the se
 
 The fake API's rates and cities come from `tests/fake-api/capture-markets.mjs`, apart from the content fixtures.
 
+## Services, contact and the pages from the panel
+
+`/services` and `/services/{slug}` read the platform's services (`src/lib/server/pages.ts`); a special offer ends by
+itself, so their cache lives until the nearest offer's end at most. A press on a contact button posts to
+`/api/services/{slug}/contact`, which counts it with the platform under the visitor's address (always 204 for the page).
+
+`/contact` posts to `/api/contact`: same origin only, JSON only, 16 KB at most, the site token and the visitor's
+address added here. The platform checks Turnstile (action `contact`), the honeypot `website`, the fields and its limits.
+
+A page from the panel lives at the root (`src/app/(pages)/[section]/page.tsx`, named as the article's first part
+because both are dynamic parts at the same level). `src/proxy.ts` asks the platform for `/pages/{slug}` before the page
+streams; the site's own pages of one part are in `ownPages`, and the words the platform keeps (`StaticPages::RESERVED`)
+are 404s without asking.
+
+Any address with nothing at it is looked up in the platform's redirects (`/redirects/lookup`) before the 404: a
+renamed page or service, or a move made by hand, answers 301 (or 302); a removed one is a 404 here (410 cannot be
+given by a rewrite).
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go
@@ -109,6 +127,7 @@ export API_BASE_URL=http://127.0.0.1:4010/api/v1 API_SITE_TOKEN=ci-only-site-tok
 npm run build
 npm run test:e2e             # 375, 768 and 1440 px; the sweep 320 to 1920 px, held sideways, 200% zoom
 npm run check:lighthouse     # with the production server on port 3100: SEO 100, accessibility ≥ 95, LCP < 2.5 s, CLS < 0.1
+                             # (each page three times; the run with the median LCP counts)
 ```
 
 The tests start the production server (port 3100) and a development server for the lab (port 3200). With `npm run dev`

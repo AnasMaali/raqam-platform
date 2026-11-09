@@ -2,42 +2,13 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
+import { loadTurnstile } from "@/lib/turnstile";
+
 /*
  * The newsletter form: the address, then the 6-digit code the platform mails, then done. Every request goes to the
  * site's own route (/api/newsletter/…), which holds the challenge in an httpOnly cookie. The Turnstile check loads
  * only when the visitor reaches the form (focus or pointer), so it costs the page nothing before that.
  */
-
-type Turnstile = {
-  render: (el: HTMLElement, options: Record<string, unknown>) => string;
-  reset: (id: string) => void;
-};
-
-declare global {
-  interface Window {
-    turnstile?: Turnstile;
-  }
-}
-
-const turnstileScript = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-let loading: Promise<Turnstile> | null = null;
-
-function loadTurnstile(): Promise<Turnstile> {
-  if (window.turnstile) return Promise.resolve(window.turnstile);
-  loading ??= new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = turnstileScript;
-    script.async = true;
-    script.onload = () => (window.turnstile ? resolve(window.turnstile) : reject(new Error("turnstile")));
-    script.onerror = () => {
-      loading = null;
-      reject(new Error("turnstile"));
-    };
-    document.head.append(script);
-  });
-
-  return loading;
-}
 
 /** Digits as typed on an Arabic or Persian keyboard become 0-9. */
 const latinDigits = (value: string) =>

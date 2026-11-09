@@ -74,7 +74,10 @@ test.describe("addresses", () => {
     // Under no known section, the shared route itself says not found, and keeps it out of search engines.
     await page.goto(`/unknown-section/300/x${run}`);
     await expect(page.getByRole("heading", { level: 1, name: "الصفحة غير موجودة" })).toBeVisible();
-    await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", /noindex/);
+    // Next.js may add its own tag beside the page's: every one says noindex.
+    const robots = await page.locator("meta[name='robots']").evaluateAll((tags) => tags.map((t) => t.getAttribute("content")));
+    expect(robots.length).toBeGreaterThan(0);
+    for (const content of robots) expect(content).toMatch(/noindex/);
   });
 });
 

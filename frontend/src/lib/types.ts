@@ -50,7 +50,7 @@ export type CurrencyRow = BoardRate & {
   published_at: string | null;
 };
 
-export type RatesMeta = { rate_date: string | null; note: string; published_at?: string | null };
+export type RatesMeta = { rate_date: string | null; note: string; published_at?: string | null; checked_at?: string | null };
 
 /** What the converter needs of each currency, and which rate each direction uses (11.7). */
 export type ConverterData = {
@@ -123,7 +123,14 @@ export type Site = {
   name: string;
   logo: Media | null;
   seo: SiteSeo;
-  contact: { address: string | null; email: string | null; phone: string | null; whatsapp_url: string | null };
+  contact: {
+    address: string | null;
+    email: string | null;
+    phone: string | null;
+    whatsapp?: string | null;
+    whatsapp_url: string | null;
+    map_url?: string | null;
+  };
   social: { platform: string; name: string; url: string }[];
 };
 
@@ -213,3 +220,45 @@ export type PostDetail = Omit<Post, "kind" | "cover" | "category" | "authors" | 
 };
 
 export type Section = { key: string; name: string; slug: string };
+
+/** SEO fields the editors set on a page, a service or an item. */
+export type EditorSeo = { title: string | null; description: string | null; canonical_url: string | null; noindex: boolean; share_image: Picture | null };
+
+/** A page from the panel (/about, the policies, any page the admin adds). */
+export type SitePage = { slug: string; title: string; system_key: string | null; body_html: string; updated_at: string | null; seo: EditorSeo };
+
+export type ServicePrice = {
+  mode: "fixed" | "from" | "on_request";
+  amount: string | null;
+  currency: string | null;
+  symbol: string | null;
+  note: string | null;
+  text: string;
+  offer: { was: string; was_text: string; ends_at: string | null } | null;
+};
+
+export type ServiceContactLinks = { whatsapp: string | null; phone: string | null; email: string | null };
+
+export type ServiceSummary = {
+  id: number;
+  slug: string;
+  path: string;
+  group_id: number;
+  name: string;
+  summary: string | null;
+  cover: Picture | null;
+  price: ServicePrice;
+  contact: ServiceContactLinks;
+  booking: { enabled: boolean; path: string | null };
+};
+
+export type ServiceDetail = ServiceSummary & {
+  description_html: string | null;
+  deliverables: string[];
+  faqs: { question: string; answer: string }[];
+  examples: Post[];
+  seo: EditorSeo;
+  structured_data: Record<string, unknown> | null;
+};
+
+export type ServicesMeta = { booking: { enabled: boolean }; currency_note: string | null };

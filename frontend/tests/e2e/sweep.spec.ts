@@ -32,6 +32,10 @@ const pages = [
   { name: "currencies", url: "/currencies" },
   { name: "dollar", url: "/currencies/usd" },
   { name: "city weather", url: encodeURI("/weather/نابلس") },
+  { name: "services", url: "/services" },
+  { name: "a service", url: "/services/podcast-episode" },
+  { name: "contact", url: "/contact" },
+  { name: "about", url: "/about" },
   { name: "components", url: labUrl("/lab/foundations") },
 ];
 

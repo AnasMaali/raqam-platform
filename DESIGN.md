@@ -437,6 +437,21 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   the condition, how it feels, the time of the reading), today's low and high, humidity, the wind with where it blows
   from, the five days (day name and date, drawing, condition, high and low), and the other cities. "Weather data ©
   OpenWeather" on every page that shows weather.
+- **Services.** `/services`: the page's text from the panel, then each group as a heading over a grid of cards: the
+  picture, the name (the card's link, stretched over it), the summary, the price as the platform writes it («1,234.56 ₪
+  للحلقة», «يبدأ من …», or «السعر عند التواصل» in muted text), a special offer («عرض خاص», the old price struck, «حتى»
+  its end), and «تواصل للحجز» above the card's link. `/services/{slug}`: the title and summary, the picture, the
+  description, «ماذا تشمل الخدمة», «أسئلة عن الخدمة» as disclosures, «أعمال منشورة»; beside it from 1024 px (stuck
+  while scrolling) the price, then the contact buttons: WhatsApp filled in brand, a call and an e-mail outlined. A
+  service whose contact settings are all empty offers «تواصل معنا» to the contact page. «احجز أونلاين» appears only
+  while booking is on.
+- **Contact page.** The page's text; the form (name and e-mail side by side from 640 px, phone optional with the
+  international form as its hint, subject, message), errors under their fields with the platform's own sentences, the
+  focus on the first field to correct; a confirmation that takes the focus once sent. Beside it from 1024 px, the
+  platform's contact details with their icons (phone, WhatsApp, e-mail, address, a link to the map) and the social
+  accounts. No embedded map: a link keeps the page light and sends nothing to a map provider before the visitor asks.
+- **Pages from the panel.** One template at the root (`/about`, the policies, the legal pages, any page the admin adds):
+  the breadcrumb, the title, «آخر تحديث», the text in the reading column with the article's typography.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),

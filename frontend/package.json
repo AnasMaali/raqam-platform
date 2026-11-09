@@ -9,9 +9,9 @@
     "lint": "eslint --max-warnings=0",
     "typecheck": "next typegen && tsc --noEmit",
     "check:bundle": "node scripts/check-client-bundle.mjs",
-    "check:motion": "node scripts/check-motion-free.mjs http://127.0.0.1:3100 / /news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي /category/طاقة /podcast /currencies/usd",
+    "check:motion": "node scripts/check-motion-free.mjs http://127.0.0.1:3100 / /news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي /category/طاقة /podcast /currencies/usd /services",
     "check:tokens": "node scripts/check-tokens.mjs",
-    "check:lighthouse": "node scripts/check-lighthouse.mjs http://127.0.0.1:3100/ http://127.0.0.1:3100/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي http://127.0.0.1:3100/category/طاقة http://127.0.0.1:3100/podcast http://127.0.0.1:3100/currencies/usd http://127.0.0.1:3100/weather/نابلس",
+    "check:lighthouse": "node scripts/check-lighthouse.mjs http://127.0.0.1:3100/ http://127.0.0.1:3100/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي http://127.0.0.1:3100/category/طاقة http://127.0.0.1:3100/podcast http://127.0.0.1:3100/currencies/usd http://127.0.0.1:3100/weather/نابلس http://127.0.0.1:3100/services http://127.0.0.1:3100/contact http://127.0.0.1:3100/about",
     "fake-api": "node tests/fake-api/server.mjs 4010",
     "test:e2e": "playwright test"
   },
