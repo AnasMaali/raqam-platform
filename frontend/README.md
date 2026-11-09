@@ -17,7 +17,7 @@ only, never indexed, a 404 in every production build.
 ## Checks
 
 ```bash
-npm run lint
+npm run lint                 # any warning fails it (accessibility and import rules are warnings by default)
 npm run typecheck
 npm run check:tokens         # colour contrast (AA, light and dark), DESIGN.md's table, no hand-written colours
 npm run build                # also fails if the browser bundle mentions the site token
@@ -25,6 +25,10 @@ npm run build                # also fails if the browser bundle mentions the sit
 
 Settings are server-only. A `NEXT_PUBLIC_` variable whose name looks like a credential (TOKEN, SECRET, KEY, PASSWORD)
 stops the build, and `scripts/check-client-bundle.mjs` scans the built browser files for the token name and value.
+
+`npm audit --omit=dev --audit-level=low` fails CI on any known vulnerability in what reaches the visitor. The
+development tools are audited too, report only: their fixes often wait for the tool's own release, and forcing a newer
+version under a tool can break it without a sign.
 
 The build needs the API: a failed request while building stops it, so a page frame is never built without its menus.
 

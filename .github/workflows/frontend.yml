@@ -100,5 +100,12 @@ jobs:
           path: frontend/playwright-report
           retention-days: 7
 
-      - name: Packages
+      # What reaches the visitor stops the build on any known vulnerability.
+      - name: Packages (site)
+        run: npm audit --omit=dev --audit-level=low
+
+      # The development tools (lint, tests, Lighthouse) are listed but do not stop the build: their fixes often wait
+      # for the tool's own release, and forcing a newer version under a tool can break it without a sign.
+      - name: Packages (development tools, report only)
+        continue-on-error: true
         run: npm audit --audit-level=low
