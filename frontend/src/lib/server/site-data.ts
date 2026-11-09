@@ -2,9 +2,10 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { AdSlot, BoardRate, City, Menus, Post, Rate, RatesMeta, Site } from "@/lib/types";
+import type { AdSlot, BoardRate, City, HomeBlock, Menus, Post, Rate, RatesMeta, Site } from "@/lib/types";
 
 import { apiGet } from "./api";
+import { tags } from "./cache-tags";
 
 /*
  * What every page's frame reads from the platform API. Each answer is cached on this server with the lifetime the API
@@ -33,7 +34,7 @@ async function softly<T>(what: string, load: () => Promise<T>): Promise<T | null
 async function cachedMenus() {
   "use cache";
   cacheLife("hours");
-  cacheTag("menus");
+  cacheTag(tags.menus, tags.everything);
 
   return (await apiGet<{ data: Menus }>("/menus")).data;
 }
@@ -41,7 +42,7 @@ async function cachedMenus() {
 async function cachedSite() {
   "use cache";
   cacheLife("hours");
-  cacheTag("site");
+  cacheTag(tags.site, tags.everything);
 
   return (await apiGet<{ data: Site }>("/site")).data;
 }
@@ -49,7 +50,7 @@ async function cachedSite() {
 async function cachedTicker() {
   "use cache";
   cacheLife("rates");
-  cacheTag("currencies");
+  cacheTag(tags.currencies, tags.everything);
   const body = await apiGet<{ data: Rate[]; meta: RatesMeta }>("/currencies/ticker");
 
   return { rates: body.data, meta: body.meta };
@@ -58,7 +59,7 @@ async function cachedTicker() {
 async function cachedBoard() {
   "use cache";
   cacheLife("rates");
-  cacheTag("currencies");
+  cacheTag(tags.currencies, tags.everything);
   const body = await apiGet<{ data: BoardRate[]; meta: RatesMeta }>("/currencies");
 
   return { rates: body.data, meta: body.meta };
@@ -67,7 +68,7 @@ async function cachedBoard() {
 async function cachedWeather() {
   "use cache";
   cacheLife("weather");
-  cacheTag("weather");
+  cacheTag(tags.weather, tags.everything);
   const body = await apiGet<{ data: City[]; meta?: { attribution?: string } }>("/weather/widget");
 
   return { cities: body.data, attribution: body.meta?.attribution ?? "Weather data © OpenWeather" };
@@ -76,9 +77,18 @@ async function cachedWeather() {
 async function cachedBreaking() {
   "use cache";
   cacheLife("breaking");
-  cacheTag("posts");
+  cacheTag(tags.posts, tags.everything);
 
   return (await apiGet<{ data: Post[] }>("/posts?breaking=1")).data;
+}
+
+/** The home page's blocks, in the admin's order. A post's change refreshes it too (it shows posts). */
+async function cachedHome() {
+  "use cache";
+  cacheLife("home");
+  cacheTag(tags.home, tags.posts, tags.everything);
+
+  return (await apiGet<{ data: HomeBlock[] }>("/home")).data;
 }
 
 type Campaign = AdSlot["ads"][number];
@@ -99,7 +109,7 @@ function pickCampaign(ads: Campaign[], now: number): Campaign | null {
 async function cachedAds() {
   "use cache";
   cacheLife("ads");
-  cacheTag("ads");
+  cacheTag(tags.ads, tags.everything);
   const body = await apiGet<{ data: AdSlot[]; meta?: { label?: string } }>("/ads");
   const now = Date.now();
   const slots = body.data.map((slot) => {
@@ -118,3 +128,4 @@ export const getRatesBoard = () => softly("currency board", cachedBoard);
 export const getWeather = () => softly("weather", cachedWeather);
 export const getBreaking = () => softly("breaking news", cachedBreaking);
 export const getAds = () => softly("ads", cachedAds);
+export const getHome = () => softly("home page", cachedHome);

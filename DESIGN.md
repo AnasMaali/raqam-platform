@@ -385,6 +385,22 @@ Built in `frontend/src/components/` and shown with all their states on the devel
 - **«للأعلى».** Appears a screen and a half down, goes back to the header.
 - **Footer.** The full logo with its slogan, «خلف كل رقم حكاية، وخلف كل حكاية اقتصاد يتشكّل», the about and policy menus,
   the social accounts the admin made visible, the theme choice.
+- **Home page.** The first screen holds the main story (stacked, picture first) with the currency board and the weather
+  beside it from 1024 px (below it on phones and tablets), and up to three more headlines under it. Then the blocks in
+  the order the admin set in the panel; a hidden or empty block is left out, and nothing in the first screen is repeated
+  in «آخر الأخبار». Each kind keeps its shape:
+  - a news category: one item with its picture, the rest as headlines beside it;
+  - a special section: its items side by side with their pictures (a story's figure, an episode's number), swiped by
+    hand on phones;
+  - the economic history section: the kashida's time line, oldest first;
+  - latest news: headlines in one, two or three columns;
+  - most read: a ranked list;
+  - videos and a playlist: a row of pictures with their length, swiped by hand;
+  - the ad slot between chapters, and the newsletter.
+  Three items per chapter below 1024 px.
+- **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),
+  then a confirmation. A new code can be asked for after the platform's wait; the address can be changed. The human
+  check (Turnstile) loads only when the reader reaches the form. Errors are the platform's own sentences, on the field.
 - **Pictures.** Every picture keeps its frame and its size: its box is reserved by its ratio (16:9 for the main story,
   3:2 for cards) and a hairline edge keeps a light picture from fading into a white page.
 

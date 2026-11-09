@@ -32,13 +32,26 @@ version under a tool can break it without a sign.
 
 The build needs the API: a failed request while building stops it, so a page frame is never built without its menus.
 
+## The platform's webhook and the forms
+
+- **Webhook.** The backend's `SITE_WEBHOOK_URL` is `https://<site>/api/revalidate`, with the same `SITE_WEBHOOK_SECRET`
+  on both sides. The route accepts only a body signed with HMAC-SHA256 over `{timestamp}.{body}`
+  (`X-Raqam-Signature: sha256=…`, `X-Raqam-Timestamp`), at most five minutes off this server's clock, compared in
+  constant time. It refreshes the cached answers its type names (`src/lib/server/cache-tags.ts`) at once; an unknown
+  type refreshes everything. Any refusal is the same short 401.
+- **Newsletter.** `/api/newsletter/{subscribe,resend,confirm}` add the site token and the visitor's address and keep the
+  platform's challenge in an httpOnly cookie. They accept JSON from the site's own pages only (Origin). The form needs
+  `TURNSTILE_SITE_KEY`; the content security policy (hardening) must allow `challenges.cloudflare.com`.
+
 ## Browser tests
 
 The tests read a fake API (`tests/fake-api/`, made-up demo content captured by `capture.mjs`), never a real platform.
 
 ```bash
 npm run fake-api &                                       # http://127.0.0.1:4010/api/v1
-API_BASE_URL=http://127.0.0.1:4010/api/v1 API_SITE_TOKEN=ci-only-site-token-not-a-secret SITE_URL=https://example.org npm run build
+export API_BASE_URL=http://127.0.0.1:4010/api/v1 API_SITE_TOKEN=ci-only-site-token-not-a-secret SITE_URL=https://example.org \
+  TURNSTILE_SITE_KEY=1x00000000000000000000AA SITE_WEBHOOK_SECRET=ci-only-webhook-secret-not-a-secret
+npm run build
 npm run test:e2e             # 375, 768 and 1440 px; the sweep 320 to 1920 px, held sideways, 200% zoom
 npm run check:lighthouse     # with the production server on port 3100: SEO 100, accessibility ≥ 95, LCP < 2.5 s, CLS < 0.1
 ```

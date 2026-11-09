@@ -20,10 +20,16 @@ export function PostMeta({ post, className = "" }: { post: Post; className?: str
           محتوى ممول{post.sponsor.name ? `: ${post.sponsor.name}` : ""}
         </span>
       )}
-      <span>{facts ?? post.category?.name ?? post.kind.name}</span>
-      <span aria-hidden="true" className="text-line-strong">
-        ·
-      </span>
+      {facts ? (
+        <span className="basis-full">{facts}</span>
+      ) : (
+        <>
+          <span>{post.category?.name ?? post.kind.name}</span>
+          <span aria-hidden="true" className="text-line-strong">
+            ·
+          </span>
+        </>
+      )}
       <time dateTime={post.published_at}>{formatPublished(post.published_at)}</time>
     </p>
   );
@@ -47,16 +53,25 @@ function Headline({ post, level, className }: { post: Post; level: Level; classN
 
 const frame = "group relative has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-4 has-[a:focus-visible]:outline-brand";
 
-/** The main story: a large headline and its summary beside a wide picture (stacked on phones, picture first). */
-export function LeadCard({ post, level = 2 }: { post: Post; level?: Level }) {
+/**
+ * The main story: a large headline and its summary beside a wide picture (stacked on phones, picture first). Beside
+ * the currency board there is no room for both side by side, so it stays stacked (`stacked`).
+ */
+export function LeadCard({ post, level = 2, stacked = false }: { post: Post; level?: Level; stacked?: boolean }) {
   return (
-    <article className={`${frame} grid gap-4 lg:grid-cols-12 lg:gap-8`}>
-      <div className="lg:col-span-6 lg:self-center 2xl:col-span-5">
+    <article className={`${frame} grid gap-4 ${stacked ? "" : "lg:grid-cols-12 lg:gap-8"}`}>
+      <div className={stacked ? "" : "lg:col-span-6 lg:self-center 2xl:col-span-5"}>
         <Headline post={post} level={level} className="text-display font-bold" />
-        {post.excerpt && <p className="mt-3 text-lead text-muted">{post.excerpt}</p>}
+        {post.excerpt && <p className="mt-3 max-w-text text-lead text-muted">{post.excerpt}</p>}
         <PostMeta post={post} className="mt-3" />
       </div>
-      <Pic media={post.cover} sizes="(min-width: 64rem) 55vw, 100vw" ratio="16/9" priority className="-order-1 lg:order-none lg:col-span-6 2xl:col-span-7" />
+      <Pic
+        media={post.cover}
+        sizes={stacked ? "(min-width: 84rem) 54rem, (min-width: 64rem) 64vw, 100vw" : "(min-width: 64rem) 55vw, 100vw"}
+        ratio="16/9"
+        priority
+        className={stacked ? "-order-1" : "-order-1 lg:order-none lg:col-span-6 2xl:col-span-7"}
+      />
     </article>
   );
 }

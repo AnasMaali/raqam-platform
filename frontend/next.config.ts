@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
     weather: { stale: 300, revalidate: 600, expire: 86400 },
     ads: { stale: 300, revalidate: 90, expire: 3600 },
     breaking: { stale: 300, revalidate: 60, expire: 3600 },
+    // The home page: the webhook refreshes it at once; the time limit catches a scheduled post going live.
+    home: { stale: 300, revalidate: 120, expire: 86400 },
   },
   poweredByHeader: false,
   reactStrictMode: true,

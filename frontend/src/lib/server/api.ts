@@ -33,3 +33,22 @@ export async function apiGet<T>(path: string, init: RequestInit = {}): Promise<T
 
   return (await response.json()) as T;
 }
+
+/** The visitor a form request comes from, as the platform's site-only routes need it. */
+export type Visitor = { ip: string; userAgent: string };
+
+/**
+ * POST JSON to a site-only route of the platform (forms) with the site token and the visitor's address. Never cached;
+ * the answer's status and body come back as they are, for the form to show the platform's own message.
+ */
+export async function apiPost(path: string, body: unknown, visitor: Visitor): Promise<{ status: number; body: unknown }> {
+  const { apiBaseUrl, siteToken } = serverEnv();
+  const headers = new Headers({ Accept: "application/json", "Content-Type": "application/json" });
+  if (siteToken) headers.set("X-Raqam-Site-Token", siteToken);
+  headers.set("X-Raqam-Visitor-Ip", visitor.ip);
+  headers.set("X-Raqam-Visitor-Ua", visitor.userAgent.slice(0, 512));
+
+  const response = await fetch(`${apiBaseUrl}${path}`, { method: "POST", headers, body: JSON.stringify(body), redirect: "manual", cache: "no-store" });
+
+  return { status: response.status, body: await response.json().catch(() => null) };
+}
