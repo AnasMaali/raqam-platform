@@ -22,13 +22,18 @@ export function marketMetadata({ title, description, path }: { title: string; de
   };
 }
 
-/** «آخر تحديث» and the day the rates belong to, then the platform's note that they are indicative. */
+/**
+ * «آخر تحديث»: the last time the source answered (`checked_at`), or when the bank published the rates shown when the
+ * platform has not said; then the platform's note that the rates are indicative.
+ */
 export function RatesStamp({ meta, className = "" }: { meta: RatesMeta; className?: string }) {
+  const updated = meta.checked_at ?? meta.published_at;
+
   return (
     <div className={`text-small ${className}`}>
-      {meta.published_at && (
+      {updated && (
         <p>
-          آخر تحديث: <time dateTime={meta.published_at}>{formatDateTime(meta.published_at)}</time>
+          آخر تحديث: <time dateTime={updated}>{formatDateTime(updated)}</time>
         </p>
       )}
       <p className="text-muted">{meta.note}</p>

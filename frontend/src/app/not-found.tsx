@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { Main } from "@/components/site/Main";
 
-export const metadata: Metadata = { title: "الصفحة غير موجودة" };
+// Kept out of search engines however it is served: from a route's notFound(), from the check's rewrite (src/proxy.ts),
+// or from the page cache after a refresh, where Next.js does not always add its own noindex.
+export const metadata: Metadata = { title: "الصفحة غير موجودة", robots: { index: false } };
 
 /** Any address the site does not have, inside the site's frame, so the reader can carry on from the menus or the search. */
 export default function NotFound() {

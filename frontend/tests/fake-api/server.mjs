@@ -183,6 +183,33 @@ function marketsRoute(pathname) {
   return null;
 }
 
+// The services and the panel's pages (capture-pages.mjs), the redirects the platform keeps, and what the site sent.
+const pagesData = fromFile("pages");
+const presses = new Map();
+let lastContact = null;
+
+function pagesRoute(pathname, params) {
+  if (pathname === "/api/v1/services") return { status: 200, body: pagesData.services };
+  const service = /^\/api\/v1\/services\/([^/]+)$/.exec(pathname);
+  if (service) {
+    const data = pagesData.detail[decodeURIComponent(service[1])];
+    return data ? { status: 200, body: data } : notFoundAnswer;
+  }
+  if (pathname === "/api/v1/pages") return { status: 200, body: pagesData.pageList };
+  const page = /^\/api\/v1\/pages\/([^/]+)$/.exec(pathname);
+  if (page) {
+    const data = pagesData.pages[decodeURIComponent(page[1])];
+    return data ? { status: 200, body: { data } } : notFoundAnswer;
+  }
+  if (pathname === "/api/v1/redirects/lookup") {
+    const known = pagesData.redirects[params.get("path") ?? ""];
+    if (!known) return notFoundAnswer;
+    if (known.status === 410) return { status: 410, body: { error: { code: "gone", message: "هذا العنوان حُذف." } } };
+    return { status: known.status, body: { to: known.to }, location: known.to };
+  }
+  return null;
+}
+
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
   return { ...body, data: body.data.map((slot) => ({ ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) })) };
@@ -219,6 +246,28 @@ createServer(async (request, response) => {
     return response.end();
   }
   if (url.pathname === "/__requests") return json(200, { count: asked.get(url.searchParams.get("path")) ?? 0 });
+  if (url.pathname === "/__presses") return json(200, { count: presses.get(url.searchParams.get("key")) ?? 0 });
+  if (url.pathname === "/__contact") return json(200, { last: lastContact });
+  const press = /^\/api\/v1\/services\/([^/]+)\/contact$/.exec(url.pathname);
+  if (press && request.method === "POST") {
+    if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return json(403, { error: { code: "site_only", message: "للموقع فقط." } });
+    const channel = JSON.parse((await readBody(request)) || "{}").channel;
+    const key = `${decodeURIComponent(press[1])}:${channel}`;
+    presses.set(key, (presses.get(key) ?? 0) + 1);
+    response.writeHead(204);
+    return response.end();
+  }
+  if (url.pathname === "/api/v1/contact" && request.method === "POST") {
+    if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return json(403, { error: { code: "site_only", message: "هذا النموذج يُرسَل من الموقع فقط." } });
+    const body = JSON.parse((await readBody(request)) || "{}");
+    lastContact = { body, ip: request.headers["x-raqam-visitor-ip"] };
+    if (body.website) return json(202, { data: { received: true } });
+    if (!body.turnstile_token) return json(422, { error: { code: "turnstile_failed", message: "تعذّر التحقق من أنك لست روبوتاً؛ أعد المحاولة." } });
+    if (body.phone && !/^\+\d{8,15}$/.test(body.phone.replace(/\s/g, ""))) {
+      return json(422, { error: { code: "invalid", message: "تحقّق من البيانات.", details: { phone: ["اكتب الرقم بالصيغة الدولية، مثال: +970599123456"] } } });
+    }
+    return json(202, { data: { received: true } });
+  }
   const single = /^\/api\/v1\/posts\/(\d+)(?:\/([^/]+))?$/.exec(url.pathname);
   if (single) {
     // The site's check (HEAD), counted by address, so the tests can see it is kept and not repeated.
@@ -235,6 +284,15 @@ createServer(async (request, response) => {
     return response.end(request.method === "HEAD" ? undefined : JSON.stringify(answer.body));
   }
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
+  const pagesAnswer = pagesRoute(url.pathname, url.searchParams);
+  if (pagesAnswer) {
+    if (request.method === "HEAD") {
+      const key = decodeURIComponent(url.pathname);
+      asked.set(key, (asked.get(key) ?? 0) + 1);
+    }
+    response.writeHead(pagesAnswer.status, { "Content-Type": "application/json", ...(pagesAnswer.location ? { Location: encodeURI(pagesAnswer.location) } : {}) });
+    return response.end(request.method === "HEAD" ? undefined : JSON.stringify(pagesAnswer.body));
+  }
   const marketsAnswer = marketsRoute(url.pathname);
   if (marketsAnswer) {
     if (request.method === "HEAD") {

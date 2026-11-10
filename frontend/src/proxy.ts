@@ -34,6 +34,27 @@ const sectionList = /^\/(news|podcast|success-stories|made-in-nablus|history|ini
 const sectionFilters = ["season", "sector", "era", "initiative_status", "character"];
 const currencyPage = /^\/currencies\/([^/]+)\/?$/;
 const cityPage = /^\/weather\/([^/]+)\/?$/;
+const servicePage = /^\/services\/([^/]+)\/?$/;
+const onePart = /^\/([^/.]+)\/?$/;
+
+/**
+ * The site's own pages of one part, each with its route: never a page from the panel. A new one must be added here
+ * (tests/e2e/proxy-routes.spec.ts fails until it is).
+ */
+export const ownPages = new Set(["currencies", "weather", "services", "contact"]);
+
+/**
+ * The site's own files at the root (Next.js's metadata routes and the like). Any other one-part address with an
+ * extension would reach the panel pages' route and answer 200 with a page: it is a 404 here.
+ */
+export const ownFiles = new Set(["icon.svg"]);
+
+// Words the platform never gives a page from the panel (StaticPages::RESERVED, less the site's own pages above).
+const reserved = new Set([
+  "report", "opinion", "infographic", "category", "tag", "author", "guest", "video", "videos", "search", "currency",
+  "newsletter", "preview", "storage", "private-media", "livewire", "up", "sitemap", "rss", "feed", "login", "logout",
+  "bookings", "account",
+]);
 const listEntities = { category: "categories", tag: "tags", author: "authors", guest: "guests" } as const;
 const perPage = 12;
 
@@ -44,13 +65,17 @@ export const config = {
     "/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)",
     "/currencies/:code",
     "/weather/:slug",
+    "/services/:slug",
+    // An address of one part: a page from the panel (/about), a file of the site's own (/icon.svg), or nothing. The
+    // site's own pages are left to their routes.
+    "/((?!_next|api|feeds|lab|brand|og)[^/]+)",
     // Any other address of two or three parts would reach the article's route and stream a 200 before it finds
     // nothing: the check answers 404 first. The site's own folders and files are left alone.
     "/((?!_next/|api/|feeds/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
   ],
 };
 
-type Verdict = { kind: "page" } | { kind: "moved"; to: string } | { kind: "missing" };
+type Verdict = { kind: "page" } | { kind: "moved"; to: string; status?: 301 | 302 } | { kind: "missing" };
 
 const maxEntries = 5000;
 const keepFor = { page: 60_000, moved: 60_000, missing: 30_000 } as const;
@@ -128,11 +153,11 @@ async function askList(kind: keyof typeof listEntities, slug: string, page: numb
 
 async function checkList(request: NextRequest, pathname: string) {
   const match = list.exec(pathname);
-  if (!match) return notFound(request);
+  if (!match) return missing(request);
   const [, kind, slug, rawPage] = match as unknown as [string, keyof typeof listEntities, string, string | undefined];
   // /page/1 is the list's own address.
   if (rawPage === "1") return NextResponse.redirect(new URL(`/${kind}/${slug}`, request.url), { status: 301 });
-  if (rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) return notFound(request);
+  if (rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) return missing(request);
 
   let verdict = recall(pathname);
   if (!verdict) {
@@ -142,7 +167,7 @@ async function checkList(request: NextRequest, pathname: string) {
     remember(pathname, verdict);
   }
 
-  return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
+  return verdict.kind === "missing" ? missing(request) : NextResponse.next();
 }
 
 /**
@@ -183,7 +208,7 @@ async function checkSection(request: NextRequest, match: RegExpExecArray) {
   const search = new URLSearchParams(filters).toString();
   // /page/1 is the section's own address, with its filters.
   if (rawPage === "1") return NextResponse.redirect(new URL(`/${slug}${search ? `?${search}` : ""}`, request.url), { status: 301 });
-  if (rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) return notFound(request);
+  if (rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) return missing(request);
 
   const key = `${request.nextUrl.pathname}?${search}`;
   let verdict = recall(key);
@@ -194,7 +219,7 @@ async function checkSection(request: NextRequest, match: RegExpExecArray) {
     remember(key, verdict);
   }
 
-  return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
+  return verdict.kind === "missing" ? missing(request) : NextResponse.next();
 }
 
 /** Whether a currency's or a city's page exists: the platform's own address for it answers 200 or 404 (HEAD). */
@@ -215,11 +240,11 @@ async function checkPage(request: NextRequest, key: string, path: string) {
     remember(key, verdict);
   }
 
-  return verdict.kind === "missing" ? notFound(request) : NextResponse.next();
+  return verdict.kind === "missing" ? missing(request) : NextResponse.next();
 }
 
 function checkCurrency(request: NextRequest, code: string) {
-  if (!/^[A-Za-z]{3}$/.test(code)) return notFound(request);
+  if (!/^[A-Za-z]{3}$/.test(code)) return missing(request);
   if (code !== code.toLowerCase()) return NextResponse.redirect(new URL(`/currencies/${code.toLowerCase()}`, request.url), { status: 301 });
 
   return checkPage(request, `/currencies/${code}`, `/currencies/${code}/history?days=7`);
@@ -229,7 +254,7 @@ function checkCurrency(request: NextRequest, code: string) {
 const notCities = new Set(["widget", "cities"]);
 
 function checkCity(request: NextRequest, slug: string) {
-  if (notCities.has(slug)) return notFound(request);
+  if (notCities.has(slug)) return missing(request);
   // The address keeps the slug percent-encoded, as the platform's address takes it.
   const segment = encodeURIComponent(decoded(slug));
 
@@ -243,21 +268,26 @@ function checkCity(request: NextRequest, slug: string) {
 export const leftAlone = ["_next", "api", "feeds", "lab", "brand", "og"] as const;
 
 /** What an address is, as this check reads it, before asking the platform anything. */
-export type RouteKind = "left-alone" | "currency" | "city" | "list" | "section" | "article" | "sub-route" | "not-a-page";
+export type RouteKind = "left-alone" | "currency" | "city" | "service" | "page" | "list" | "section" | "article" | "sub-route" | "not-a-page";
 
 export function routeOf(pathname: string): RouteKind {
-  // A file (it has an extension) is never a page.
-  if (/\.[A-Za-z0-9]+$/.test(pathname)) return "left-alone";
   const parts = pathname.split("/").filter(Boolean);
+  // A file (it has an extension) is never a page: deeper ones are the site's folders' (public/brand, …); at the root
+  // only the site's own files are known.
+  if (/\.[A-Za-z0-9]+$/.test(pathname)) return parts.length > 1 || ownFiles.has(parts[0]) ? "left-alone" : "not-a-page";
   if ((leftAlone as readonly string[]).includes(parts[0])) return "left-alone";
   if (currencyPage.test(pathname)) return "currency";
   if (cityPage.test(pathname)) return "city";
+  if (servicePage.test(pathname)) return "service";
   if (/^\/(category|tag|author|guest)\//.test(pathname)) return "list";
   if (sectionList.test(pathname)) return "section";
   if (article.test(pathname)) return "article";
   if (subRoutes.has(parts[1])) return "sub-route";
-  // An address of one part is a page's own route or Next.js's real 404: the matcher sends only the sections here.
-  if (parts.length < 2) return "left-alone";
+  if (parts.length === 1) {
+    if (ownPages.has(parts[0])) return "left-alone";
+    return reserved.has(parts[0]) || !onePart.test(pathname) ? "not-a-page" : "page";
+  }
+  if (parts.length === 0) return "left-alone";
 
   return "not-a-page";
 }
@@ -273,12 +303,20 @@ export async function proxy(request: NextRequest) {
       return checkCurrency(request, currencyPage.exec(pathname)![1]);
     case "city":
       return checkCity(request, cityPage.exec(pathname)![1]);
+    case "service": {
+      const segment = encodeURIComponent(decoded(servicePage.exec(pathname)![1]));
+      return checkPage(request, `/services/${segment}`, `/services/${segment}`);
+    }
+    case "page": {
+      const segment = encodeURIComponent(decoded(onePart.exec(pathname)![1]));
+      return checkPage(request, `/${segment}`, `/pages/${segment}`);
+    }
     case "list":
       return checkList(request, pathname);
     case "section":
       return checkSection(request, sectionList.exec(pathname)!);
     case "not-a-page":
-      return notFound(request);
+      return missing(request);
   }
   const match = article.exec(pathname)!;
 
@@ -291,12 +329,45 @@ export async function proxy(request: NextRequest) {
     remember(pathname, verdict);
   }
 
-  if (verdict.kind === "missing") return notFound(request);
+  if (verdict.kind === "missing") return missing(request);
   if (verdict.kind === "moved") {
     return NextResponse.redirect(new URL(verdict.to, request.url), { status: 301, headers: { "Cache-Control": "public, max-age=300" } });
   }
 
   return NextResponse.next();
+}
+
+/**
+ * What the platform knows of an address it has nothing at (/redirects/lookup, decision 23): a move made by hand or
+ * left by a renamed page or service (301 or 302), gone for good (410: a 404 here, as for posts), or nothing (404).
+ */
+async function lookup(pathname: string): Promise<Verdict | null> {
+  const path = decoded(pathname).slice(0, 500);
+  const answer = await platform(`/redirects/lookup?path=${encodeURIComponent(path)}`, "GET");
+  if (!answer) return null;
+  if (answer.status === 404 || answer.status === 410) return { kind: "missing" };
+  if (answer.status !== 301 && answer.status !== 302) return null;
+  const body = (await answer.json().catch(() => null)) as { to?: unknown } | null;
+  const to = typeof body?.to === "string" ? body.to : answer.headers.get("location");
+  // A path of this site, or a web address.
+  const usable = !!to && ((to.startsWith("/") && !to.startsWith("//")) || /^https?:\/\//.test(to));
+
+  return usable ? { kind: "moved", to: to!, status: answer.status } : null;
+}
+
+/** An address with nothing at it: a known move (redirect), or the not-found page. The answer is kept like the others. */
+async function missing(request: NextRequest) {
+  const key = `lookup:${request.nextUrl.pathname}`;
+  let verdict = recall(key);
+  if (!verdict) {
+    const answer = await lookup(request.nextUrl.pathname);
+    if (!answer) return notFound(request);
+    verdict = answer;
+    remember(key, verdict);
+  }
+  if (verdict.kind === "moved") return NextResponse.redirect(new URL(verdict.to, request.url), { status: verdict.status ?? 301 });
+
+  return notFound(request);
 }
 
 /** The site's own not-found page, with its frame, answering 404. */
