@@ -14,8 +14,11 @@ import { serverEnv } from "./env";
  * those it does not serve yet, so a sitemap never sends a crawler to a 404.
  */
 
-/** Addresses the platform lists whose pages the site does not have yet. Remove a prefix when its page is built. */
-export const notYetBuilt = ["/video", "/awareness/characters"];
+/**
+ * Addresses the platform lists whose pages the site does not have yet (a prefix each). Empty now that the video
+ * pages and the characters' pages are built; a page the platform adds before the site has it goes here.
+ */
+export const notYetBuilt: string[] = [];
 
 export const servedHere = (path: string) => !notYetBuilt.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 

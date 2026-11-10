@@ -466,6 +466,13 @@ Built in `frontend/src/components/` and shown with all their states on the devel
 - **Server error page (500).** When even the page's frame fails: the header logo, «خطأ في الخادم» in brand, «حدث خطأ من
   عندنا», one sentence that the fault is ours, then «حاول مرة أخرى» (filled) and «الصفحة الرئيسية» (outlined). It
   follows the reader's theme like every page.
+- **Video library.** `/video`: «قوائم التشغيل» as a row swiped by hand (cover, name, number of videos), the sections as
+  filter links («الكل» and each section; the chosen one filled in brand), then a grid of video cards (the picture with its
+  length, the title as the card's link), 12 a page. `/video/{id}`: the title, the date and length, the light player, its
+  chapters, the description. `/video/playlists/{slug}`: «قائمة تشغيل» (and its section), the name, the description, the
+  videos in order, each with its number.
+- **Character page.** `/awareness/characters/{slug}`: the character's picture (still), «شخصية من التوعية», its name, its
+  role, how many cards, then «بطاقات …» as list cards. The Rive animation comes with the characters' motion work.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),

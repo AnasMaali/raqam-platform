@@ -245,6 +245,30 @@ const seoRoutes = {
   "/api/v1/feeds/posts": () => seo.feed,
 };
 
+// The video library and the awareness characters (capture-video.mjs).
+const videoData = fromFile("video");
+
+function videoRoute(pathname, params) {
+  if (pathname === "/api/v1/videos") {
+    const key = params.get("section") ? `section=${params.get("section")}` : `page=${params.get("page") ?? 1}`;
+    const known = videoData.library[key];
+    return known ? { status: 200, body: known } : { status: 200, body: { data: [], meta: { page: Number(params.get("page") ?? 1), per_page: 12, total: 0, last_page: 1 } } };
+  }
+  const one = /^\/api\/v1\/videos\/(\d+)$/.exec(pathname);
+  if (one) return videoData.video[one[1]] ? { status: 200, body: videoData.video[one[1]] } : notFoundAnswer;
+  if (pathname === "/api/v1/playlists") return { status: 200, body: videoData.playlists };
+  const list = /^\/api\/v1\/playlists\/([^/]+)$/.exec(pathname);
+  if (list) return videoData.playlist[decodeURIComponent(list[1])] ? { status: 200, body: videoData.playlist[decodeURIComponent(list[1])] } : notFoundAnswer;
+  if (pathname === "/api/v1/characters") return { status: 200, body: videoData.characters };
+  const character = /^\/api\/v1\/characters\/([^/]+?)(\/cards)?$/.exec(pathname);
+  if (character) {
+    const known = videoData.character[decodeURIComponent(character[1])];
+    if (!known) return notFoundAnswer;
+    return { status: 200, body: character[2] ? known.cards : known.detail };
+  }
+  return null;
+}
+
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
   return { ...body, data: body.data.map((slot) => ({ ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) })) };
@@ -347,6 +371,14 @@ createServer(async (request, response) => {
     return response.end(request.method === "HEAD" ? undefined : JSON.stringify(answer.body));
   }
   if (url.pathname === "/api/v1/posts" && url.searchParams.get("breaking") !== "1") return json(200, posts(url.searchParams));
+  const videoAnswer = videoRoute(url.pathname, url.searchParams);
+  if (videoAnswer) {
+    if (request.method === "HEAD") {
+      const key = decodeURIComponent(url.pathname);
+      asked.set(key, (asked.get(key) ?? 0) + 1);
+    }
+    return json(videoAnswer.status, videoAnswer.body);
+  }
   const pagesAnswer = pagesRoute(url.pathname, url.searchParams);
   if (pagesAnswer) {
     if (request.method === "HEAD") {

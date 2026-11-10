@@ -36,6 +36,9 @@ const pages = [
   { name: "a service", url: "/services/podcast-episode" },
   { name: "contact", url: "/contact" },
   { name: "about", url: "/about" },
+  { name: "video library", url: "/video" },
+  { name: "a video", url: "/video/23" },
+  { name: "a character", url: "/awareness/characters/raqam" },
   { name: "search", url: `/search?q=${encodeURIComponent("الطاقة")}` },
   { name: "components", url: labUrl("/lab/foundations") },
 ];

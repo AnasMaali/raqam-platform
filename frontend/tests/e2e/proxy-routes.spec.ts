@@ -58,8 +58,9 @@ test("every page and route under src/app gets past the check", () => {
     const kind = routeOf(path);
     if (kind === "not-a-page") refused.push(`/${parts.join("/")} (as ${path})`);
     // A route of the site's own, without parameters, is its own page: the check must not ask the platform about it
-    // (it would ask for a page from the panel and answer 404). The sections are checked on purpose.
-    if (address.join("/") === parts.join("/") && kind !== "left-alone" && kind !== "section") asked.push(`${path} (${kind})`);
+    // (it would ask for a page from the panel and answer 404). The sections and the video library are checked on
+    // purpose (their filters and pages).
+    if (address.join("/") === parts.join("/") && !["left-alone", "section", "video-library"].includes(kind)) asked.push(`${path} (${kind})`);
   }
   expect(missingSamples, "add a sample value for these parameters").toEqual([]);
   expect(refused, "src/proxy.ts would answer 404 to these routes: teach routeOf() about them").toEqual([]);
@@ -73,7 +74,7 @@ test("the matcher leaves out the same folders as the check", () => {
 });
 
 test("addresses that are no page are still turned away", () => {
-  for (const path of ["/x/1/a", "/x/123", "/currencies/usd/more", "/weather/x/y", "/awareness/characters/x", "/login", "/x.php", "/favicon.ico", "/wp-login.php"]) {
+  for (const path of ["/x/1/a", "/x/123", "/currencies/usd/more", "/weather/x/y", "/awareness/characters/x/y", "/video/x", "/login", "/x.php", "/favicon.ico", "/wp-login.php"]) {
     expect(routeOf(path), path).toBe("not-a-page");
   }
   // The site's folders keep their files, and its own root files are its own.
