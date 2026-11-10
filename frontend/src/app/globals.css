@@ -162,6 +162,14 @@
 }
 
 @layer base {
+  /* A search's matched words: tinted and bold, so the match is never shown by colour alone. */
+  mark {
+    background-color: var(--color-tint);
+    color: var(--color-ink);
+    font-weight: 700;
+    border-radius: var(--radius-xs);
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;

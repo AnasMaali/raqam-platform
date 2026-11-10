@@ -108,6 +108,17 @@ Any address with nothing at it is looked up in the platform's redirects (`/redir
 renamed page or service, or a move made by hand, answers 301 (or 302); a removed one is a 404 here (410 cannot be
 given by a rewrite).
 
+## Search
+
+`/search` is dynamic and noindex; a query is never kept in a shared cache (`Cache-Control: private, no-store`). The
+form is a GET form, so the results page works without JavaScript; the server's answer is the one the platform counts
+(`track=1`). With JavaScript the results follow the typing: 250 ms after the last key the page asks `/api/search`, and a
+request still on its way is cancelled. That route takes requests from the site's own pages only (`Sec-Fetch-Site`, or
+the referrer), allows 60 a minute per visitor address (as the platform does), and never counts. The platform's
+highlighting is inserted as HTML after every tag but `<mark>` is removed (`marked()` in `src/lib/search.ts`).
+
+The fake API's answers come from `tests/fake-api/capture-search.mjs` (with the search engine running).
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go

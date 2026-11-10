@@ -452,6 +452,12 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   accounts. No embedded map: a link keeps the page light and sends nothing to a map provider before the visitor asks.
 - **Pages from the panel.** One template at the root (`/about`, the policies, the legal pages, any page the admin adds):
   the breadcrumb, the title, «آخر تحديث», the text in the reading column with the article's typography.
+- **Search.** The field and «ابحث» in one row, then «التصفية والترتيب» as a disclosure (open when a filter is set):
+  category, section, kind, from and to dates, relevance or newest first. A line under them says how many were found
+  and is read out as the results change. Each result: the headline with the matched words marked (tinted and bold, so
+  the match is never colour alone), the summary, its line; the writers, guests and tags that match above them; the pages
+  below. Nothing found: «هل تقصد:» with close words, then the latest items and the most read side by side from 1024 px.
+  The results follow the typing 250 ms after the last key; without JavaScript the form is a plain GET form.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),
