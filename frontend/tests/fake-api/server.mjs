@@ -184,12 +184,17 @@ function marketsRoute(pathname) {
   return null;
 }
 
+// The team, the questions and «أعلن معنا» (capture-p1.mjs).
+const p1 = fromFile("p1");
+const p1Routes = { "/api/v1/team": p1.team, "/api/v1/faqs": p1.faqs, "/api/v1/advertise": p1.advertise };
+
 // The services and the panel's pages (capture-pages.mjs), the redirects the platform keeps, and what the site sent.
 const pagesData = fromFile("pages");
 const presses = new Map();
 let lastContact = null;
 
 function pagesRoute(pathname, params) {
+  if (p1Routes[pathname]) return { status: 200, body: p1Routes[pathname] };
   if (pathname === "/api/v1/services") return { status: 200, body: pagesData.services };
   const service = /^\/api\/v1\/services\/([^/]+)$/.exec(pathname);
   if (service) {

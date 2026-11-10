@@ -262,3 +262,29 @@ export type ServiceDetail = ServiceSummary & {
 };
 
 export type ServicesMeta = { booking: { enabled: boolean }; currency_note: string | null };
+
+/** A writer on the team page (/team), in the admin's order (`team_order`). */
+export type TeamMember = {
+  id: number;
+  name: string;
+  slug: string;
+  job_title: string | null;
+  bio: string | null;
+  photo: Picture | null;
+  team_order: number | null;
+  links: Record<string, string>;
+};
+
+/** A question of the FAQ page (/faq); the answer is plain text. */
+export type Faq = { id: number; question: string; answer: string };
+
+export type AdSize = { width: number; height: number };
+
+/** The «أعلن معنا» page (/advertise): its text, the slots that are on with their sizes, the ad packages, the contact links. */
+export type AdvertiseBoard = {
+  page: { title: string; body_html: string; seo: EditorSeo } | null;
+  placements: { code: string; name: string; sizes: { desktop: AdSize | null; mobile: AdSize | null } }[];
+  packages: ServiceSummary[];
+  contact: ServiceContactLinks;
+  booking: { enabled: boolean };
+};

@@ -2,7 +2,7 @@ import "server-only";
 
 import { cacheLife, cacheTag } from "next/cache";
 
-import type { ServiceDetail, ServicesMeta, ServiceSummary, SitePage } from "@/lib/types";
+import type { AdvertiseBoard, Faq, ServiceDetail, ServicesMeta, ServiceSummary, SitePage, TeamMember } from "@/lib/types";
 
 import { ApiError, apiGet } from "./api";
 import { tags } from "./cache-tags";
@@ -71,4 +71,43 @@ export async function getService(slug: string): Promise<{ service: ServiceDetail
   cacheLife({ stale: 300, revalidate: found ? untilAnOfferEnds([found.data.price]) : 300, expire: 86400 });
 
   return found ? { service: found.data, meta: found.meta } : null;
+}
+
+/** The writers on the team page, in the admin's order (no webhook names them: kept for ten minutes at most). */
+export async function getTeam(): Promise<TeamMember[]> {
+  "use cache";
+  cacheLife({ stale: 300, revalidate: 600, expire: 86400 });
+  cacheTag(tags.pages, tags.everything);
+
+  return (await apiGet<{ data: TeamMember[] }>("/team")).data;
+}
+
+/** The FAQ page's questions, in order (they also feed the chatbot; no webhook names them: ten minutes at most). */
+export async function getFaqs(): Promise<Faq[]> {
+  "use cache";
+  cacheLife({ stale: 300, revalidate: 600, expire: 86400 });
+  cacheTag(tags.pages, tags.everything);
+
+  return (await apiGet<{ data: Faq[] }>("/faqs")).data;
+}
+
+/** The «أعلن معنا» page: its text, the slots that are on with their sizes, the ad packages and the contact links. */
+export async function getAdvertise(): Promise<AdvertiseBoard> {
+  "use cache";
+  cacheTag(tags.ads, tags.services, tags.pages, tags.everything);
+  const body = await apiGet<{ data: AdvertiseBoard }>("/advertise");
+  cacheLife({ stale: 300, revalidate: untilAnOfferEnds(body.data.packages.map((p) => p.price)), expire: 86400 });
+
+  return body.data;
+}
+
+export type CategoryNode = { name: string; slug: string; children: { name: string; slug: string }[] };
+
+/** The categories as a tree (one level of children), for the visitors' sitemap. */
+export async function getCategories(): Promise<CategoryNode[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(tags.menus, tags.posts, tags.everything);
+
+  return (await apiGet<{ data: CategoryNode[] }>("/categories")).data.map((c) => ({ name: c.name, slug: c.slug, children: (c.children ?? []).map((k) => ({ name: k.name, slug: k.slug })) }));
 }

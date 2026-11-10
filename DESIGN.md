@@ -463,6 +463,19 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   form as on the home page). `/newsletter/unsubscribe`: one sentence («لن يتغيّر شيء حتى تضغط الزر») and one button,
   «ألغِ اشتراكي»; the answer replaces the button and takes the focus. An incomplete link says so and offers the contact
   page, with no button.
+- **Team page.** `/team`: the page's text, then the writers in the admin's order, one column on a phone, two from 768
+  px, three from 1280 px. Each: a round photo (or the name's first letter on a tinted circle), the name, the job in
+  muted text, the short bio, «مواد …» to the writer's page, and the writer's own links (opening elsewhere).
+- **Questions page.** `/faq`: the page's text, then the questions in the reading column, each a row that opens by a
+  press or the keyboard («+» becomes «−» in brand), the answer under it in muted text; «لم تجد جوابك؟ اكتب لنا» at the
+  end. Every answer is in the page from the start.
+- **Advertise page.** `/advertise`: the page's text and the contact buttons (the services' buttons; not counted as a
+  service's), then «أماكن الإعلان ومقاساتها»: each place with its size on large screens and on a phone, in pixels, and
+  under each a dashed box of that shape, all on one scale (970 px is 12rem) so the places compare. Then the packages,
+  as the services' cards.
+- **Sitemap for visitors.** `/sitemap`: groups in one to three columns (the news and sections, the categories with their
+  children, prices and weather with every currency and city, services and advertising, the platform's pages, following
+  the site); children are indented under a line on the start side, in small text.
 - **Server error page (500).** When even the page's frame fails: the header logo, «خطأ في الخادم» in brand, «حدث خطأ من
   عندنا», one sentence that the fault is ours, then «حاول مرة أخرى» (filled) and «الصفحة الرئيسية» (outlined). It
   follows the reader's theme like every page.
