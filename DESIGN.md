@@ -246,16 +246,22 @@ sentences (the lab page `/lab/fonts`, development only). Why it was chosen:
 - Its geometric letters speak the same language as the logo's «ق».
 - At 16 px on a phone it reads larger and clearer than the other candidates. That matters for an older business
   audience.
-- One variable file covers every weight (100–900).
+- One variable file covers every weight the site needs.
 - Its tabular figures are real (`tnum`), measured in the font files.
 
 ### Files
 
 - Under the Open Font License, served from this site, with `font-display: swap` and a metric-matched fallback so text
   never jumps.
-- About 60 KB for every weight: 30.6 KB for the Arabic file and 29.4 KB for the Latin file, which holds the digits 0-9.
-- Only the Arabic file is preloaded. The Latin file loads when a page shows a number.
-- Possible later: a Latin file cut down to digits and symbols measured 9.7 KB instead of 29.4 KB.
+- **One file, preloaded: 37.9 KB** (`frontend/src/fonts/alexandria-arabic-latin.woff2`, made by
+  `frontend/scripts/subset-font.sh`). It holds the Arabic letters together with the space, the digits 0-9, Latin
+  letters and punctuation, the weights 400 to 700 (the only ones in the tokens), and only the features the site uses:
+  Arabic joining and marks, kerning, ligatures, tabular and lining figures.
+- Why one file: Google's split files put the space (U+0020) in the Latin file. Every Arabic line needed that second
+  file, the browser found it only while laying the page out, and it redrew the spaces when it arrived. With one file the
+  first layout of a page is about four times cheaper and the first paint comes about 0.15 s sooner on a slow phone.
+- A weight outside 400–700 or a character outside the file falls back to the system font: add it to the script and
+  make the file again.
 
 ### Weights
 
