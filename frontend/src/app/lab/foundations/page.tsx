@@ -8,6 +8,7 @@ import { RatesBoard } from "@/components/markets/RatesBoard";
 import { RatesStrip } from "@/components/markets/RatesStrip";
 import { BreakingBar } from "@/components/site/BreakingBar";
 import { Main } from "@/components/site/Main";
+import { ServerError } from "@/components/site/ServerError";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { ThemeChoice, ThemeToggle } from "@/components/theme/ThemeControls";
 import { WeatherWidget } from "@/components/weather/WeatherWidget";
@@ -244,6 +245,14 @@ async function Foundations() {
           <Section id="chapters" title="الأبواب">
             <State title="الصف المختصر (تحت 1280 بكسل، بعد أول شاشة)" note="من 1280 وفوق: الفهرس على حافة الصفحة، على جنب.">
               <ChapterRow chapters={s.chapters} id="foundations-row" />
+            </State>
+          </Section>
+
+          <Section id="server-error" title="صفحة الخطأ (500)">
+            <State title="لما يتعطّل إطار الصفحة نفسه" note="المكوّن نفسه الذي تعرضه global-error.tsx، بلا إطار الصفحة. «حاول مرة أخرى» هنا تعيد تحميل الصفحة.">
+              <div className="overflow-hidden rounded-sm border border-line" data-testid="server-error-preview">
+                <ServerError preview />
+              </div>
             </State>
           </Section>
         </div>

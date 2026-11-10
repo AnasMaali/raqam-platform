@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test } from "@playwright/test";
 
 import { expectNoSidewaysScroll, labUrl, smallTargets } from "./helpers";
@@ -10,12 +12,34 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("every component is on the page, without sideways scrolling, light and dark", async ({ page }) => {
-  for (const id of ["colours", "type", "space", "header", "breaking", "strip", "board", "weather", "ads", "cards", "chapters"]) {
+  for (const id of ["colours", "type", "space", "header", "breaking", "strip", "board", "weather", "ads", "cards", "chapters", "server-error"]) {
     await expect(page.locator(`section[aria-labelledby="${id}"]`)).toBeVisible();
   }
   await expectNoSidewaysScroll(page);
   await page.emulateMedia({ colorScheme: "dark" });
   await expectNoSidewaysScroll(page);
+});
+
+test("the 500 page as the site shows it: what happened, try again, the home page; no second banner or main", async ({ page }) => {
+  // The page itself cannot be drawn on purpose (it shows only when the frame fails), so the lab shows its component,
+  // and the page must use that same component.
+  expect(readFileSync("src/app/global-error.tsx", "utf8")).toMatch(/<ServerError retry=\{retry\} \/>/);
+  const preview = page.getByTestId("server-error-preview");
+  await preview.scrollIntoViewIfNeeded();
+  await expect(preview.getByRole("heading", { level: 4, name: "حدث خطأ من عندنا" })).toBeVisible();
+  await expect(preview.getByRole("link", { name: "الصفحة الرئيسية", exact: true })).toHaveAttribute("href", "/");
+  // The logo is the one link home in the banner, and it has a size (a link around it once made it an empty link).
+  const logo = preview.getByRole("link", { name: "رقم، الصفحة الرئيسية" });
+  await expect(logo).toHaveAttribute("href", "/");
+  expect((await logo.boundingBox())!.width).toBeGreaterThan(40);
+  // Wrapped in another link, the browser splits the two and leaves an empty link of no width beside the logo.
+  const widths = await preview.getByRole("link").evaluateAll((all) => all.map((a) => a.getBoundingClientRect().width));
+  expect(widths).toHaveLength(2);
+  expect(Math.min(...widths)).toBeGreaterThan(40);
+  await expect(preview.locator("header, main, #main")).toHaveCount(0);
+  await expect(page.locator("main")).toHaveCount(1);
+  await expect(page.locator("#main")).toHaveCount(1);
+  await expect(preview.getByRole("button", { name: "حاول مرة أخرى" })).toBeVisible();
 });
 
 test("every control is at least 44 × 44 px", async ({ page }) => {
