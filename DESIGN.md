@@ -375,7 +375,8 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   taken; a few other cities; "Weather data © OpenWeather" always visible. Left out when no city has a reading.
 - **Ad slot.** The word «إعلان» above it, its box reserved at the slot's phone size below 768 px and its desktop size
   above. A slot with no campaign shows the platform's «أعلن معنا» banner, or nothing at all (nothing reserved) when the
-  slot says so. Links go through the platform's counting link with its `rel`.
+  slot says so. Links go through the platform's counting link with its `rel`. A campaign's view counts once at least
+  half of it has been on screen, once per page view; the house banner is never counted.
 - **Cards.** The main story (a large headline and summary beside a wide picture), a card with a picture (a success
   story shows its figure first), a compact card (headline and line), a ranked card (most read). The headline is the
   card's one link, stretched over the card; the focus ring goes round the whole card. Without a picture a card stays

@@ -12,6 +12,8 @@ export default function NotFound() {
   return (
     <Main>
       <div className="mx-auto max-w-page px-4 py-16 sm:px-6 lg:px-8">
+        {/* Read by the view reporter: this page view is a missing page (components/site/ViewReporter). */}
+        <span hidden data-page-status="not-found" />
         <h1 className="text-title font-bold">الصفحة غير موجودة</h1>
         <p className="mt-4 max-w-text text-lead text-muted">ربما تغيّر عنوانها أو حُذفت. ابحث عمّا تريد، أو ابدأ من الصفحة الرئيسية.</p>
         <p className="mt-6 flex flex-wrap gap-x-6">
