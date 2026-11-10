@@ -43,6 +43,12 @@ const onePart = /^\/([^/.]+)\/?$/;
  */
 export const ownPages = new Set(["currencies", "weather", "services", "contact"]);
 
+/**
+ * The site's own files at the root (Next.js's metadata routes and the like). Any other one-part address with an
+ * extension would reach the panel pages' route and answer 200 with a page: it is a 404 here.
+ */
+export const ownFiles = new Set(["icon.svg"]);
+
 // Words the platform never gives a page from the panel (StaticPages::RESERVED, less the site's own pages above).
 const reserved = new Set([
   "report", "opinion", "infographic", "category", "tag", "author", "guest", "video", "videos", "search", "currency",
@@ -60,8 +66,9 @@ export const config = {
     "/currencies/:code",
     "/weather/:slug",
     "/services/:slug",
-    // An address of one part: a page from the panel (/about), or nothing. The site's own pages are left to their routes.
-    "/((?!_next|api|feeds|lab|brand|og)[^/.]+)",
+    // An address of one part: a page from the panel (/about), a file of the site's own (/icon.svg), or nothing. The
+    // site's own pages are left to their routes.
+    "/((?!_next|api|feeds|lab|brand|og)[^/]+)",
     // Any other address of two or three parts would reach the article's route and stream a 200 before it finds
     // nothing: the check answers 404 first. The site's own folders and files are left alone.
     "/((?!_next/|api/|feeds/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
@@ -264,9 +271,10 @@ export const leftAlone = ["_next", "api", "feeds", "lab", "brand", "og"] as cons
 export type RouteKind = "left-alone" | "currency" | "city" | "service" | "page" | "list" | "section" | "article" | "sub-route" | "not-a-page";
 
 export function routeOf(pathname: string): RouteKind {
-  // A file (it has an extension) is never a page.
-  if (/\.[A-Za-z0-9]+$/.test(pathname)) return "left-alone";
   const parts = pathname.split("/").filter(Boolean);
+  // A file (it has an extension) is never a page: deeper ones are the site's folders' (public/brand, …); at the root
+  // only the site's own files are known.
+  if (/\.[A-Za-z0-9]+$/.test(pathname)) return parts.length > 1 || ownFiles.has(parts[0]) ? "left-alone" : "not-a-page";
   if ((leftAlone as readonly string[]).includes(parts[0])) return "left-alone";
   if (currencyPage.test(pathname)) return "currency";
   if (cityPage.test(pathname)) return "city";
