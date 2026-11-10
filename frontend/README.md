@@ -102,7 +102,14 @@ address added here. The platform checks Turnstile (action `contact`), the honeyp
 A page from the panel lives at the root (`src/app/(pages)/[section]/page.tsx`, named as the article's first part
 because both are dynamic parts at the same level). `src/proxy.ts` asks the platform for `/pages/{slug}` before the page
 streams; the site's own pages of one part are in `ownPages`, and the words the platform keeps (`StaticPages::RESERVED`)
-are 404s without asking.
+are 404s without asking. Every address of one part goes through the check: a bare folder's name (`/brand`, `/api`) is a
+404, but the lab's index, and a word that only starts like a folder (`/labour`) is asked about like any page.
+
+`/team` (`/team`, the writers in the admin's order), `/faq` (`/faqs`, FAQPage), `/advertise` (`/advertise`: the places
+with their sizes, the packages, the contact buttons) and `/sitemap` (the visitors' sitemap, from `/sections`,
+`/categories`, `/pages`, the currencies and the cities) have routes of their own; the first three take the panel's page
+text when it is published. The team and the questions are kept ten minutes at most (no webhook names them). The fake
+API's answers for them come from `tests/fake-api/capture-p1.mjs`.
 
 Any address with nothing at it is looked up in the platform's redirects (`/redirects/lookup`) before the 404: a
 renamed page or service, or a move made by hand, answers 301 (or 302); a removed one is a 404 here (410 cannot be

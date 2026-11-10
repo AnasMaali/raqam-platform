@@ -36,6 +36,10 @@ const pages = [
   { name: "a service", url: "/services/podcast-episode" },
   { name: "contact", url: "/contact" },
   { name: "about", url: "/about" },
+  { name: "team", url: "/team" },
+  { name: "questions", url: "/faq" },
+  { name: "advertise", url: "/advertise" },
+  { name: "sitemap", url: "/sitemap" },
   { name: "search", url: `/search?q=${encodeURIComponent("الطاقة")}` },
   { name: "components", url: labUrl("/lab/foundations") },
 ];
