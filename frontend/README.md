@@ -119,6 +119,14 @@ highlighting is inserted as HTML after every tag but `<mark>` is removed (`marke
 
 The fake API's answers come from `tests/fake-api/capture-search.mjs` (with the search engine running).
 
+## Newsletter pages
+
+`/newsletter` holds the newsletter form with its own place (`newsletter_page`); noindex. `/newsletter/unsubscribe?s=&t=`
+is the link in every newsletter: opening it changes nothing (mail scanners open links too); its button posts to
+`/api/newsletter/unsubscribe` (same origin, JSON), which asks the platform. The page sends no Referer, so the link's
+signature never leaves. A mail program's one-click unsubscribe (RFC 8058, `List-Unsubscribe=One-Click` posted to the
+same link) is sent by `src/proxy.ts` to `/api/newsletter/one-click`; the signature is its proof.
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go
