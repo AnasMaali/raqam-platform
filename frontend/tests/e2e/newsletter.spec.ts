@@ -94,7 +94,7 @@ test.describe("the newsletter form", () => {
     expect(other.status()).toBe(403);
     const form = await request.post("/api/newsletter/subscribe", { headers: { Origin: "http://127.0.0.1:3100" }, form: { email: "a@example.com" } });
     expect(form.status()).toBe(415);
-    const unknown = await request.post("/api/newsletter/unsubscribe", { headers: { Origin: "http://127.0.0.1:3100" }, data: {} });
+    const unknown = await request.post("/api/newsletter/delete", { headers: { Origin: "http://127.0.0.1:3100" }, data: {} });
     expect(unknown.status()).toBe(404);
   });
 });

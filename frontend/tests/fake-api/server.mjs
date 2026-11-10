@@ -23,7 +23,8 @@ function newsletter(step, body, request) {
   if (step === "subscribe") {
     if (!body.turnstile_token) return invalid("turnstile", "تعذّر التحقق. حاول مرة أخرى.");
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(body.email ?? "")) return { status: 422, body: { error: { code: "invalid", message: "تحقّق من البيانات.", details: { email: ["اكتب بريداً إلكترونياً صحيحاً."] } } } };
-    if (body.placement !== "home" || body.path !== "/") return invalid("invalid", "مكان النموذج غير معروف.");
+    const places = { home: "/", newsletter_page: "/newsletter" };
+    if (places[body.placement] !== body.path) return invalid("invalid", "مكان النموذج غير معروف.");
 
     return { status: 202, body: challenge };
   }
@@ -215,6 +216,7 @@ function pagesRoute(pathname, params) {
 const searchData = fromFile("search");
 const searchOrder = ["q", "category", "section", "kind", "from", "to", "sort", "page"];
 const tracked = [];
+const unsubscribed = [];
 
 function searchRoute(params, request) {
   if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return { status: 403, body: { error: { code: "site_only", message: "للموقع فقط." } } };
@@ -250,6 +252,15 @@ createServer(async (request, response) => {
     replaced.delete(swap[1]);
     return json(200, { restored: swap[1] });
   }
+  // Unsubscribing: any subscriber with the signature "a" × 64 is a good link; anything else is not. Kept for the tests.
+  if (url.pathname === "/api/v1/newsletter/unsubscribe" && request.method === "POST") {
+    if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return json(403, { error: { code: "site_only", message: "للموقع فقط." } });
+    const body = JSON.parse((await readBody(request)) || "{}");
+    if (body.signature !== "a".repeat(64)) return json(422, { error: { code: "invalid_link", message: "رابط إلغاء الاشتراك غير صالح." } });
+    unsubscribed.push(String(body.subscriber));
+    return json(200, { data: { unsubscribed: true } });
+  }
+  if (url.pathname === "/__unsubscribed") return json(200, { count: unsubscribed.filter((s) => s === url.searchParams.get("s")).length });
   const step = /^\/api\/v1\/newsletter\/(subscribe|resend|confirm)$/.exec(url.pathname)?.[1];
   if (step && request.method === "POST") {
     const answer = newsletter(step, JSON.parse((await readBody(request)) || "{}"), request);

@@ -41,9 +41,12 @@ for (const [i, url] of urls.entries()) {
   const score = (key) => report.categories[key].score;
   const lcp = report.audits["largest-contentful-paint"].numericValue;
   const cls = report.audits["cumulative-layout-shift"].numericValue;
+  // What the LCP is made of, so a slow run on a shared machine can be read: the server's answer, the first paint, the
+  // main thread's blocking.
+  const parts = `FCP ${(report.audits["first-contentful-paint"].numericValue / 1000).toFixed(2)} s, TTFB ${Math.round(report.audits["server-response-time"]?.numericValue ?? 0)} ms, TBT ${Math.round(report.audits["total-blocking-time"].numericValue)} ms`;
   const all = runs > 1 ? ` (LCP of the ${runs} runs: ${byLcp.map((r) => (r.audits["largest-contentful-paint"].numericValue / 1000).toFixed(2)).join(", ")} s)` : "";
   console.log(
-    `${url}: performance ${Math.round(score("performance") * 100)}, accessibility ${Math.round(score("accessibility") * 100)}, SEO ${Math.round(score("seo") * 100)}, LCP ${(lcp / 1000).toFixed(2)} s, CLS ${cls.toFixed(3)}${all}`,
+    `${url}: performance ${Math.round(score("performance") * 100)}, accessibility ${Math.round(score("accessibility") * 100)}, SEO ${Math.round(score("seo") * 100)}, LCP ${(lcp / 1000).toFixed(2)} s, CLS ${cls.toFixed(3)} (${parts})${all}`,
   );
   if (score("seo") < budget.seo) failures.push(`${url}: SEO ${score("seo") * 100}, needs 100`);
   if (score("accessibility") < budget.accessibility) failures.push(`${url}: accessibility ${score("accessibility") * 100}, needs 95`);

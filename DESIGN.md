@@ -458,6 +458,10 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   the match is never colour alone), the summary, its line; the writers, guests and tags that match above them; the pages
   below. Nothing found: «هل تقصد:» with close words, then the latest items and the most read side by side from 1024 px.
   The results follow the typing 250 ms after the last key; without JavaScript the form is a plain GET form.
+- **Newsletter page.** `/newsletter`: the title, one sentence on the three steps, then the newsletter block (the same
+  form as on the home page). `/newsletter/unsubscribe`: one sentence («لن يتغيّر شيء حتى تضغط الزر») and one button,
+  «ألغِ اشتراكي»; the answer replaces the button and takes the focus. An incomplete link says so and offers the contact
+  page, with no button.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),

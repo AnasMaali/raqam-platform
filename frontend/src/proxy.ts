@@ -41,7 +41,10 @@ const onePart = /^\/([^/.]+)\/?$/;
  * The site's own pages of one part, each with its route: never a page from the panel. A new one must be added here
  * (tests/e2e/proxy-routes.spec.ts fails until it is).
  */
-export const ownPages = new Set(["currencies", "weather", "services", "contact", "search"]);
+export const ownPages = new Set(["currencies", "weather", "services", "contact", "search", "newsletter"]);
+
+/** The site's own pages of more than one part that are no section's, list's or article's: left to their routes. */
+export const ownPaths = new Set(["/newsletter/unsubscribe"]);
 
 /**
  * The site's own files at the root (Next.js's metadata routes and the like). Any other one-part address with an
@@ -272,6 +275,7 @@ export type RouteKind = "left-alone" | "currency" | "city" | "service" | "page" 
 
 export function routeOf(pathname: string): RouteKind {
   const parts = pathname.split("/").filter(Boolean);
+  if (ownPaths.has(`/${parts.join("/")}`)) return "left-alone";
   // A file (it has an extension) is never a page: deeper ones are the site's folders' (public/brand, …); at the root
   // only the site's own files are known.
   if (/\.[A-Za-z0-9]+$/.test(pathname)) return parts.length > 1 || ownFiles.has(parts[0]) ? "left-alone" : "not-a-page";
@@ -293,6 +297,11 @@ export function routeOf(pathname: string): RouteKind {
 }
 
 export async function proxy(request: NextRequest) {
+  // A mail program's one-click unsubscribe (RFC 8058) posts to the link in the newsletter itself; the page cannot take
+  // a POST, its route can.
+  if (request.method === "POST" && request.nextUrl.pathname === "/newsletter/unsubscribe") {
+    return NextResponse.rewrite(new URL(`/api/newsletter/one-click${request.nextUrl.search}`, request.url));
+  }
   if ((request.method !== "GET" && request.method !== "HEAD") || request.headers.has("rsc")) return NextResponse.next();
   const pathname = request.nextUrl.pathname;
   switch (routeOf(pathname)) {
