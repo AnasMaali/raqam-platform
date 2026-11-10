@@ -182,15 +182,31 @@ export API_BASE_URL=http://127.0.0.1:4010/api/v1 API_SITE_TOKEN=ci-only-site-tok
   TURNSTILE_SITE_KEY=1x00000000000000000000AA SITE_WEBHOOK_SECRET=ci-only-webhook-secret-not-a-secret
 npm run build
 npm run test:e2e             # 375, 768 and 1440 px; the sweep 320 to 1920 px, held sideways, 200% zoom
-npm run check:lighthouse     # with the production server on port 3100: SEO 100, accessibility ≥ 95, LCP < 2.5 s, CLS < 0.1
-                             # (each page three times; the run with the median LCP counts)
+npm run check:lighthouse     # with the production server on port 3100: SEO 100, accessibility ≥ 95, LCP under the cap,
+                             # CLS < 0.1 (each page three times; each figure is the median of the runs)
 ```
+
+### Lighthouse
+
+Two ways to slow a page down to a mid-range phone on a slow 4G line, with the same phone and line:
+
+- **devtools, the gate.** The browser is really held to the phone's speed and the line's while the page loads, and
+  the page is timed as it loads. Its numbers stay close from run to run, so a red build means the page got slower.
+- **simulate, a report only** (`LIGHTHOUSE_THROTTLING=simulate`; in CI also `LIGHTHOUSE_REPORT_ONLY=1`, which prints
+  without failing). The page loads at full speed and Lighthouse estimates the slow phone afterwards, as PageSpeed
+  Insights does. The estimate counts every script that started before the LCP reached the screen as part of the LCP.
+  On a page whose largest element is text in the first frame, the framework's scripts start a few milliseconds before
+  or after that frame, so the same page reads about 1.8 s in one run and 2.7 s in the next: in the slow runs 8 of the
+  site's scripts had started before the LCP, in the fast ones 0 to 2. Nothing in the page decides that order, so as a
+  gate it failed builds at random. It still runs in CI, so its figures stay in sight.
+
+The gate's LCP cap comes from the CI's own machines: `.github/workflows/lighthouse-calibration.yml` (run by hand from
+the Actions page) measures every page of `check:lighthouse` ten times, each on its own runner, and prints each page's
+median, worst and spread. The cap is the highest worst plus a small margin, and stays under 2.5 s.
 
 Each Lighthouse line also names the LCP element, the four parts of its time (to the first byte, until its resource was
 asked for, its download, its drawing) and, for every run, how many of the site's scripts had started before it showed.
-The simulation counts a script that started before the LCP as part of it. On a page whose largest element is text in
-the first frame, the framework's scripts start a few milliseconds before or after that frame reaches the screen, so the
-same page can read 1.8 s or 2.8 s: the count tells which happened.
+`LIGHTHOUSE_RUNS` sets the number of runs; with five or more each page also gets its median, worst and spread.
 
 The font file is made by `scripts/subset-font.sh` (needs `fonttools` and `brotli` from pip) from Alexandria's variable
 font; see DESIGN.md, Typography.

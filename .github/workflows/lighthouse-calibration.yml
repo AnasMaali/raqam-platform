@@ -1,0 +1,103 @@
+name: Lighthouse calibration
+
+# Sets the gate's LCP cap from the CI's own machines: every page of `check:lighthouse`, each on its own runner, many
+# runs with the browser held to the phone's speed (devtools). The last job prints each page's median, worst and spread
+# (frontend/README.md, "Lighthouse"). Run it by hand from the Actions page after a change that moves the pages' LCP.
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Runs a page
+        default: "10"
+      throttling:
+        description: devtools (the gate) or simulate
+        default: devtools
+  # TEMPORARY, for the first calibration of this branch; removed before review.
+  push:
+    branches: [ci/lighthouse-devtools]
+
+permissions:
+  contents: read
+
+jobs:
+  pages:
+    name: The pages
+    runs-on: ubuntu-24.04
+    outputs:
+      urls: ${{ steps.list.outputs.urls }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: list
+        working-directory: frontend
+        run: echo "urls=$(node -e 'const s=require("./package.json").scripts["check:lighthouse"];console.log(JSON.stringify(s.split(" ").filter((w)=>w.startsWith("http"))))')" >> "$GITHUB_OUTPUT"
+
+  measure:
+    name: ${{ matrix.url }}
+    needs: pages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        url: ${{ fromJSON(needs.pages.outputs.urls) }}
+    defaults:
+      run:
+        working-directory: frontend
+    # Made-up values, the same as the Frontend workflow's.
+    env:
+      API_BASE_URL: http://127.0.0.1:4010/api/v1
+      API_SITE_TOKEN: ci-only-site-token-not-a-secret
+      SITE_URL: https://example.org
+      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+      SITE_WEBHOOK_SECRET: ci-only-webhook-secret-not-a-secret
+      INDEXNOW_KEY: ci-only-indexnow-key-0000
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install
+        run: ../.github/scripts/retry.sh npm ci
+      - name: Browser
+        run: ../.github/scripts/retry.sh npx playwright install --with-deps chromium
+      - name: Fake API and the site
+        run: |
+          node tests/fake-api/server.mjs 4010 > /tmp/fake-api.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://127.0.0.1:4010/api/v1/site && break; sleep 1; done
+          npm run build
+          npx next start -p 3100 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3100/ && break; sleep 1; done
+      - name: Lighthouse
+        env:
+          LIGHTHOUSE_RUNS: ${{ inputs.runs || '10' }}
+          LIGHTHOUSE_THROTTLING: ${{ inputs.throttling || 'devtools' }}
+          LIGHTHOUSE_REPORT_ONLY: "1"
+          LIGHTHOUSE_SUMMARY: /tmp/lighthouse/${{ strategy.job-index }}.jsonl
+        run: |
+          mkdir -p /tmp/lighthouse
+          node scripts/check-lighthouse.mjs "${{ matrix.url }}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lighthouse-${{ strategy.job-index }}
+          path: /tmp/lighthouse/
+          retention-days: 30
+
+  table:
+    name: The table
+    needs: [pages, measure]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: lighthouse-*
+          path: /tmp/lighthouse
+          merge-multiple: true
+      - working-directory: frontend
+        env:
+          URLS: ${{ needs.pages.outputs.urls }}
+        run: node scripts/lighthouse-table.mjs /tmp/lighthouse $(node -e 'console.log(JSON.parse(process.env.URLS).join(" "))')

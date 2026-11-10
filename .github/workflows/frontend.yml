@@ -24,7 +24,7 @@ jobs:
   build:
     name: Lint, types, build
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 55
     defaults:
       run:
         working-directory: frontend
@@ -146,8 +146,19 @@ jobs:
       - name: Browser tests
         run: npx playwright test
 
-      # A phone on a slow line: SEO 100, accessibility 95 or more, LCP under 2.5 s, CLS under 0.1.
+      # A phone on a slow line, the browser really held to its speed (devtools): SEO 100, accessibility 95 or more, LCP
+      # under the cap, CLS under 0.1, each the median of three runs. frontend/README.md, "Lighthouse", says why.
       - name: Lighthouse
+        id: lighthouse
+        run: npm run check:lighthouse
+
+      # The same pages estimated the way PageSpeed Insights does (simulate): printed with the LCP's parts, never failing
+      # the build, since a page whose LCP is text reads 1.8 s or 2.7 s on a few milliseconds of the scripts' start.
+      - name: Lighthouse, simulated (report only)
+        if: ${{ !cancelled() && (steps.lighthouse.outcome == 'success' || steps.lighthouse.outcome == 'failure') }}
+        env:
+          LIGHTHOUSE_THROTTLING: simulate
+          LIGHTHOUSE_REPORT_ONLY: "1"
         run: npm run check:lighthouse
 
       - name: Browser test report
