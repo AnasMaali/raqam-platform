@@ -462,6 +462,9 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   form as on the home page). `/newsletter/unsubscribe`: one sentence («لن يتغيّر شيء حتى تضغط الزر») and one button,
   «ألغِ اشتراكي»; the answer replaces the button and takes the focus. An incomplete link says so and offers the contact
   page, with no button.
+- **Server error page (500).** When even the page's frame fails: the header logo, «خطأ في الخادم» in brand, «حدث خطأ من
+  عندنا», one sentence that the fault is ours, then «حاول مرة أخرى» (filled) and «الصفحة الرئيسية» (outlined). It
+  follows the reader's theme like every page.
 - **Video.** A light player: the picture and a play button; YouTube (youtube-nocookie) loads only when pressed. Its
   chapters start the video at their time, or move it there while it plays.
 - **Newsletter.** A tinted block: the address, then the 6-digit code the platform mails (Arabic digits are accepted),

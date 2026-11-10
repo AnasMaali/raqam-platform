@@ -230,6 +230,18 @@ function searchRoute(params, request) {
   return { status: 200, body: { ...searchData.empty, data: { ...searchData.empty.data, query: q } } };
 }
 
+// The files search engines read (capture-seo.mjs).
+const seo = fromFile("seo");
+const seoRoutes = {
+  "/api/v1/robots": () => seo.robots,
+  "/api/v1/llms": () => seo.llms,
+  "/api/v1/sitemaps": () => seo.index,
+  "/api/v1/sitemaps/pages": () => seo.pages,
+  "/api/v1/sitemaps/news": () => seo.news,
+  "/api/v1/sitemaps/videos": () => seo.videos,
+  "/api/v1/feeds/posts": () => seo.feed,
+};
+
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
   return { ...body, data: body.data.map((slot) => ({ ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) })) };
@@ -278,6 +290,11 @@ createServer(async (request, response) => {
   if (url.pathname === "/__presses") return json(200, { count: presses.get(url.searchParams.get("key")) ?? 0 });
   if (url.pathname === "/__contact") return json(200, { last: lastContact });
   if (url.pathname === "/__searches") return json(200, { tracked });
+  if (seoRoutes[url.pathname]) return json(200, seoRoutes[url.pathname]());
+  if (url.pathname === "/api/v1/sitemaps/posts") {
+    const page = Number(url.searchParams.get("page") ?? 1);
+    return page === 1 ? json(200, seo.posts) : json(200, { data: [], meta: { ...seo.posts.meta, page } });
+  }
   if (url.pathname === "/api/v1/search") {
     const answer = searchRoute(url.searchParams, request);
     return json(answer.status, answer.body);

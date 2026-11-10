@@ -13,6 +13,7 @@ const api = {
   SITE_URL: "https://example.org",
   TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
   SITE_WEBHOOK_SECRET: "ci-only-webhook-secret-not-a-secret",
+  INDEXNOW_KEY: "ci-only-indexnow-key-0000",
 };
 
 export default defineConfig({
