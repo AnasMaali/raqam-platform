@@ -79,6 +79,11 @@ the platform's rates and weather (`src/lib/server/markets.ts`). `src/proxy.ts` a
 currency or city, and 301 for a code in another case (`/currencies/USD`). It also answers 404 for any other address of
 two or three parts that is not a page (`/x/1/a`), which would otherwise reach the article's route and stream a 200.
 
+`routeOf()` in `src/proxy.ts` names what an address is before anything is asked. `tests/e2e/proxy-routes.spec.ts`
+reads every page and route under `src/app` and fails when the check would answer 404 to one of them, so a new route
+must be taught to the check (or to `leftAlone`, the site's own folders) in the same change. A new route parameter needs a
+sample value in that test.
+
 The rate chart uses Recharts, loaded by the currency page only, with a dynamic import, when the chart comes near the
 screen. A browser test checks that no other page loads it. The converter's rules (`src/lib/markets.ts`) follow the
 platform: from a currency to the shekel at the buy rate, the other way at the sell rate.
