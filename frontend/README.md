@@ -175,5 +175,14 @@ npm run check:lighthouse     # with the production server on port 3100: SEO 100,
                              # (each page three times; the run with the median LCP counts)
 ```
 
+Each Lighthouse line also names the LCP element, the four parts of its time (to the first byte, until its resource was
+asked for, its download, its drawing) and, for every run, how many of the site's scripts had started before it showed.
+The simulation counts a script that started before the LCP as part of it. On a page whose largest element is text in
+the first frame, the framework's scripts start a few milliseconds before or after that frame reaches the screen, so the
+same page can read 1.8 s or 2.8 s: the count tells which happened.
+
+The font file is made by `scripts/subset-font.sh` (needs `fonttools` and `brotli` from pip) from Alexandria's variable
+font; see DESIGN.md, Typography.
+
 The tests start the production server (port 3100) and a development server for the lab (port 3200). With `npm run dev`
 already running, point the lab tests at it instead: `LAB_URL=http://localhost:3000 npm run test:e2e`.
