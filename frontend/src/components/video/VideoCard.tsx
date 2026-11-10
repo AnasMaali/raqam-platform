@@ -11,8 +11,8 @@ export function duration(seconds: number) {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
-/** A video: its picture with its length, and its title as the card's one link. */
-export function VideoCard({ video, level = 3 }: { video: Video; level?: 2 | 3 }) {
+/** A video: its picture with its length, and its title as the card's one link. `priority` for one in the first screen. */
+export function VideoCard({ video, level = 3, priority = false }: { video: Video; level?: 2 | 3; priority?: boolean }) {
   const Heading = `h${level}` as const;
 
   return (
@@ -20,7 +20,7 @@ export function VideoCard({ video, level = 3 }: { video: Video; level?: 2 | 3 })
       <div className="relative aspect-video bg-surface ring-1 ring-ink/10 ring-inset">
         {video.thumbnail_url && (
           // eslint-disable-next-line @next/next/no-img-element -- the video's own picture, already sized by its host
-          <img src={video.thumbnail_url} alt="" width={480} height={270} loading="lazy" decoding="async" className="size-full object-cover" />
+          <img src={video.thumbnail_url} alt="" width={480} height={270} loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : undefined} decoding="async" className="size-full object-cover" />
         )}
         {video.duration_seconds ? (
           <p className="figures absolute bottom-2 start-2 rounded-xs bg-ink px-1.5 text-tiny font-medium text-ground">

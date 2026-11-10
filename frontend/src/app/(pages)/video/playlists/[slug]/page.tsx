@@ -83,7 +83,7 @@ export default async function PlaylistPage({ params }: PageProps<"/video/playlis
               <p className="figures mb-1 text-small font-bold text-brand" aria-hidden="true">
                 {i + 1}
               </p>
-              <VideoCard video={video} level={2} />
+              <VideoCard video={video} level={2} priority={i === 0} />
             </li>
           ))}
         </ol>
