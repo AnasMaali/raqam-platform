@@ -47,4 +47,12 @@ const nothing = await fetch(`${base}/search?q=${encodeURIComponent("طاقةةة
 const empty = media(await nothing.json());
 empty.data.suggestions = ["الطاقة", "طاقة شمسية"];
 
+// A made-up answer for a title with «<», «&» and quotes, escaped as the platform escapes it (e() in PHP), with the
+// matched word in <mark>: the page must show the title as written, escaped once.
+const sample = structuredClone(answers[key({ q: "الطاقة" })]);
+const [first] = sample.data.posts;
+sample.data = { ...sample.data, query: "سعر", posts: [{ ...first, title: "النمو < 2% & سعر 'الدولار' <b>", highlight: { title: "النمو &lt; 2% &amp; <mark>سعر</mark> &#039;الدولار&#039; &lt;b&gt;", excerpt: null } }], authors: [], guests: [], tags: [] };
+sample.meta = { ...sample.meta, page: 1, total: 1, last_page: 1 };
+answers[key({ q: "سعر" })] = sample;
+
 writeFileSync(new URL("./fixtures/search.json", import.meta.url), JSON.stringify({ answers, empty }) + "\n");

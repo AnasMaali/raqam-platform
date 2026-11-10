@@ -115,7 +115,9 @@ form is a GET form, so the results page works without JavaScript; the server's a
 (`track=1`). With JavaScript the results follow the typing: 250 ms after the last key the page asks `/api/search`, and a
 request still on its way is cancelled. That route takes requests from the site's own pages only (`Sec-Fetch-Site`, or
 the referrer), allows 60 a minute per visitor address (as the platform does), and never counts. The platform's
-highlighting is inserted as HTML after every tag but `<mark>` is removed (`marked()` in `src/lib/search.ts`).
+highlighting is inserted as HTML only through `marked()` (`src/lib/search.ts`): the text between the marks is read back
+from the platform's escaping and escaped once, and only the bare `<mark>` and `</mark>` stay tags, so any other tag shows
+as text and a «<» in a title reads as «<».
 
 The fake API's answers come from `tests/fake-api/capture-search.mjs` (with the search engine running).
 
