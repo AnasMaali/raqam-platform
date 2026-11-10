@@ -50,7 +50,7 @@ export const ownPaths = new Set(["/newsletter/unsubscribe"]);
  * The site's own files at the root (Next.js's metadata routes and the like). Any other one-part address with an
  * extension would reach the panel pages' route and answer 200 with a page: it is a 404 here.
  */
-export const ownFiles = new Set(["icon.svg"]);
+export const ownFiles = new Set(["icon.svg", "robots.txt", "sitemap.xml", "llms.txt"]);
 
 // Words the platform never gives a page from the panel (StaticPages::RESERVED, less the site's own pages above).
 const reserved = new Set([
@@ -71,10 +71,10 @@ export const config = {
     "/services/:slug",
     // An address of one part: a page from the panel (/about), a file of the site's own (/icon.svg), or nothing. The
     // site's own pages are left to their routes.
-    "/((?!_next|api|feeds|lab|brand|og)[^/]+)",
+    "/((?!_next|api|feeds|sitemaps|lab|brand|og)[^/]+)",
     // Any other address of two or three parts would reach the article's route and stream a 200 before it finds
     // nothing: the check answers 404 first. The site's own folders and files are left alone.
-    "/((?!_next/|api/|feeds/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
+    "/((?!_next/|api/|feeds/|sitemaps/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
   ],
 };
 
@@ -268,13 +268,24 @@ function checkCity(request: NextRequest, slug: string) {
  * The site's own folders: never a page, never checked. The matcher's last entry leaves the same folders out (a matcher
  * must be written out as a literal, so it cannot read this list; tests/e2e/proxy-routes.spec.ts keeps them in step).
  */
-export const leftAlone = ["_next", "api", "feeds", "lab", "brand", "og"] as const;
+export const leftAlone = ["_next", "api", "feeds", "sitemaps", "lab", "brand", "og"] as const;
 
 /** What an address is, as this check reads it, before asking the platform anything. */
-export type RouteKind = "left-alone" | "currency" | "city" | "service" | "page" | "list" | "section" | "article" | "sub-route" | "not-a-page";
+export type RouteKind = "left-alone" | "indexnow" | "currency" | "city" | "service" | "page" | "list" | "section" | "article" | "sub-route" | "not-a-page";
+
+/**
+ * The IndexNow key file (/{INDEXNOW_KEY}.txt): search engines read it to trust the platform's IndexNow pings. Its
+ * name comes from the environment only; without a key there is no such file.
+ */
+export function indexNowFile(): string | null {
+  const key = process.env.INDEXNOW_KEY?.trim() ?? "";
+
+  return /^[A-Za-z0-9-]{8,128}$/.test(key) ? `${key}.txt` : null;
+}
 
 export function routeOf(pathname: string): RouteKind {
   const parts = pathname.split("/").filter(Boolean);
+  if (parts.length === 1 && parts[0] === indexNowFile()) return "indexnow";
   if (ownPaths.has(`/${parts.join("/")}`)) return "left-alone";
   // A file (it has an extension) is never a page: deeper ones are the site's folders' (public/brand, …); at the root
   // only the site's own files are known.
@@ -308,6 +319,8 @@ export async function proxy(request: NextRequest) {
     case "left-alone":
     case "sub-route":
       return NextResponse.next();
+    case "indexnow":
+      return NextResponse.rewrite(new URL("/api/indexnow", request.url));
     case "currency":
       return checkCurrency(request, currencyPage.exec(pathname)![1]);
     case "city":

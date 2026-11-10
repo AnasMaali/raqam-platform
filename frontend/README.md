@@ -127,6 +127,21 @@ is the link in every newsletter: opening it changes nothing (mail scanners open 
 signature never leaves. A mail program's one-click unsubscribe (RFC 8058, `List-Unsubscribe=One-Click` posted to the
 same link) is sent by `src/proxy.ts` to `/api/newsletter/one-click`; the signature is its proof.
 
+## Files for search engines
+
+`/robots.txt`, `/llms.txt`, `/sitemap.xml` (an index) with `/sitemaps/{pages,posts-N,news,videos}.xml`, and the site's
+RSS feed `/feeds/posts` are written by the site from the platform's `/robots`, `/llms`, `/sitemaps/*` and `/feeds/posts`.
+The platform lists every public address; `notYetBuilt` in `src/lib/server/seo-files.ts` drops the ones the site does not
+serve yet (remove a prefix when its page is built), so no sitemap sends a crawler to a 404. A test asks every address in
+the sitemap and expects 200. robots.txt adds the site's own `/api/`.
+
+The IndexNow key file is `/{INDEXNOW_KEY}.txt` (`INDEXNOW_KEY`, the backend's value); `src/proxy.ts` sends it to
+`/api/indexnow`. Without a key there is no such file. The site's own root files are listed in `ownFiles`; any other
+one-part address with an extension is a 404.
+
+`src/app/global-error.tsx` is the 500 page for a failure in the page frame itself (Next.js renders it without the root
+layout, so it brings its own document, fonts, styles and theme).
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go

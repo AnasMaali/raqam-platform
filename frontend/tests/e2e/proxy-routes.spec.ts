@@ -12,7 +12,7 @@ import { config, leftAlone, routeOf } from "../../src/proxy";
  */
 
 // A real-looking value for each route parameter, in the shape the check expects.
-const samples: Record<string, string> = { section: "news", id: "123", slug: "x", code: "usd", n: "2", step: "subscribe" };
+const samples: Record<string, string> = { section: "news", id: "123", slug: "x", code: "usd", n: "2", step: "subscribe", name: "pages.xml" };
 
 // A metadata file's address: robots.ts serves /robots.txt, sitemap.ts /sitemap.xml, icon.svg itself.
 const metadataFiles: Record<string, (file: string) => string> = {
@@ -73,11 +73,12 @@ test("the matcher leaves out the same folders as the check", () => {
 });
 
 test("addresses that are no page are still turned away", () => {
-  for (const path of ["/x/1/a", "/x/123", "/currencies/usd/more", "/weather/x/y", "/awareness/characters/x", "/login", "/robots.txt", "/x.php", "/favicon.ico"]) {
+  for (const path of ["/x/1/a", "/x/123", "/currencies/usd/more", "/weather/x/y", "/awareness/characters/x", "/login", "/x.php", "/favicon.ico", "/wp-login.php"]) {
     expect(routeOf(path), path).toBe("not-a-page");
   }
-  // The site's folders keep their files.
+  // The site's folders keep their files, and its own root files are its own.
   expect(routeOf("/brand/logo-512.png")).toBe("left-alone");
+  for (const file of ["/robots.txt", "/sitemap.xml", "/llms.txt"]) expect(routeOf(file), file).toBe("left-alone");
   // One part that is not the site's own: a page from the panel, asked about.
   expect(routeOf("/about")).toBe("page");
 });

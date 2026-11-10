@@ -38,6 +38,7 @@ jobs:
       # Cloudflare's published test key (it always passes); the browser tests stand in for the widget anyway.
       TURNSTILE_SITE_KEY: 1x00000000000000000000AA
       SITE_WEBHOOK_SECRET: ci-only-webhook-secret-not-a-secret
+      INDEXNOW_KEY: ci-only-indexnow-key-0000
       NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
@@ -116,6 +117,12 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/contact)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/about)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/login)" = 404
+          # The files for search engines: robots, llms, the sitemap and its parts, the feed, the IndexNow key file.
+          for path in /robots.txt /llms.txt /sitemap.xml /sitemaps/pages.xml /sitemaps/posts-1.xml /sitemaps/news.xml /feeds/posts /ci-only-indexnow-key-0000.txt; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")" = 200 || { echo "::error::$path"; exit 1; }
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/sitemaps/nope.xml)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/x.txt)" = 404
           # The search: 200 and never cached; its route refuses another site.
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3100/search?q=%D8%A7%D9%84%D8%B7%D8%A7%D9%82%D8%A9')" = 200
           curl -s -D - -o /dev/null 'http://127.0.0.1:3100/search?q=%D8%A7%D9%84%D8%B7%D8%A7%D9%82%D8%A9' | grep -qi '^cache-control:.*no-store'
