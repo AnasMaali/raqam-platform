@@ -140,7 +140,9 @@ The IndexNow key file is `/{INDEXNOW_KEY}.txt` (`INDEXNOW_KEY`, the backend's va
 one-part address with an extension is a 404.
 
 `src/app/global-error.tsx` is the 500 page for a failure in the page frame itself (Next.js renders it without the root
-layout, so it brings its own document, fonts, styles and theme).
+layout, so it brings its own document, fonts, styles and theme). What it says is `src/components/site/ServerError.tsx`;
+the lab shows the same component at `/lab/foundations` («صفحة الخطأ (500)»), since the page itself only appears when
+the frame fails.
 
 ## Statistics
 
