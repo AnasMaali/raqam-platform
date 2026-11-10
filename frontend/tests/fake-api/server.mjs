@@ -210,6 +210,24 @@ function pagesRoute(pathname, params) {
   return null;
 }
 
+// The search (capture-search.mjs): the captured queries, and for any other the answer that finds nothing. The site's
+// server must send its token and the visitor's address; the searches it counts (track=1) are kept for the tests.
+const searchData = fromFile("search");
+const searchOrder = ["q", "category", "section", "kind", "from", "to", "sort", "page"];
+const tracked = [];
+
+function searchRoute(params, request) {
+  if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return { status: 403, body: { error: { code: "site_only", message: "للموقع فقط." } } };
+  const q = (params.get("q") ?? "").trim();
+  if (q.length < 2) return { status: 422, body: { error: { code: "invalid", message: "اكتب حرفين على الأقل." } } };
+  if (params.get("track") === "1") tracked.push(q);
+  const key = new URLSearchParams(searchOrder.flatMap((k) => (params.get(k) ? [[k, params.get(k)]] : []))).toString();
+  const known = searchData.answers[key];
+  if (known) return { status: 200, body: known };
+
+  return { status: 200, body: { ...searchData.empty, data: { ...searchData.empty.data, query: q } } };
+}
+
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
 function timeless(body) {
   return { ...body, data: body.data.map((slot) => ({ ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) })) };
@@ -248,6 +266,11 @@ createServer(async (request, response) => {
   if (url.pathname === "/__requests") return json(200, { count: asked.get(url.searchParams.get("path")) ?? 0 });
   if (url.pathname === "/__presses") return json(200, { count: presses.get(url.searchParams.get("key")) ?? 0 });
   if (url.pathname === "/__contact") return json(200, { last: lastContact });
+  if (url.pathname === "/__searches") return json(200, { tracked });
+  if (url.pathname === "/api/v1/search") {
+    const answer = searchRoute(url.searchParams, request);
+    return json(answer.status, answer.body);
+  }
   const press = /^\/api\/v1\/services\/([^/]+)\/contact$/.exec(url.pathname);
   if (press && request.method === "POST") {
     if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return json(403, { error: { code: "site_only", message: "للموقع فقط." } });

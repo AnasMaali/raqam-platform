@@ -41,7 +41,7 @@ const onePart = /^\/([^/.]+)\/?$/;
  * The site's own pages of one part, each with its route: never a page from the panel. A new one must be added here
  * (tests/e2e/proxy-routes.spec.ts fails until it is).
  */
-export const ownPages = new Set(["currencies", "weather", "services", "contact"]);
+export const ownPages = new Set(["currencies", "weather", "services", "contact", "search"]);
 
 /**
  * The site's own files at the root (Next.js's metadata routes and the like). Any other one-part address with an
@@ -51,7 +51,7 @@ export const ownFiles = new Set(["icon.svg"]);
 
 // Words the platform never gives a page from the panel (StaticPages::RESERVED, less the site's own pages above).
 const reserved = new Set([
-  "report", "opinion", "infographic", "category", "tag", "author", "guest", "video", "videos", "search", "currency",
+  "report", "opinion", "infographic", "category", "tag", "author", "guest", "video", "videos", "currency",
   "newsletter", "preview", "storage", "private-media", "livewire", "up", "sitemap", "rss", "feed", "login", "logout",
   "bookings", "account",
 ]);
