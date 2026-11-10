@@ -88,7 +88,8 @@ export async function VideoLibrary({ rawPage, query }: { rawPage?: string; query
               {playlists.map((p, i) => (
                 <li key={p.slug} className="w-56 shrink-0 sm:w-64">
                   <article className="group relative has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-4 has-[a:focus-visible]:outline-brand">
-                    <Pic media={p.cover} sizes="16rem" ratio="16/9" priority={i < 2} />
+                    {/* In the first screen, but never the page's largest picture: loaded at once, not asked for first. */}
+                    <Pic media={p.cover} sizes="16rem" ratio="16/9" eager={i < 2} />
                     <h3 className="mt-2 font-medium">
                       <Link href={`/video/playlists/${p.slug}`} className="after:absolute after:inset-0 focus-visible:outline-none group-hover:text-brand">
                         {p.name}
@@ -127,8 +128,8 @@ export async function VideoLibrary({ rawPage, query }: { rawPage?: string; query
         <ul className="mt-8 grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
           {videos.data.map((video, i) => (
             <li key={video.id}>
-              {/* Past the first page (and when filtered) the grid opens the page: its first picture loads at once. */}
-              <VideoCard video={video} priority={i === 0 && (page > 1 || !!section || playlists.length === 0)} />
+              {/* The first video's picture is the page's largest on every page and filter: the one asked for first. */}
+              <VideoCard video={video} priority={i === 0} />
             </li>
           ))}
         </ul>

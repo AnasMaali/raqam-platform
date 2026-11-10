@@ -48,6 +48,23 @@ test.describe("/video", () => {
     await expectNoSidewaysScroll(page);
   });
 
+  test("one picture is asked for first, the first video's (the page's largest), on every page and filter; the covers load at once without it", async ({ page }) => {
+    for (const path of ["/video", "/video/page/2", "/video?section=podcast"]) {
+      await page.goto(path);
+      // In the whole document (the header's and the ads' pictures too): exactly one, and it is the first card's.
+      await expect(page.locator("img[fetchpriority='high']"), path).toHaveCount(1);
+      const firstCard = page.locator("main ul.grid > li").first().locator("img");
+      await expect(firstCard, path).toHaveAttribute("fetchpriority", "high");
+      await expect(firstCard, path).toHaveAttribute("loading", "eager");
+    }
+    await page.goto("/video");
+    const covers = page.getByRole("region", { name: "قوائم التشغيل" }).locator("img");
+    for (const i of [0, 1]) {
+      await expect(covers.nth(i)).toHaveAttribute("loading", "eager");
+      await expect(covers.nth(i)).not.toHaveAttribute("fetchpriority", /./);
+    }
+  });
+
   test("a further page is its own canonical page; past the last, an unknown section and /page/1 answer before the page", async ({ page, request }) => {
     const response = await page.goto("/video/page/2");
     expect(response?.status()).toBe(200);

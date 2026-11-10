@@ -5,19 +5,22 @@ const order = ["sm", "md", "lg", "xl"];
 /**
  * A content picture in the sizes the platform already made, WebP first. It keeps its frame and its size: the box is
  * reserved by its aspect ratio before the file arrives, and a hairline edge keeps a light picture from fading into a
- * white page.
+ * white page. `priority`: the page's LCP picture, loaded at once and asked for first (one a page). `eager`: in the first
+ * screen but not the largest, loaded at once without jumping the queue.
  */
 export function Pic({
   media,
   sizes,
   ratio = "3/2",
   priority = false,
+  eager = false,
   className = "",
 }: {
   media: Media | null;
   sizes: string;
   ratio?: "16/9" | "3/2" | "1/1";
   priority?: boolean;
+  eager?: boolean;
   className?: string;
 }) {
   if (!media) return null;
@@ -36,7 +39,7 @@ export function Pic({
         alt={media.alt}
         width={media.width}
         height={media.height}
-        loading={priority ? "eager" : "lazy"}
+        loading={priority || eager ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : undefined}
         decoding="async"
         className="size-full object-cover"
