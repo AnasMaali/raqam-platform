@@ -102,7 +102,14 @@ address added here. The platform checks Turnstile (action `contact`), the honeyp
 A page from the panel lives at the root (`src/app/(pages)/[section]/page.tsx`, named as the article's first part
 because both are dynamic parts at the same level). `src/proxy.ts` asks the platform for `/pages/{slug}` before the page
 streams; the site's own pages of one part are in `ownPages`, and the words the platform keeps (`StaticPages::RESERVED`)
-are 404s without asking.
+are 404s without asking. Every address of one part goes through the check: a bare folder's name (`/brand`, `/api`) is a
+404, but the lab's index, and a word that only starts like a folder (`/labour`) is asked about like any page.
+
+`/team` (`/team`, the writers in the admin's order), `/faq` (`/faqs`, FAQPage), `/advertise` (`/advertise`: the places
+with their sizes, the packages, the contact buttons) and `/sitemap` (the visitors' sitemap, from `/sections`,
+`/categories`, `/pages`, the currencies and the cities) have routes of their own; the first three take the panel's page
+text when it is published. The team and the questions are kept ten minutes at most (no webhook names them). The fake
+API's answers for them come from `tests/fake-api/capture-p1.mjs`.
 
 Any address with nothing at it is looked up in the platform's redirects (`/redirects/lookup`) before the 404: a
 renamed page or service, or a move made by hand, answers 301 (or 302); a removed one is a 404 here (410 cannot be
@@ -115,7 +122,9 @@ form is a GET form, so the results page works without JavaScript; the server's a
 (`track=1`). With JavaScript the results follow the typing: 250 ms after the last key the page asks `/api/search`, and a
 request still on its way is cancelled. That route takes requests from the site's own pages only (`Sec-Fetch-Site`, or
 the referrer), allows 60 a minute per visitor address (as the platform does), and never counts. The platform's
-highlighting is inserted as HTML after every tag but `<mark>` is removed (`marked()` in `src/lib/search.ts`).
+highlighting is inserted as HTML only through `marked()` (`src/lib/search.ts`): the text between the marks is read back
+from the platform's escaping and escaped once, and only the bare `<mark>` and `</mark>` stay tags, so any other tag shows
+as text and a «<» in a title reads as «<».
 
 The fake API's answers come from `tests/fake-api/capture-search.mjs` (with the search engine running).
 
@@ -140,7 +149,9 @@ The IndexNow key file is `/{INDEXNOW_KEY}.txt` (`INDEXNOW_KEY`, the backend's va
 one-part address with an extension is a 404.
 
 `src/app/global-error.tsx` is the 500 page for a failure in the page frame itself (Next.js renders it without the root
-layout, so it brings its own document, fonts, styles and theme).
+layout, so it brings its own document, fonts, styles and theme). What it says is `src/components/site/ServerError.tsx`;
+the lab shows the same component at `/lab/foundations` («صفحة الخطأ (500)»), since the page itself only appears when
+the frame fails.
 
 ## Statistics
 
@@ -182,6 +193,15 @@ npm run test:e2e             # 375, 768 and 1440 px; the sweep 320 to 1920 px, h
 npm run check:lighthouse     # with the production server on port 3100: SEO 100, accessibility ≥ 95, LCP < 2.5 s, CLS < 0.1
                              # (each page three times; the run with the median LCP counts)
 ```
+
+Each Lighthouse line also names the LCP element, the four parts of its time (to the first byte, until its resource was
+asked for, its download, its drawing) and, for every run, how many of the site's scripts had started before it showed.
+The simulation counts a script that started before the LCP as part of it. On a page whose largest element is text in
+the first frame, the framework's scripts start a few milliseconds before or after that frame reaches the screen, so the
+same page can read 1.8 s or 2.8 s: the count tells which happened.
+
+The font file is made by `scripts/subset-font.sh` (needs `fonttools` and `brotli` from pip) from Alexandria's variable
+font; see DESIGN.md, Typography.
 
 The tests start the production server (port 3100) and a development server for the lab (port 3200). With `npm run dev`
 already running, point the lab tests at it instead: `LAB_URL=http://localhost:3000 npm run test:e2e`.

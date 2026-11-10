@@ -8,13 +8,14 @@ import { getPageList, getPage } from "@/lib/server/pages";
 /*
  * A page from the panel at the site's root (decision 28): «من نحن», the three policies, the four legal pages, and any
  * page the admin adds later. An unknown page, or a word the platform keeps for itself, is a 404 before the page
- * streams (src/proxy.ts); the services and the contact page have routes of their own. The parameter is named as the
+ * streams (src/proxy.ts); the services, the contact page, the team, the questions and «أعلن معنا» have routes of
+ * their own. The parameter is named as the
  * article's first part, because both are dynamic parts at the same level.
  */
 export const instant = false;
 
 // The pages with routes of their own: never drawn by this template.
-const ownRoutes = new Set(["services", "contact"]);
+const ownRoutes = new Set(["services", "contact", "team", "faq", "advertise"]);
 
 export async function generateStaticParams() {
   const pages = (await getPageList()).filter((p) => !ownRoutes.has(p.slug));

@@ -246,16 +246,22 @@ sentences (the lab page `/lab/fonts`, development only). Why it was chosen:
 - Its geometric letters speak the same language as the logo's «ق».
 - At 16 px on a phone it reads larger and clearer than the other candidates. That matters for an older business
   audience.
-- One variable file covers every weight (100–900).
+- One variable file covers every weight the site needs.
 - Its tabular figures are real (`tnum`), measured in the font files.
 
 ### Files
 
 - Under the Open Font License, served from this site, with `font-display: swap` and a metric-matched fallback so text
   never jumps.
-- About 60 KB for every weight: 30.6 KB for the Arabic file and 29.4 KB for the Latin file, which holds the digits 0-9.
-- Only the Arabic file is preloaded. The Latin file loads when a page shows a number.
-- Possible later: a Latin file cut down to digits and symbols measured 9.7 KB instead of 29.4 KB.
+- **One file, preloaded: 37.9 KB** (`frontend/src/fonts/alexandria-arabic-latin.woff2`, made by
+  `frontend/scripts/subset-font.sh`). It holds the Arabic letters together with the space, the digits 0-9, Latin
+  letters and punctuation, the weights 400 to 700 (the only ones in the tokens), and only the features the site uses:
+  Arabic joining and marks, kerning, ligatures, tabular and lining figures.
+- Why one file: Google's split files put the space (U+0020) in the Latin file. Every Arabic line needed that second
+  file, the browser found it only while laying the page out, and it redrew the spaces when it arrived. With one file the
+  first layout of a page is about four times cheaper and the first paint comes about 0.15 s sooner on a slow phone.
+- A weight outside 400–700 or a character outside the file falls back to the system font: add it to the script and
+  make the file again.
 
 ### Weights
 
@@ -463,9 +469,23 @@ Built in `frontend/src/components/` and shown with all their states on the devel
   form as on the home page). `/newsletter/unsubscribe`: one sentence («لن يتغيّر شيء حتى تضغط الزر») and one button,
   «ألغِ اشتراكي»; the answer replaces the button and takes the focus. An incomplete link says so and offers the contact
   page, with no button.
+- **Team page.** `/team`: the page's text, then the writers in the admin's order, one column on a phone, two from 768
+  px, three from 1280 px. Each: a round photo (or the name's first letter on a tinted circle), the name, the job in
+  muted text, the short bio, «مواد …» to the writer's page, and the writer's own links (opening elsewhere).
+- **Questions page.** `/faq`: the page's text, then the questions in the reading column, each a row that opens by a
+  press or the keyboard («+» becomes «−» in brand), the answer under it in muted text; «لم تجد جوابك؟ اكتب لنا» at the
+  end. Every answer is in the page from the start.
+- **Advertise page.** `/advertise`: the page's text and the contact buttons (the services' buttons; not counted as a
+  service's), then «أماكن الإعلان ومقاساتها»: each place with its size on large screens and on a phone, in pixels, and
+  under each a dashed box of that shape, all on one scale (970 px is 12rem) so the places compare. Then the packages,
+  as the services' cards.
+- **Sitemap for visitors.** `/sitemap`: groups in one to three columns (the news and sections, the categories with their
+  children, prices and weather with every currency and city, services and advertising, the platform's pages, following
+  the site); children are indented under a line on the start side, in small text.
 - **Server error page (500).** When even the page's frame fails: the header logo, «خطأ في الخادم» in brand, «حدث خطأ من
   عندنا», one sentence that the fault is ours, then «حاول مرة أخرى» (filled) and «الصفحة الرئيسية» (outlined). It
-  follows the reader's theme like every page.
+  follows the reader's theme like every page. The logo is the one link home in its banner. It can be seen in the lab
+  (`/lab/foundations`).
 - **Video library.** `/video`: «قوائم التشغيل» as a row swiped by hand (cover, name, number of videos), the sections as
   filter links («الكل» and each section; the chosen one filled in brand), then a grid of video cards (the picture with its
   length, the title as the card's link), 12 a page. `/video/{id}`: the title, the date and length, the light player, its

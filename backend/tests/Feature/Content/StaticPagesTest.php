@@ -113,3 +113,10 @@ test('a page cannot take the address of a site page that is not a post (currenci
     }
     expect(StaticPages::isReserved('about-us'))->toBeFalse();
 });
+
+test('a page cannot take a folder of the site (the sitemap parts, the lab, the brand files, the share pictures) or the visitors\' sitemap', function () {
+    foreach (['sitemaps', 'lab', 'brand', 'og', 'sitemap', 'LAB', 'Brand'] as $slug) {
+        expect(StaticPages::isReserved($slug))->toBeTrue($slug);
+        Livewire::test(CreatePage::class)->fillForm(['title' => 'محجوزة', 'slug' => $slug])->call('create')->assertHasFormErrors(['slug']);
+    }
+});

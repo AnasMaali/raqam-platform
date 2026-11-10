@@ -54,9 +54,20 @@ export function queryString(query: SearchQuery, extra: SearchQuery = {}): string
   return new URLSearchParams(searchParams.flatMap((key) => (all[key] ? [[key, all[key]!]] : []))).toString();
 }
 
-/** The platform's highlighted text keeps its <mark> and nothing else (it is escaped text with <mark> around matches). */
+const entities: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&#039;": "'", "&#39;": "'" };
+const escapes: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+
+/**
+ * The platform's highlighted text as safe HTML: every character is escaped, and only the bare <mark> and </mark> come
+ * back as tags. The platform sends its text already escaped (`&lt;` for «<»), so each piece between the marks is first
+ * read back to plain text (the five entities its escaping writes) and then escaped once: «<» shows as «<», and a tag
+ * anywhere else (<b>, <img onerror>, <script>, a <mark> with attributes) shows as text and never runs.
+ */
 export function marked(html: string): string {
-  return html.replace(/<(?!\/?mark>)[^>]*>/gi, "");
+  return html
+    .split(/(<\/?mark>)/)
+    .map((part) => (part === "<mark>" || part === "</mark>" ? part : part.replace(/&(?:amp|lt|gt|quot|#0?39);/g, (e) => entities[e]).replace(/[&<>"']/g, (c) => escapes[c])))
+    .join("");
 }
 
 export type SearchPerson = { id: number; name: string; slug: string; path: string; highlight: { name: string } };

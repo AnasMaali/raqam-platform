@@ -19,6 +19,29 @@ test.describe("the page frame", () => {
     await expectNoSidewaysScroll(page);
   });
 
+  test("one font file, announced before the page is read, holds the Arabic letters, the space and the digits", async ({ page }) => {
+    // A second file (Google's Latin one holds the space) would be found only while the page is laid out, and would
+    // redraw every space when it came: one request more on the way to the first paint of every page.
+    for (const path of ["/", "/about", "/currencies/usd"]) {
+      const fonts: string[] = [];
+      page.on("request", (request) => {
+        if (request.resourceType() === "font") fonts.push(new URL(request.url()).pathname);
+      });
+      const response = await page.goto(path);
+      await page.evaluate(() => document.fonts.ready);
+      expect(fonts, path).toHaveLength(1);
+      expect(response?.headers().link ?? "", path).toContain(`<${fonts[0]}>; rel=preload; as="font"`);
+      page.removeAllListeners("request");
+    }
+    // The space, the digits and an Arabic letter are all in it: none of them falls back to the system font.
+    const covered = await page.evaluate(async () => {
+      const family = getComputedStyle(document.body).fontFamily.split(",")[0].trim();
+      await Promise.all([" ", "0123456789", "رقم"].map((text) => document.fonts.load(`16px ${family}`, text)));
+      return [...document.fonts].filter((face) => face.status === "loaded").length;
+    });
+    expect(covered).toBe(1);
+  });
+
   test("an unknown address answers 404 inside the frame", async ({ page }) => {
     const response = await page.goto("/no-such-page");
     expect(response?.status()).toBe(404);

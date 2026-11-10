@@ -118,6 +118,14 @@ test.describe("results", () => {
     await expectNoSidewaysScroll(page);
   });
 
+  test("a title with «<», «&» and quotes reads as written, with only the matched word marked", async ({ page }) => {
+    await page.goto(`/search?q=${encodeURIComponent("سعر")}`);
+    const title = page.locator("main h2 a").filter({ hasText: "النمو" });
+    await expect(title).toHaveText("النمو < 2% & سعر 'الدولار' <b>");
+    await expect(title.locator("mark")).toHaveText("سعر");
+    await expect(title.locator("b")).toHaveCount(0);
+  });
+
   test("the keyboard reaches the field, the button and the filters, in order", async ({ page }) => {
     await page.goto("/search");
     await page.getByRole("searchbox", { name: "ابحث في رَقَم" }).focus();
@@ -132,7 +140,13 @@ test.describe("results", () => {
 });
 
 test("the platform's highlighting keeps <mark> and nothing else; the query keeps only what the platform accepts", () => {
-  expect(marked('<b>عنوان</b> <mark>الطاقة</mark><img src=x onerror="alert(1)"><script>x</script>')).toBe("عنوان <mark>الطاقة</mark>x");
+  // Everything is escaped and only the bare <mark> and </mark> come back: any other tag shows as text and never runs.
+  expect(marked('<b>عنوان</b> <mark>الطاقة</mark><img src=x onerror="alert(1)"><script>x</script><mark class="x">')).toBe(
+    "&lt;b&gt;عنوان&lt;/b&gt; <mark>الطاقة</mark>&lt;img src=x onerror=&quot;alert(1)&quot;&gt;&lt;script&gt;x&lt;/script&gt;&lt;mark class=&quot;x&quot;&gt;",
+  );
+  // A title with «<» and «&», escaped by the platform, comes out escaped once (not twice), so it reads as written; a
+  // «<mark>» written in the title stays text.
+  expect(marked("النمو &lt; 2% &amp; <mark>سعر</mark> &#039;الدولار&#039; &lt;mark&gt;")).toBe("النمو &lt; 2% &amp; <mark>سعر</mark> &#39;الدولار&#39; &lt;mark&gt;");
   expect(cleanQuery({ q: "  الطاقة   الشمسية ", kind: "nope", from: "2026-11-10", to: "2026-11-01", sort: "random", page: "99", category: "طاقة", evil: "1" })).toEqual({
     q: "الطاقة الشمسية",
     from: "2026-11-10",

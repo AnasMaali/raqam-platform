@@ -14,9 +14,10 @@ const channels: { key: keyof ServiceContactLinks; label: string; icon: IconName 
 /**
  * A service's contact buttons (14.8): WhatsApp with a ready message, a call, an e-mail with a ready subject. A press is
  * reported to the site's own route, which counts it with the platform (14.9); the report never holds the visitor up.
- * A channel the platform has no setting for is left out; with none at all, the contact page.
+ * A channel the platform has no setting for is left out; with none at all, the contact page. Without a service (the
+ * general buttons of «أعلن معنا») nothing is counted: the platform counts presses per service.
  */
-export function ContactButtons({ slug, links, topic }: { slug: string; links: ServiceContactLinks; topic: string }) {
+export function ContactButtons({ slug, links, topic }: { slug?: string; links: ServiceContactLinks; topic: string }) {
   const shown = channels.filter((c) => links[c.key]);
   if (shown.length === 0) {
     return (
@@ -27,6 +28,7 @@ export function ContactButtons({ slug, links, topic }: { slug: string; links: Se
   }
 
   function report(channel: string) {
+    if (!slug) return;
     try {
       void fetch(`/api/services/${encodeURIComponent(slug)}/contact`, {
         method: "POST",

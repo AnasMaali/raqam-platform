@@ -39,6 +39,10 @@ const pages = [
   { name: "video library", url: "/video" },
   { name: "a video", url: "/video/23" },
   { name: "a character", url: "/awareness/characters/raqam" },
+  { name: "team", url: "/team" },
+  { name: "questions", url: "/faq" },
+  { name: "advertise", url: "/advertise" },
+  { name: "sitemap", url: "/sitemap" },
   { name: "search", url: `/search?q=${encodeURIComponent("الطاقة")}` },
   { name: "components", url: labUrl("/lab/foundations") },
 ];

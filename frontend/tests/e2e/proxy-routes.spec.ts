@@ -82,4 +82,17 @@ test("addresses that are no page are still turned away", () => {
   for (const file of ["/robots.txt", "/sitemap.xml", "/llms.txt"]) expect(routeOf(file), file).toBe("left-alone");
   // One part that is not the site's own: a page from the panel, asked about.
   expect(routeOf("/about")).toBe("page");
+  // A bare folder's name is no page (but the development lab's index); a word that only starts like one is a page's
+  // address like any other, so it is asked about.
+  for (const folder of ["/api", "/feeds", "/sitemaps", "/brand", "/og", "/_next"]) expect(routeOf(folder), folder).toBe("not-a-page");
+  expect(routeOf("/lab")).toBe("left-alone");
+  for (const word of ["/labour", "/ogre", "/brandon", "/apiary", "/feedsx"]) expect(routeOf(word), word).toBe("page");
+});
+
+test("every address of one part goes through the check, and an unknown one answers 404 before the page", async ({ request }) => {
+  // The matcher runs the check on all of them (the folders' contents are deeper); none answers 200 by mistake.
+  expect(config.matcher).toContain("/([^/]+)");
+  for (const path of ["/labour", "/ogre", "/brandon", "/apiary", "/feedsx", "/brand", "/og", "/sitemaps", "/feeds", "/api"]) {
+    expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+  }
 });

@@ -131,6 +131,14 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/video/page/1)" = 301
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/awareness/characters/raqam)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/awareness/characters/no-such-character)" = 404
+          # The team, the questions, «أعلن معنا» and the visitors' sitemap: 200. A bare folder's name, or a word that only
+          # starts like one, is no page: 404 before the page streams.
+          for path in /team /faq /advertise /sitemap; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")" = 200 || { echo "::error::$path"; exit 1; }
+          done
+          for path in /brand /feeds /api /labour /ogre; do
+            test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:3100$path")" = 404 || { echo "::error::$path"; exit 1; }
+          done
           # The search: 200 and never cached; its route refuses another site.
           test "$(curl -s -o /dev/null -w '%{http_code}' 'http://127.0.0.1:3100/search?q=%D8%A7%D9%84%D8%B7%D8%A7%D9%82%D8%A9')" = 200
           curl -s -D - -o /dev/null 'http://127.0.0.1:3100/search?q=%D8%A7%D9%84%D8%B7%D8%A7%D9%82%D8%A9' | grep -qi '^cache-control:.*no-store'

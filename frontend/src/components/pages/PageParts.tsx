@@ -56,8 +56,8 @@ export function pageMetadata(page: PageLike, path: string, fallbackDescription?:
   };
 }
 
-/** schema.org's own page types for «من نحن» and «اتصل بنا»; any other page is a WebPage. */
-const pageTypes: Record<string, string> = { about: "AboutPage", contact: "ContactPage" };
+/** schema.org's own page types for «من نحن», «اتصل بنا» and the questions page; any other page is a WebPage. */
+const pageTypes: Record<string, string> = { about: "AboutPage", contact: "ContactPage", faq: "FAQPage" };
 
 /** The page and its breadcrumb as structured data; `extra` joins the page's node (a mainEntity, …). */
 export function pageStructuredData(page: PageLike & { system_key?: string | null }, path: string, crumbs: Crumb[], extra: Record<string, unknown> = {}, more: Record<string, unknown>[] = []) {
@@ -116,3 +116,16 @@ type JsonLdProps = { page: PageLike & { system_key?: string | null }; path: stri
 export function PageJsonLd({ page, path, crumbs, extra, more }: JsonLdProps) {
   return <JsonLd data={pageStructuredData(page, path, crumbs, extra, more)} />;
 }
+
+/** What a page says when the platform did not answer (rendered for that request only, never kept as the page). */
+export function PageUnavailable({ what }: { what: string }) {
+  return (
+    <div className="mx-auto max-w-page px-4 py-16 sm:px-6 lg:px-8">
+      <h1 className="text-title font-bold">تعذّر تحميل {what} الآن</h1>
+      <p className="mt-4 max-w-text text-lead text-muted">حدّث الصفحة بعد قليل.</p>
+    </div>
+  );
+}
+
+/** A page's own text from the panel when it is published, else its fixed name and nothing more. */
+export const noSeo = { title: null, description: null, canonical_url: null, noindex: false, share_image: null };

@@ -45,7 +45,7 @@ const onePart = /^\/([^/.]+)\/?$/;
  * The site's own pages of one part, each with its route: never a page from the panel. A new one must be added here
  * (tests/e2e/proxy-routes.spec.ts fails until it is).
  */
-export const ownPages = new Set(["currencies", "weather", "services", "contact", "search", "newsletter"]);
+export const ownPages = new Set(["currencies", "weather", "services", "contact", "search", "newsletter", "team", "faq", "advertise", "sitemap"]);
 // (/video is checked as a list: its filter and its pages, below.)
 
 /** The site's own pages of more than one part that are no section's, list's or article's: left to their routes. */
@@ -60,7 +60,7 @@ export const ownFiles = new Set(["icon.svg", "robots.txt", "sitemap.xml", "llms.
 // Words the platform never gives a page from the panel (StaticPages::RESERVED, less the site's own pages above).
 const reserved = new Set([
   "report", "opinion", "infographic", "category", "tag", "author", "guest", "video", "videos", "currency",
-  "newsletter", "preview", "storage", "private-media", "livewire", "up", "sitemap", "rss", "feed", "login", "logout",
+  "newsletter", "preview", "storage", "private-media", "livewire", "up", "rss", "feed", "login", "logout",
   "bookings", "account",
 ]);
 const listEntities = { category: "categories", tag: "tags", author: "authors", guest: "guests" } as const;
@@ -75,8 +75,10 @@ export const config = {
     "/weather/:slug",
     "/services/:slug",
     // An address of one part: a page from the panel (/about), a file of the site's own (/icon.svg), or nothing. The
-    // site's own pages are left to their routes.
-    "/((?!_next|api|feeds|sitemaps|lab|brand|og)[^/]+)",
+    // site's own pages are left to their routes. Every one is checked: a bare folder's name (/brand) is no page, and a
+    // word that only starts like one (/labour, /ogre) is a page's address like any other (a lookahead here once let
+    // both through unchecked, and an unknown one answered 200).
+    "/([^/]+)",
     // Any other address of two or three parts would reach the article's route and stream a 200 before it finds
     // nothing: the check answers 404 first. The site's own folders and files are left alone.
     "/((?!_next/|api/|feeds/|sitemaps/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
@@ -323,7 +325,10 @@ export function routeOf(pathname: string): RouteKind {
   // A file (it has an extension) is never a page: deeper ones are the site's folders' (public/brand, …); at the root
   // only the site's own files are known.
   if (/\.[A-Za-z0-9]+$/.test(pathname)) return parts.length > 1 || ownFiles.has(parts[0]) ? "left-alone" : "not-a-page";
-  if ((leftAlone as readonly string[]).includes(parts[0])) return "left-alone";
+  if ((leftAlone as readonly string[]).includes(parts[0])) {
+    // The folders' contents are theirs; the bare name is no page, but for the lab's own index (development only).
+    return parts.length > 1 || parts[0] === "lab" ? "left-alone" : "not-a-page";
+  }
   if (currencyPage.test(pathname)) return "currency";
   if (cityPage.test(pathname)) return "city";
   if (servicePage.test(pathname)) return "service";
