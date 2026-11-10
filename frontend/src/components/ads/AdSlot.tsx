@@ -41,7 +41,8 @@ export function AdSlot({ slot, label = "إعلان", className = "" }: { slot: S
   const alt = campaign ? `إعلان: ${campaign.advertiser}` : "أعلن معنا في رقم";
 
   return (
-    <aside aria-label={label} className={`${visibility} ${className}`}>
+    // A campaign's view is reported once it is half on screen (components/site/ViewReporter); the house banner is not.
+    <aside aria-label={label} className={`${visibility} ${className}`} {...(campaign ? { "data-ad-campaign": campaign.id, "data-ad-placement": slot.code } : {})}>
       <p className="text-tiny text-muted">{label}</p>
       <a
         href={campaign ? campaign.click_url : house!.target}

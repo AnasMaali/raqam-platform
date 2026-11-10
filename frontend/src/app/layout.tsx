@@ -4,6 +4,7 @@ import { BackToTop } from "@/components/site/BackToTop";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SkipLink } from "@/components/site/SkipLink";
+import { ViewReporter } from "@/components/site/ViewReporter";
 import { themeScript } from "@/components/theme/theme";
 import { getMenus, getSite } from "@/lib/server/site-data";
 
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <SiteFooter menus={menus} site={site} />
         <BackToTop />
+        <ViewReporter />
       </body>
     </html>
   );

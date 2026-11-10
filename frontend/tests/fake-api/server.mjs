@@ -216,6 +216,9 @@ function pagesRoute(pathname, params) {
 const searchData = fromFile("search");
 const searchOrder = ["q", "category", "section", "kind", "from", "to", "sort", "page"];
 const tracked = [];
+// What the site's server reported: page views and missing pages, and the ads seen, each with the visitor it named.
+const hits = [];
+const impressions = [];
 const unsubscribed = [];
 
 function searchRoute(params, request) {
@@ -290,6 +293,15 @@ createServer(async (request, response) => {
   if (url.pathname === "/__presses") return json(200, { count: presses.get(url.searchParams.get("key")) ?? 0 });
   if (url.pathname === "/__contact") return json(200, { last: lastContact });
   if (url.pathname === "/__searches") return json(200, { tracked });
+  if (url.pathname === "/__hits") return json(200, { hits });
+  if (url.pathname === "/__impressions") return json(200, { impressions });
+  if ((url.pathname === "/api/v1/stats/hits" || url.pathname === "/api/v1/ads/impressions") && request.method === "POST") {
+    const body = JSON.parse((await readBody(request)) || "{}");
+    const visitor = { ip: request.headers["x-raqam-visitor-ip"] ?? null, ua: request.headers["x-raqam-visitor-ua"] ?? null, token: !!request.headers["x-raqam-site-token"] };
+    (url.pathname.endsWith("hits") ? hits : impressions).push({ ...body, visitor });
+    response.writeHead(204);
+    return response.end();
+  }
   if (seoRoutes[url.pathname]) return json(200, seoRoutes[url.pathname]());
   if (url.pathname === "/api/v1/sitemaps/posts") {
     const page = Number(url.searchParams.get("page") ?? 1);

@@ -142,6 +142,17 @@ one-part address with an extension is a 404.
 `src/app/global-error.tsx` is the 500 page for a failure in the page frame itself (Next.js renders it without the root
 layout, so it brings its own document, fonts, styles and theme).
 
+## Statistics
+
+`src/components/site/ViewReporter.tsx` (in the root layout) reports each page view after the page has loaded and the
+browser is idle, with `sendBeacon` (a `fetch` with `keepalive` where a beacon is refused), and a new view on each client
+navigation. The not-found page marks itself, so it is reported as a missing page. No cookie, no library. The ads on the
+page (`data-ad-campaign` on a slot with a campaign, never the house banner) are reported once each per view when at
+least half is on screen, up to 8 in a report, with a random view id; what is still waiting is sent when the page is
+hidden. The routes `/api/stats` and `/api/ads/impressions` take the site's own pages only, add the site token and the
+visitor's address and browser, work out the post's id from the address (never from the browser), and always answer 204.
+Ad clicks go through the platform's signed counting link (the slot's `click_url`).
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go
