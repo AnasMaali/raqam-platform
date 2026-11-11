@@ -1,8 +1,24 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 
 import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
 
 const wide = (width: number) => width >= 1024;
+/** The menu sheet's width beside a wider screen: 24rem. */
+const SHEET_WIDTH = 384;
+
+/** Waits until the sheet has slid in: no transition still running and its translate back to zero. */
+async function settled(dialog: Locator) {
+  await expect(dialog).toBeVisible();
+  await expect
+    .poll(() =>
+      dialog.evaluate(async (el) => {
+        await Promise.all(el.getAnimations().map((a) => a.finished));
+        const translate = getComputedStyle(el).translate;
+        return translate === "none" || translate === "0px" || translate === "0px 0px";
+      }),
+    )
+    .toBe(true);
+}
 
 test.describe("the page frame", () => {
   test("the home page has the frame, in Arabic, right to left, without the currency strip", async ({ page }) => {
@@ -146,18 +162,35 @@ test.describe("the menu", () => {
     expect(await smallTargets(page, "header")).toEqual([]);
   });
 
-  test("on phones: a press outside the sheet closes it", async ({ page }, info) => {
-    test.skip(wide(info.project.use.viewport?.width ?? 0), "from 1024 px the menu is in the header");
+  test("below 1024 px, where the screen is wider than the sheet (a tablet): a press outside it closes it", async ({ page }, info) => {
+    const width = info.project.use.viewport?.width ?? 0;
+    test.skip(wide(width), "from 1024 px the menu is in the header");
+    test.skip(width <= SHEET_WIDTH, "up to 24rem (384 px) the sheet takes the whole width: there is nothing outside it to press");
     await page.goto("/");
     await page.getByRole("button", { name: "القائمة" }).click();
     const dialog = page.getByRole("dialog", { name: "القائمة" });
-    await expect(dialog).toBeVisible();
-    const box = await dialog.boundingBox();
-    const viewport = page.viewportSize()!;
-    // The sheet is on the right; the backdrop is on the left, if the screen is wider than the sheet.
-    test.skip(!box || box.x < 20, "the sheet covers the whole width");
-    await page.mouse.click(Math.max(5, box!.x / 2), viewport.height / 2);
+    await settled(dialog);
+    const box = (await dialog.boundingBox())!;
+    // The sheet is on the right, at its full width; the backdrop is the rest of the screen, on the left.
+    expect(Math.round(box.x + box.width)).toBe(width);
+    expect(Math.round(box.width)).toBe(SHEET_WIDTH);
+    await page.mouse.click(box.x / 2, page.viewportSize()!.height / 2);
     await expect(dialog).toBeHidden();
+  });
+
+  test("on a phone of 375 px: the sheet takes the whole width, and its close button closes it", async ({ page }, info) => {
+    test.skip((info.project.use.viewport?.width ?? 0) !== 375, "the phone's width, 375 px; the tablet has the press outside");
+    await page.goto("/");
+    const button = page.getByRole("button", { name: "القائمة" });
+    await button.click();
+    const dialog = page.getByRole("dialog", { name: "القائمة" });
+    await settled(dialog);
+    const box = (await dialog.boundingBox())!;
+    expect(Math.round(box.x)).toBe(0);
+    expect(Math.round(box.width)).toBe(375);
+    await dialog.getByRole("button", { name: "إغلاق القائمة" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(button).toBeFocused();
   });
 
   test("from 1024 px: the sections open under their item and close with Escape", async ({ page }, info) => {
