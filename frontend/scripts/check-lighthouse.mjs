@@ -41,8 +41,9 @@ if (!/^[0-9]+$/.test(runsText) || runs < 1 || runs > 20) {
 }
 // The LCP cap is the gate's (devtools), from the calibration on the CI's machines (README, "Lighthouse"): the highest
 // worst of ten runs a page was 1.71 s, and most pages spread 0.01 to 0.03 s, so 2.0 s catches a page that got about
-// half a second slower than its usual figure.
-const budget = { seo: 1, accessibility: 0.95, lcp: 2000, cls: 0.1 };
+// half a second slower than its usual figure. The simulated report is held to the 2.5 s of the Core Web Vitals instead:
+// its estimate reads 0.3 to 1.2 s above the gate's, so the gate's cap would flag nearly every page.
+const budget = { seo: 1, accessibility: 0.95, lcp: method === "devtools" ? 2000 : 2500, cls: 0.1 };
 const dir = mkdtempSync(join(tmpdir(), "lighthouse-"));
 const lighthouse = new URL("../node_modules/.bin/lighthouse", import.meta.url).pathname;
 const failures = [];

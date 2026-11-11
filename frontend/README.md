@@ -207,6 +207,8 @@ median, worst and spread. The cap is the highest worst plus a small margin, and 
 The cap is **2.0 s**. It comes from a calibration of ten runs a page on the CI: the highest worst was 1.71 s
 (`/podcast`), and most pages spread 0.01 to 0.03 s between their fastest and slowest run, around a median of 1.41 to
 1.51 s. So a page fails when it gets about half a second slower than its usual figure, not on a slow run of the machine.
+The simulated report is held to 2.5 s instead (the Core Web Vitals' line): its estimate reads 0.3 to 1.2 s above the
+gate's on the same page, so the gate's cap would mark nearly every page.
 Run the calibration again after a change that moves the pages' LCP, or when a page joins the list.
 
 Each Lighthouse line also names the LCP element, the four parts of its time (to the first byte, until its resource was
