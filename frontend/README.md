@@ -204,6 +204,11 @@ The gate's LCP cap comes from the CI's own machines: `.github/workflows/lighthou
 the Actions page) measures every page of `check:lighthouse` ten times, each on its own runner, and prints each page's
 median, worst and spread. The cap is the highest worst plus a small margin, and stays under 2.5 s.
 
+The cap is **2.0 s**. It comes from a calibration of ten runs a page on the CI: the highest worst was 1.71 s
+(`/podcast`), and most pages spread 0.01 to 0.03 s between their fastest and slowest run, around a median of 1.41 to
+1.51 s. So a page fails when it gets about half a second slower than its usual figure, not on a slow run of the machine.
+Run the calibration again after a change that moves the pages' LCP, or when a page joins the list.
+
 Each Lighthouse line also names the LCP element, the four parts of its time (to the first byte, until its resource was
 asked for, its download, its drawing) and, for every run, how many of the site's scripts had started before it showed.
 `LIGHTHOUSE_RUNS` sets the number of runs; with five or more each page also gets its median, worst and spread.

@@ -20,26 +20,26 @@ concurrency:
   group: frontend-${{ github.ref }}
   cancel-in-progress: true
 
+# Made-up values. The build and the tests read the fake API (made-up demo content), and the bundle check looks for this
+# token value.
+env:
+  API_BASE_URL: http://127.0.0.1:4010/api/v1
+  API_SITE_TOKEN: ci-only-site-token-not-a-secret
+  SITE_URL: https://example.org
+  # Cloudflare's published test key (it always passes); the browser tests stand in for the widget anyway.
+  TURNSTILE_SITE_KEY: 1x00000000000000000000AA
+  SITE_WEBHOOK_SECRET: ci-only-webhook-secret-not-a-secret
+  INDEXNOW_KEY: ci-only-indexnow-key-0000
+  NEXT_TELEMETRY_DISABLED: "1"
+
 jobs:
   build:
     name: Lint, types, build
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: frontend
-
-    # Made-up values. The build and the tests read the fake API (made-up demo content), and the bundle check looks for
-    # this token value.
-    env:
-      API_BASE_URL: http://127.0.0.1:4010/api/v1
-      API_SITE_TOKEN: ci-only-site-token-not-a-secret
-      SITE_URL: https://example.org
-      # Cloudflare's published test key (it always passes); the browser tests stand in for the widget anyway.
-      TURNSTILE_SITE_KEY: 1x00000000000000000000AA
-      SITE_WEBHOOK_SECRET: ci-only-webhook-secret-not-a-secret
-      INDEXNOW_KEY: ci-only-indexnow-key-0000
-      NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
       - uses: actions/checkout@v7
@@ -146,21 +146,6 @@ jobs:
       - name: Browser tests
         run: npx playwright test
 
-      # A phone on a slow line, the browser really held to its speed (devtools): SEO 100, accessibility 95 or more, LCP
-      # under the cap, CLS under 0.1, each the median of three runs. frontend/README.md, "Lighthouse", says why.
-      - name: Lighthouse
-        id: lighthouse
-        run: npm run check:lighthouse
-
-      # The same pages estimated the way PageSpeed Insights does (simulate): printed with the LCP's parts, never failing
-      # the build, since a page whose LCP is text reads 1.8 s or 2.7 s on a few milliseconds of the scripts' start.
-      - name: Lighthouse, simulated (report only)
-        if: ${{ !cancelled() && (steps.lighthouse.outcome == 'success' || steps.lighthouse.outcome == 'failure') }}
-        env:
-          LIGHTHOUSE_THROTTLING: simulate
-          LIGHTHOUSE_REPORT_ONLY: "1"
-        run: npm run check:lighthouse
-
       - name: Browser test report
         if: failure()
         uses: actions/upload-artifact@v7
@@ -178,3 +163,53 @@ jobs:
       - name: Packages (development tools, report only)
         continue-on-error: true
         run: npm audit --audit-level=low
+
+  # On its own machine with its own build, so it runs side by side with the browser tests instead of after them.
+  lighthouse:
+    name: Lighthouse
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: ../.github/scripts/retry.sh npm ci
+
+      # Lighthouse drives the tests' Chromium.
+      - name: Browser
+        run: ../.github/scripts/retry.sh npx playwright install --with-deps chromium
+
+      - name: Fake API and the site
+        run: |
+          node tests/fake-api/server.mjs 4010 > /tmp/fake-api.log 2>&1 &
+          for i in $(seq 1 20); do curl -sf -o /dev/null http://127.0.0.1:4010/api/v1/site && break; sleep 1; done
+          npm run build
+          npx next start -p 3100 > /tmp/next.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf -o /dev/null http://127.0.0.1:3100/ && break; sleep 1; done
+
+      # A phone on a slow line, the browser really held to its speed (devtools): SEO 100, accessibility 95 or more, LCP
+      # under the cap, CLS under 0.1, each the median of three runs. frontend/README.md, "Lighthouse", says why.
+      - name: Lighthouse
+        id: lighthouse
+        run: npm run check:lighthouse
+
+      # The same pages estimated the way PageSpeed Insights does (simulate), once each: printed with the LCP's parts,
+      # never failing the build, since a page whose LCP is text reads 1.8 s or 2.7 s on a few milliseconds of the
+      # scripts' start.
+      - name: Lighthouse, simulated (report only)
+        if: ${{ !cancelled() && (steps.lighthouse.outcome == 'success' || steps.lighthouse.outcome == 'failure') }}
+        env:
+          LIGHTHOUSE_THROTTLING: simulate
+          LIGHTHOUSE_REPORT_ONLY: "1"
+          LIGHTHOUSE_RUNS: "1"
+        run: npm run check:lighthouse

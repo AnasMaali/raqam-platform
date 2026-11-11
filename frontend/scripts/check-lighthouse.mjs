@@ -33,12 +33,19 @@ if (!["devtools", "simulate"].includes(method)) {
   process.exit(2);
 }
 const reportOnly = process.env.LIGHTHOUSE_REPORT_ONLY === "1";
-// The LCP cap is the gate's (devtools). It stays at the budget's 2.5 s until the CI calibration sets it.
-const budget = { seo: 1, accessibility: 0.95, lcp: 2500, cls: 0.1 };
+const runsText = process.env.LIGHTHOUSE_RUNS ?? "3";
+const runs = Number(runsText);
+if (!/^[0-9]+$/.test(runsText) || runs < 1 || runs > 20) {
+  console.error(`LIGHTHOUSE_RUNS is a whole number from 1 to 20, not ${JSON.stringify(runsText)}`);
+  process.exit(2);
+}
+// The LCP cap is the gate's (devtools), from the calibration on the CI's machines (README, "Lighthouse"): the highest
+// worst of ten runs a page was 1.71 s, and most pages spread 0.01 to 0.03 s, so 2.0 s catches a page that got about
+// half a second slower than its usual figure.
+const budget = { seo: 1, accessibility: 0.95, lcp: 2000, cls: 0.1 };
 const dir = mkdtempSync(join(tmpdir(), "lighthouse-"));
 const lighthouse = new URL("../node_modules/.bin/lighthouse", import.meta.url).pathname;
 const failures = [];
-const runs = Math.max(1, Number(process.env.LIGHTHOUSE_RUNS ?? 3));
 
 function run(url, out) {
   execFileSync(

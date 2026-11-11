@@ -12,9 +12,6 @@ on:
       throttling:
         description: devtools (the gate) or simulate
         default: devtools
-  # TEMPORARY, for the first calibration of this branch; removed before review.
-  push:
-    branches: [ci/lighthouse-devtools]
 
 permissions:
   contents: read
@@ -76,9 +73,11 @@ jobs:
           LIGHTHOUSE_THROTTLING: ${{ inputs.throttling || 'devtools' }}
           LIGHTHOUSE_REPORT_ONLY: "1"
           LIGHTHOUSE_SUMMARY: /tmp/lighthouse/${{ strategy.job-index }}.jsonl
+          # Through the environment, never written into the script: the shell reads it as one word, whatever it holds.
+          PAGE_URL: ${{ matrix.url }}
         run: |
           mkdir -p /tmp/lighthouse
-          node scripts/check-lighthouse.mjs "${{ matrix.url }}"
+          node scripts/check-lighthouse.mjs "$PAGE_URL"
       - uses: actions/upload-artifact@v7
         with:
           name: lighthouse-${{ strategy.job-index }}
