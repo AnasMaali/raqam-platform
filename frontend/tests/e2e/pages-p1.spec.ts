@@ -17,6 +17,7 @@ const fixture: {
   faqs: { data: { id: number; question: string; answer: string }[] };
   advertise: { data: { placements: Place[]; packages: { name: string; path: string; price: { text: string } }[]; contact: { whatsapp: string; phone: string; email: string } } };
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/p1.json", "utf8"));
+const playlists: { slug: string; name: string }[] = JSON.parse(readFileSync("tests/fake-api/fixtures/video.json", "utf8")).playlists.data;
 const site = "https://example.org";
 
 async function graphOf(page: Page) {
@@ -110,7 +111,7 @@ test.describe("/sitemap", () => {
     const response = await page.goto("/sitemap");
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: "خريطة الموقع" })).toBeVisible();
-    for (const title of ["الأخبار والأقسام", "التصنيفات", "الأسعار والطقس", "الخدمات والإعلان", "عن رَقَم", "تابِع رَقَم"]) {
+    for (const title of ["الأخبار والأقسام", "التصنيفات", "الفيديو", "الأسعار والطقس", "الخدمات والإعلان", "عن رَقَم", "تابِع رَقَم"]) {
       await expect(page.getByRole("heading", { level: 2, name: title })).toBeVisible();
     }
     const hrefs = await page.locator("main section a").evaluateAll((all) => all.map((a) => a.getAttribute("href")!));
@@ -118,6 +119,11 @@ test.describe("/sitemap", () => {
       expect(hrefs, path).toContain(path);
     }
     expect(new Set(hrefs).size).toBe(hrefs.length);
+    // The video library and every playlist, under «الفيديو».
+    const video = page.getByRole("region", { name: "الفيديو" });
+    await expect(video.getByRole("link", { name: "مكتبة الفيديو", exact: true })).toHaveAttribute("href", "/video");
+    expect(playlists.length).toBeGreaterThan(0);
+    for (const p of playlists) await expect(video.getByRole("link", { name: p.name, exact: true })).toHaveAttribute("href", `/video/playlists/${p.slug}`);
     for (const href of hrefs) expect((await request.get(href, { maxRedirects: 0 })).status(), decodeURI(href)).toBe(200);
   });
 });

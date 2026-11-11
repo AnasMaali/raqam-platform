@@ -16,6 +16,7 @@ const seo: {
   videos: { data: unknown[] };
   llms: { data: { name: string; groups: { title: string }[] } };
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/seo.json", "utf8"));
+const video: { video: Record<string, unknown>; playlist: Record<string, unknown>; character: Record<string, unknown> } = JSON.parse(readFileSync("tests/fake-api/fixtures/video.json", "utf8"));
 const site = "https://example.org";
 const locs = (body: string) => [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].replace(/&amp;/g, "&"));
 
@@ -53,17 +54,31 @@ test("the sitemap: an index of its parts; every address in them answers 200; not
   for (const part of parts) {
     const response = await request.get(new URL(part).pathname);
     expect(response.status(), part).toBe(200);
-    all.push(...locs(await response.text()));
+    // No address twice in a part (the news part repeats items of the posts' parts, as Google News asks).
+    const here = locs(await response.text());
+    expect(new Set(here).size, part).toBe(here.length);
+    all.push(...here);
   }
   // No /lab and no noindex page; the video pages and the characters' pages are in.
   expect(all.some((u) => /\/awareness\/characters\//.test(u))).toBe(true);
   expect(all.some((u) => /\/video\/\d+$/.test(u))).toBe(true);
   expect(all.some((u) => /\/(lab|search|newsletter)(\/|$)/.test(new URL(u).pathname))).toBe(false);
   for (const page of ["/currencies/usd", "/services", "/about", "/weather", "/podcast"]) expect(all).toContain(`${site}${encodeURI(page)}`);
+  // The video library, every video, every playlist and every character's page.
+  const videoPages = [
+    "/video",
+    ...Object.keys(video.video).map((id) => `/video/${id}`),
+    ...Object.keys(video.playlist).map((slug) => `/video/playlists/${slug}`),
+    ...Object.keys(video.character).map((slug) => `/awareness/characters/${slug}`),
+  ];
+  for (const page of videoPages) expect(all, page).toContain(`${site}${encodeURI(page)}`);
   expect(all.length).toBe(seo.pages.data.length + seo.posts.data.length + seo.news.data.length + seo.videos.data.length);
-  for (const url of all) {
-    const path = new URL(url).pathname;
-    expect((await request.get(path, { maxRedirects: 0 })).status(), decodeURI(path)).toBe(200);
+  // Eight at a time: one by one, the 120-odd pages take most of a test's time on a busy machine.
+  const paths = [...new Set(all.map((url) => new URL(url).pathname))];
+  for (let i = 0; i < paths.length; i += 8) {
+    const batch = paths.slice(i, i + 8);
+    const statuses = await Promise.all(batch.map(async (path) => (await request.get(path, { maxRedirects: 0 })).status()));
+    batch.forEach((path, j) => expect(statuses[j], decodeURI(path)).toBe(200));
   }
 });
 
