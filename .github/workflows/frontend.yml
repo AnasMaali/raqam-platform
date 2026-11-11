@@ -123,6 +123,14 @@ jobs:
           done
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/sitemaps/nope.xml)" = 404
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/x.txt)" = 404
+          # The video library, a video, a playlist, a character: 200; unknown ones and pages past the last 404.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/video)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/video/23)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/video/999999999)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/video/page/99)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/video/page/1)" = 301
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/awareness/characters/raqam)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/awareness/characters/no-such-character)" = 404
           # The team, the questions, «أعلن معنا» and the visitors' sitemap: 200. A bare folder's name, or a word that only
           # starts like one, is no page: 404 before the page streams.
           for path in /team /faq /advertise /sitemap; do

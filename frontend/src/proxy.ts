@@ -24,8 +24,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const article = /^\/(news|podcast|success-stories|made-in-nablus|history|initiatives|round-table|awareness)\/([1-9]\d{0,9})(?:\/([^/]+))?\/?$/;
 
-// Pages of their own under a section's prefix (not posts), left to their routes. None is built yet: the characters'
-// pages (/awareness/characters/{slug}) join this list with their route.
+// Pages of their own under a section's prefix (not posts) that need no check, left to their routes. The characters'
+// pages (/awareness/characters/{slug}) are checked like the others (characterPage below).
 const subRoutes = new Set<string>([]);
 
 const list = /^\/(category|tag|author|guest)\/([^/]+)(?:\/page\/([^/]+))?\/?$/;
@@ -35,6 +35,10 @@ const sectionFilters = ["season", "sector", "era", "initiative_status", "charact
 const currencyPage = /^\/currencies\/([^/]+)\/?$/;
 const cityPage = /^\/weather\/([^/]+)\/?$/;
 const servicePage = /^\/services\/([^/]+)\/?$/;
+const videoLibrary = /^\/video(?:\/page\/([^/]+))?\/?$/;
+const videoPage = /^\/video\/([1-9]\d{0,17})\/?$/;
+const playlistPage = /^\/video\/playlists\/([^/]+)\/?$/;
+const characterPage = /^\/awareness\/characters\/([^/]+)\/?$/;
 const onePart = /^\/([^/.]+)\/?$/;
 
 /**
@@ -42,6 +46,7 @@ const onePart = /^\/([^/.]+)\/?$/;
  * (tests/e2e/proxy-routes.spec.ts fails until it is).
  */
 export const ownPages = new Set(["currencies", "weather", "services", "contact", "search", "newsletter", "team", "faq", "advertise", "sitemap"]);
+// (/video is checked as a list: its filter and its pages, below.)
 
 /** The site's own pages of more than one part that are no section's, list's or article's: left to their routes. */
 export const ownPaths = new Set(["/newsletter/unsubscribe"]);
@@ -227,6 +232,34 @@ async function checkSection(request: NextRequest, match: RegExpExecArray) {
   return verdict.kind === "missing" ? missing(request) : NextResponse.next();
 }
 
+/**
+ * The video library (/video, /video/page/{n}, ?section=): a page past the last, or a section with no videos, is a 404;
+ * /page/1 moves to the library's own address. Only the section filter is read.
+ */
+async function checkVideoLibrary(request: NextRequest, match: RegExpExecArray) {
+  const rawPage = match[1];
+  const section = request.nextUrl.searchParams.get("section");
+  const search = section ? `?${new URLSearchParams({ section })}` : "";
+  if (rawPage === "1") return NextResponse.redirect(new URL(`/video${search}`, request.url), { status: 301 });
+  if ((rawPage !== undefined && !/^[1-9]\d{0,4}$/.test(rawPage)) || (section !== null && !/^[a-z0-9-]{1,60}$/.test(section))) return missing(request);
+  if (!rawPage && !section) return NextResponse.next();
+
+  const key = `${request.nextUrl.pathname}${search}`;
+  let verdict = recall(key);
+  if (!verdict) {
+    const query = new URLSearchParams({ page: rawPage ?? "1" });
+    if (section) query.set("section", section);
+    const answer = await platform(`/videos?${query}`, "GET");
+    if (!answer || answer.status !== 200) return NextResponse.next();
+    const body = (await answer.json().catch(() => null)) as { data?: unknown[] } | null;
+    if (!Array.isArray(body?.data)) return NextResponse.next();
+    verdict = body.data.length > 0 ? { kind: "page" } : { kind: "missing" };
+    remember(key, verdict);
+  }
+
+  return verdict.kind === "missing" ? missing(request) : NextResponse.next();
+}
+
 /** Whether a currency's or a city's page exists: the platform's own address for it answers 200 or 404 (HEAD). */
 async function askPlatform(path: string): Promise<Verdict | null> {
   const answer = await platform(path, "HEAD");
@@ -273,7 +306,7 @@ function checkCity(request: NextRequest, slug: string) {
 export const leftAlone = ["_next", "api", "feeds", "sitemaps", "lab", "brand", "og"] as const;
 
 /** What an address is, as this check reads it, before asking the platform anything. */
-export type RouteKind = "left-alone" | "indexnow" | "currency" | "city" | "service" | "page" | "list" | "section" | "article" | "sub-route" | "not-a-page";
+export type RouteKind = "left-alone" | "indexnow" | "video-library" | "video" | "playlist" | "character" | "currency" | "city" | "service" | "page" | "list" | "section" | "article" | "sub-route" | "not-a-page";
 
 /**
  * The IndexNow key file (/{INDEXNOW_KEY}.txt): search engines read it to trust the platform's IndexNow pings. Its
@@ -299,6 +332,10 @@ export function routeOf(pathname: string): RouteKind {
   if (currencyPage.test(pathname)) return "currency";
   if (cityPage.test(pathname)) return "city";
   if (servicePage.test(pathname)) return "service";
+  if (videoLibrary.test(pathname)) return "video-library";
+  if (videoPage.test(pathname)) return "video";
+  if (playlistPage.test(pathname)) return "playlist";
+  if (characterPage.test(pathname)) return "character";
   if (/^\/(category|tag|author|guest)\//.test(pathname)) return "list";
   if (sectionList.test(pathname)) return "section";
   if (article.test(pathname)) return "article";
@@ -333,6 +370,18 @@ export async function proxy(request: NextRequest) {
     case "service": {
       const segment = encodeURIComponent(decoded(servicePage.exec(pathname)![1]));
       return checkPage(request, `/services/${segment}`, `/services/${segment}`);
+    }
+    case "video-library":
+      return checkVideoLibrary(request, videoLibrary.exec(pathname)!);
+    case "video":
+      return checkPage(request, pathname, `/videos/${videoPage.exec(pathname)![1]}`);
+    case "playlist": {
+      const segment = encodeURIComponent(decoded(playlistPage.exec(pathname)![1]));
+      return checkPage(request, `/video/playlists/${segment}`, `/playlists/${segment}`);
+    }
+    case "character": {
+      const segment = encodeURIComponent(decoded(characterPage.exec(pathname)![1]));
+      return checkPage(request, `/awareness/characters/${segment}`, `/characters/${segment}`);
     }
     case "page": {
       const segment = encodeURIComponent(decoded(onePart.exec(pathname)![1]));

@@ -13,6 +13,7 @@ const seo: {
   pages: { data: { path: string }[] };
   posts: { data: { path: string }[] };
   news: { data: { title: string }[] };
+  videos: { data: unknown[] };
   llms: { data: { name: string; groups: { title: string }[] } };
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/seo.json", "utf8"));
 const site = "https://example.org";
@@ -39,7 +40,6 @@ test("llms.txt: the name, the groups of links with full addresses, and where the
   expect(text).toContain(`## ${seo.llms.data.groups[0].title}`);
   expect(text).toMatch(new RegExp(`- \\[[^\\]]+\\]\\(${site}/`));
   expect(text).toContain(`${site}/feeds/posts`);
-  expect(text).not.toMatch(/\/video|\/awareness\/characters\//);
 });
 
 test("the sitemap: an index of its parts; every address in them answers 200; nothing noindex, nothing not built yet, no lab", async ({ request }) => {
@@ -47,7 +47,7 @@ test("the sitemap: an index of its parts; every address in them answers 200; not
   expect(index.status()).toBe(200);
   expect(index.headers()["content-type"]).toContain("xml");
   const parts = locs(await index.text());
-  expect(parts).toEqual([`${site}/sitemaps/pages.xml`, `${site}/sitemaps/posts-1.xml`, `${site}/sitemaps/news.xml`]);
+  expect(parts).toEqual([`${site}/sitemaps/pages.xml`, `${site}/sitemaps/posts-1.xml`, `${site}/sitemaps/news.xml`, `${site}/sitemaps/videos.xml`]);
 
   const all: string[] = [];
   for (const part of parts) {
@@ -55,11 +55,12 @@ test("the sitemap: an index of its parts; every address in them answers 200; not
     expect(response.status(), part).toBe(200);
     all.push(...locs(await response.text()));
   }
-  // The pages the platform lists that the site does not serve yet are left out; so are /lab and noindex pages.
-  expect(all.some((u) => /\/video(\/|$)|\/awareness\/characters\//.test(u))).toBe(false);
+  // No /lab and no noindex page; the video pages and the characters' pages are in.
+  expect(all.some((u) => /\/awareness\/characters\//.test(u))).toBe(true);
+  expect(all.some((u) => /\/video\/\d+$/.test(u))).toBe(true);
   expect(all.some((u) => /\/(lab|search|newsletter)(\/|$)/.test(new URL(u).pathname))).toBe(false);
   for (const page of ["/currencies/usd", "/services", "/about", "/weather", "/podcast"]) expect(all).toContain(`${site}${encodeURI(page)}`);
-  expect(all.length).toBe(seo.pages.data.filter((p) => !/^\/(video|awareness\/characters)/.test(p.path)).length + seo.posts.data.length + seo.news.data.length);
+  expect(all.length).toBe(seo.pages.data.length + seo.posts.data.length + seo.news.data.length + seo.videos.data.length);
   for (const url of all) {
     const path = new URL(url).pathname;
     expect((await request.get(path, { maxRedirects: 0 })).status(), decodeURI(path)).toBe(200);
@@ -74,10 +75,12 @@ test("the news sitemap carries Google News' publication, date and title, escaped
   expect(text).toMatch(/<news:publication_date>\d{4}-\d{2}-\d{2}T/);
 });
 
-test("an unknown sitemap part, or a page of items past the last, is a 404; the videos' part waits for the video pages", async ({ request }) => {
+test("an unknown sitemap part, or a page of items past the last, is a 404; the videos' part names each video", async ({ request }) => {
   for (const path of ["/sitemaps/nope.xml", "/sitemaps/posts-2.xml", "/sitemaps/posts-0.xml"]) expect((await request.get(path)).status(), path).toBe(404);
   const videos = await (await request.get("/sitemaps/videos.xml")).text();
-  expect(locs(videos)).toEqual([]);
+  expect(videos).toContain('xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"');
+  expect(locs(videos)).toHaveLength(seo.videos.data.length);
+  expect(videos).toMatch(/<video:title>[^<]+<\/video:title>/);
 });
 
 test("the site's RSS feed", async ({ request }) => {

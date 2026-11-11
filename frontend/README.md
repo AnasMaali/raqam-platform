@@ -164,6 +164,14 @@ hidden. The routes `/api/stats` and `/api/ads/impressions` take the site's own p
 visitor's address and browser, work out the post's id from the address (never from the browser), and always answer 204.
 Ad clicks go through the platform's signed counting link (the slot's `click_url`).
 
+## Video and characters
+
+`/video` (and `/video/page/{n}`, `?section=`), `/video/{id}`, `/video/playlists/{slug}` and
+`/awareness/characters/{slug}` read the platform's `/videos`, `/playlists` and `/characters`
+(`src/lib/server/videos.ts`). `src/proxy.ts` answers 404 for an unknown video, playlist or character, a library page past
+the last and a section without videos, and 301 for `/video/page/1`. A filtered library is noindex and points to
+`/video`. The video card (`src/components/video/VideoCard.tsx`) is shared with the home page's video chapter.
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go
