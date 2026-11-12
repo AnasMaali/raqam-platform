@@ -68,6 +68,9 @@ export type City = {
   name: string;
   path: string;
   is_default: boolean;
+  /** For the nearest city, computed in the browser (12.5). */
+  latitude?: number;
+  longitude?: number;
   now: {
     temperature: number;
     condition: WeatherCondition;

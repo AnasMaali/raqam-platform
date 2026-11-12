@@ -6,6 +6,7 @@ import { Breadcrumbs, type Crumb } from "@/components/article/ArticleParts";
 import { marketMetadata } from "@/components/markets/MarketsParts";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { WeatherIcon } from "@/components/weather/WeatherIcon";
+import { RememberCity } from "@/components/weather/CityChoice";
 import { CityNow, Forecast, WeatherCredit } from "@/components/weather/WeatherParts";
 import { formatDegrees } from "@/lib/format";
 import { getCityList, getCityReadings, getCityWeather } from "@/lib/server/markets";
@@ -93,6 +94,9 @@ export default async function CityWeatherPage({ params }: PageProps<"/weather/[s
       <div className="mx-auto max-w-page px-4 pt-2 pb-12 sm:px-6 lg:px-8">
         <Breadcrumbs crumbs={crumbs} />
         <h1 className="mt-2 text-title font-bold">{headline}</h1>
+        <div className="mt-3">
+          <RememberCity slug={city.slug} name={city.name} />
+        </div>
         <div className="mt-6 grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
           <div className="flex flex-col gap-10">
             <CityNow city={city} />

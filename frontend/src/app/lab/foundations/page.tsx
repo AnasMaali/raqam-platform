@@ -183,13 +183,13 @@ async function Foundations() {
           <Section id="weather" title="الطقس">
             <div className="grid gap-10 md:grid-cols-3">
               <State title="العادي">
-                <WeatherWidget data={s.weather} headingLevel={3} />
+                <WeatherWidget data={s.weather} headingLevel={3} id="weather-lab-1" />
               </State>
               <State title="قراءة قديمة">
-                <WeatherWidget data={s.staleWeather} headingLevel={3} others={2} />
+                <WeatherWidget data={s.staleWeather} headingLevel={3} others={2} id="weather-lab-2" />
               </State>
               <State title="مدينة وحدة">
-                <WeatherWidget data={s.lonelyWeather} headingLevel={3} />
+                <WeatherWidget data={s.lonelyWeather} headingLevel={3} id="weather-lab-3" />
               </State>
             </div>
           </Section>
