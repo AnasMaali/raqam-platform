@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { Breadcrumbs, type Crumb } from "@/components/article/ArticleParts";
 import { marketMetadata } from "@/components/markets/MarketsParts";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { NearestCity } from "@/components/weather/CityChoice";
 import { CityGrid, WeatherCredit } from "@/components/weather/WeatherParts";
 import { getCityReadings } from "@/lib/server/markets";
 import { weatherStructuredData } from "@/lib/server/structured-data";
@@ -59,6 +60,11 @@ export default async function WeatherPage() {
         <header className="mt-2">
           <h1 className="text-title font-bold">{headline}</h1>
           <p className="mt-2 max-w-text text-lead text-muted">الطقس الآن في كل مدينة. افتح المدينة لترى الصغرى والعظمى والرطوبة والرياح وتوقعات الأيام الخمسة.</p>
+          <div className="mt-4">
+            <NearestCity
+              cities={cities.flatMap((c) => (c.latitude !== undefined && c.longitude !== undefined ? [{ slug: c.slug, path: c.path, name: c.name, latitude: c.latitude, longitude: c.longitude }] : []))}
+            />
+          </div>
         </header>
         <h2 className="sr-only">المدن</h2>
         <div className="mt-8">
