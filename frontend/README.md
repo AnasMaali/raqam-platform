@@ -42,6 +42,12 @@ The build needs the API: a failed request while building stops it, so a page fra
 - **Newsletter.** `/api/newsletter/{subscribe,resend,confirm}` add the site token and the visitor's address and keep the
   platform's challenge in an httpOnly cookie. They accept JSON from the site's own pages only (Origin). The form needs
   `TURNSTILE_SITE_KEY`; the content security policy (hardening) must allow `challenges.cloudflare.com`.
+- **Chat.** While the platform's `chatbot` switch is on, every page has the chat's button, drawn on the server and
+  fixed to the corner. The chat's window, code and styles load only when it is pressed (`import()` in
+  `src/components/chat/ChatLauncher.tsx`). `/api/chat` reads the welcome (GET) and passes messages on (POST), adding the
+  site token and the visitor's address. It refuses any other Origin with 403 and is never cached. Answers go back as
+  text only (`src/lib/chat.ts`): never the platform's HTML, a link only for a path of this site, and WhatsApp only as a
+  `https://wa.me/` link. The conversation's key lives in the open window only.
 
 ## Articles
 
