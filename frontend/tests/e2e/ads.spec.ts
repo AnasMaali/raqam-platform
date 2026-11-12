@@ -105,6 +105,8 @@ test.describe("the popup", () => {
     const link = popup(page).getByRole("link", { name: "إعلان: شركة تجريبية للمنبثق" });
     await expect(link).toHaveAttribute("href", `${fakeApi}/api/v1/ads/click/9001/popup/fake-signature`);
     await expect(link).toHaveAttribute("rel", "sponsored noopener");
+    // Measured once the opening (a slight scale) has finished.
+    await popup(page).evaluate((dialog) => Promise.all(dialog.getAnimations({ subtree: true }).map((a) => a.finished)));
     expect(await smallTargets(page, "dialog[data-ad-popup]")).toEqual([]);
     const shown = Number(await page.evaluate((key) => localStorage.getItem(key), shownKey));
     expect(Math.abs(Date.now() - shown)).toBeLessThan(60_000);
