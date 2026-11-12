@@ -48,7 +48,7 @@ export function NavDisclosure({ label, children }: { label: string; children: Re
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex min-h-11 items-center gap-1 hover:text-brand aria-expanded:text-brand"
+        className="inline-flex min-h-11 items-center gap-1 hover:text-brand aria-expanded:text-brand group-data-current:text-brand group-data-current:underline group-data-current:decoration-2 group-data-current:underline-offset-8"
       >
         {label}
         <Icon name="down" size={16} className={open ? "rotate-180" : undefined} />

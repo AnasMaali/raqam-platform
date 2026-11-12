@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { expect, type Locator, test } from "@playwright/test";
 
 import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
@@ -207,6 +209,94 @@ test.describe("the menu", () => {
     await expect(sections).toHaveAttribute("aria-expanded", "false");
     await expect(nav.getByRole("link", { name: "البودكاست" })).toBeHidden();
     await expect(sections).toBeFocused();
+  });
+});
+
+test.describe("the menu marks the page being read", () => {
+  const article = encodeURI("/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي");
+  const episode = (JSON.parse(readFileSync("tests/fake-api/fixtures/posts/282.json", "utf8")) as { data: { path: string } }).data.path;
+
+  /** The labels of the marked links in a menu. */
+  const marked = (nav: Locator) => nav.locator("a[aria-current='page']").evaluateAll((all) => all.map((a) => a.textContent?.trim()));
+
+  test("from 1024 px: its own page, a page under it, a news item's category, a section's item; none at home", async ({ page }, info) => {
+    test.skip(!wide(info.project.use.viewport?.width ?? 0), "below 1024 px the menu is in the sheet");
+    const nav = page.locator("header > nav[data-site-menu]");
+    for (const [path, label] of [
+      ["/currencies", "العملات"],
+      ["/currencies/usd", "العملات"],
+      ["/video/23", "فيديو"],
+      [encodeURI("/category/طاقة"), "طاقة"],
+      [article, "طاقة"],
+    ] as const) {
+      await page.goto(path);
+      await expect.poll(() => marked(nav), path).toEqual([label]);
+    }
+    // A section's item: the section in the list, and the list's button shows it.
+    await page.goto(encodeURI(episode));
+    await expect.poll(() => marked(nav)).toEqual(["البودكاست"]);
+    await expect(nav.locator("li[data-menu-group]")).toHaveAttribute("data-current", "");
+    await page.goto("/");
+    await expect(nav.locator("a[aria-current]")).toHaveCount(0);
+    await expect(nav.locator("li[data-menu-group][data-current]")).toHaveCount(0);
+  });
+
+  test("from 1024 px: the mark follows a move inside the site, and changes the colour and the underline, never the size", async ({ page }, info) => {
+    test.skip(!wide(info.project.use.viewport?.width ?? 0), "below 1024 px the menu is in the sheet");
+    await page.goto("/currencies/usd");
+    const nav = page.locator("header > nav[data-site-menu]");
+    const link = nav.getByRole("link", { name: "العملات", exact: true });
+    await expect(link).toHaveAttribute("aria-current", "page");
+    const style = (l: Locator) => l.evaluate((a) => ({ line: getComputedStyle(a).textDecorationLine, color: getComputedStyle(a).color, weight: getComputedStyle(a).fontWeight }));
+    const plain = nav.getByRole("link", { name: "الطقس", exact: true });
+    const [on, off] = [await style(link), await style(plain)];
+    expect(on.line).toBe("underline");
+    expect(off.line).toBe("none");
+    expect(on.color).not.toBe(off.color);
+    expect(on.weight).toBe(off.weight);
+    // Every link keeps its place and size with the mark and without it.
+    const boxes = () => nav.locator("a, button").evaluateAll((all) => all.map((e) => e.getBoundingClientRect()).map((r) => [r.x, r.y, r.width, r.height].map(Math.round).join()));
+    const withMark = await boxes();
+    await link.evaluate((a) => a.removeAttribute("aria-current"));
+    expect(await boxes()).toEqual(withMark);
+    await link.evaluate((a) => a.setAttribute("aria-current", "page"));
+
+    await plain.click();
+    await expect(page).toHaveURL(/\/weather$/);
+    await expect(plain).toHaveAttribute("aria-current", "page");
+    await expect(link).not.toHaveAttribute("aria-current", "page");
+  });
+
+  test("the mark moves nothing on the page: no layout shift in the header while the page loads", async ({ page }) => {
+    await page.goto("/currencies/usd");
+    await expect(page.locator("header a[aria-current='page']").first()).toBeAttached();
+    const shifts = await page.evaluate(
+      () =>
+        new Promise<number>((resolve) => {
+          let total = 0;
+          new PerformanceObserver((list) => {
+            for (const entry of list.getEntries() as (PerformanceEntry & { value: number; sources?: { node?: Node }[] })[]) {
+              if (entry.sources?.some((s) => s.node && document.querySelector("header")?.contains(s.node))) total += entry.value;
+            }
+          }).observe({ type: "layout-shift", buffered: true });
+          setTimeout(() => resolve(total), 500);
+        }),
+    );
+    expect(shifts).toBe(0);
+  });
+
+  test("below 1024 px: the sheet marks the page, a news item's category too", async ({ page }, info) => {
+    test.skip(wide(info.project.use.viewport?.width ?? 0), "from 1024 px the menu is in the header");
+    for (const [path, label] of [
+      [encodeURI("/weather/نابلس"), "الطقس"],
+      [article, "طاقة"],
+    ] as const) {
+      await page.goto(path);
+      await page.getByRole("button", { name: "القائمة" }).click();
+      const sheet = page.getByRole("dialog", { name: "القائمة" });
+      await expect.poll(() => marked(sheet.locator("nav"))).toEqual([label]);
+      await expect(sheet.getByRole("link", { name: label, exact: true })).toHaveCSS("text-decoration-line", "underline");
+    }
   });
 });
 

@@ -6,6 +6,7 @@ import { HeaderLogo } from "../brand/Logo";
 import { ThemeChoice, ThemeToggle } from "../theme/ThemeControls";
 import { Icon } from "../ui/Icon";
 
+import { CurrentPage } from "./CurrentPage";
 import { MobileMenu } from "./MobileMenu";
 import { NavDisclosure } from "./NavDisclosure";
 
@@ -32,22 +33,22 @@ const withoutHome = (items: MenuItem[]) => items.filter((item) => item.href !== 
 /** From 1024 px: the header's second row, the platform's menu in one line. */
 function DesktopNav({ items }: { items: MenuItem[] }) {
   return (
-    <nav aria-label="القائمة الرئيسية" className="hidden border-t border-line lg:block">
+    <nav aria-label="القائمة الرئيسية" data-site-menu className="hidden border-t border-line lg:block">
       <ul className="mx-auto flex max-w-page flex-wrap items-center gap-x-6 px-8 text-small font-medium">
         {withoutHome(items).map((item) => (
-          <li key={item.label}>
+          <li key={item.label} {...(item.children.length > 0 ? { "data-menu-group": "", className: "group" } : {})}>
             {item.children.length > 0 ? (
               <NavDisclosure label={item.label}>
                 <ul>
                   {item.children.map((child) => (
                     <li key={child.label}>
-                      <MenuLink item={child} className="flex min-h-11 items-center px-4 hover:bg-tint hover:text-brand" />
+                      <MenuLink item={child} className="flex min-h-11 items-center px-4 hover:bg-tint hover:text-brand aria-[current=page]:text-brand aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8" />
                     </li>
                   ))}
                 </ul>
               </NavDisclosure>
             ) : (
-              <MenuLink item={item} className="inline-flex min-h-11 min-w-11 items-center justify-center hover:text-brand" />
+              <MenuLink item={item} className="inline-flex min-h-11 min-w-11 items-center justify-center hover:text-brand aria-[current=page]:text-brand aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8" />
             )}
           </li>
         ))}
@@ -60,10 +61,10 @@ function DesktopNav({ items }: { items: MenuItem[] }) {
 function MenuSheet({ items }: { items: MenuItem[] }) {
   const singles = withoutHome(items).filter((item) => item.children.length === 0);
   const groups = items.filter((item) => item.children.length > 0);
-  const row = "flex min-h-12 items-center border-b border-line hover:text-brand";
+  const row = "flex min-h-12 items-center border-b border-line hover:text-brand aria-[current=page]:text-brand aria-[current=page]:underline aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8";
 
   return (
-    <nav aria-label="القائمة الرئيسية">
+    <nav aria-label="القائمة الرئيسية" data-site-menu>
       <ul className="font-medium">
         <li>
           <Link href="/" className={row}>
@@ -123,6 +124,7 @@ export function SiteHeader({ menus }: { menus: Menus | null }) {
         </div>
       </div>
       {items.length > 0 && <DesktopNav items={items} />}
+      {items.length > 0 && <CurrentPage />}
     </header>
   );
 }

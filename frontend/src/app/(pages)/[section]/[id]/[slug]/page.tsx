@@ -23,6 +23,7 @@ import {
 import styles from "@/components/article/ArticleBody.module.css";
 import { CompactCard } from "@/components/cards/PostCard";
 import { NewsletterBlock } from "@/components/newsletter/NewsletterBlock";
+import { NavPlace } from "@/components/site/CurrentPage";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Icon } from "@/components/ui/Icon";
 import { markSponsoredLinks, splitAfterParagraph } from "@/lib/body";
@@ -151,6 +152,7 @@ export default async function ArticlePage({ params }: { params: Params }) {
   return (
     <>
       <article className="mx-auto max-w-page px-4 pt-2 pb-12 sm:px-6 lg:px-8">
+        {parent && <NavPlace path={parent.path} />}
         <div className="lg:grid lg:grid-cols-12 lg:gap-10">
           <div className="min-w-0 lg:col-span-8">
             <Breadcrumbs crumbs={crumbs} />
