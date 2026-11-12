@@ -4,11 +4,13 @@ import type { Crumb } from "@/components/article/ArticleParts";
 import { PageHeader, PageJsonLd, noSeo, pageMetadata } from "@/components/pages/PageParts";
 import { getCategories, getPageList } from "@/lib/server/pages";
 import { getRatesBoard, getSections, getWeather } from "@/lib/server/site-data";
+import { getPlaylists } from "@/lib/server/videos";
 
 /*
  * The sitemap for visitors (decision 28, page inventory: /sitemap): every part of the site on one page, from the
- * platform's lists (the sections, the categories with their children, the published pages, the currencies, the cities),
- * so a reader (or a screen reader) can see the whole site at once. The XML sitemap for search engines is /sitemap.xml.
+ * platform's lists (the sections, the categories with their children, the video library's playlists, the published
+ * pages, the currencies, the cities), so a reader (or a screen reader) can see the whole site at once. The XML sitemap
+ * for search engines is /sitemap.xml.
  * A list the platform does not answer is left out for that visit; the rest of the page still shows.
  */
 export const instant = false;
@@ -35,7 +37,14 @@ async function softly<T>(load: () => Promise<T>): Promise<T | null> {
 }
 
 async function groups(): Promise<{ id: string; title: string; entries: Entry[] }[]> {
-  const [sections, categories, pages, board, weather] = await Promise.all([getSections(), softly(getCategories), softly(getPageList), getRatesBoard(), getWeather()]);
+  const [sections, categories, playlists, pages, board, weather] = await Promise.all([
+    getSections(),
+    softly(getCategories),
+    softly(getPlaylists),
+    softly(getPageList),
+    getRatesBoard(),
+    getWeather(),
+  ]);
 
   return [
     { id: "map-sections", title: "الأخبار والأقسام", entries: [{ name: "الأخبار", path: "/news" }, ...(sections ?? []).map((s) => ({ name: s.name, path: `/${s.slug}` }))] },
@@ -43,6 +52,11 @@ async function groups(): Promise<{ id: string; title: string; entries: Entry[] }
       id: "map-categories",
       title: "التصنيفات",
       entries: (categories ?? []).map((c) => ({ name: c.name, path: `/category/${c.slug}`, children: c.children.map((k) => ({ name: k.name, path: `/category/${k.slug}` })) })),
+    },
+    {
+      id: "map-video",
+      title: "الفيديو",
+      entries: [{ name: "مكتبة الفيديو", path: "/video", children: (playlists ?? []).map((p) => ({ name: p.name, path: `/video/playlists/${p.slug}` })) }],
     },
     {
       id: "map-markets",
