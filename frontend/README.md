@@ -178,8 +178,10 @@ The popup and the phone's bar (`src/components/ads/FloatingAds.tsx`) exist only 
 (`src/lib/server/floating-ads.ts`). Their code loads with `import()` after the page's load, when the browser is idle,
 and only at the width each one shows at. Between 768 and 1023 px there is neither.
 
-- **The phone's bar** (below 768 px) is fixed to the bottom, above the phone's own bar (`safe-area-inset-bottom`). The
-  server keeps its place from the first paint, so its arrival moves nothing. `data-ad-bar` and `--ad-bar-h` go on the
+- **The phone's bar** (below 768 px) is fixed to the bottom, above the phone's own bar (`safe-area-inset-bottom`). It is
+  drawn at the visitor's first scroll, press or key, when the browser stops looking for the largest paint: a picture
+  arriving later on a page whose largest paint is text would otherwise become its LCP. The server keeps its place from
+  the first paint, so its arrival moves nothing. `data-ad-bar` and `--ad-bar-h` go on the
   body, then `globals.css` adds the body's padding (the footer ends above the bar) and raises `--float-bottom` (the
   chat's button and «للأعلى» sit above it).
 - **The popup** (from 1024 px) is the browser's modal dialog. It opens after the visitor's first scroll, press or key,

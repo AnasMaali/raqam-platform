@@ -1,12 +1,13 @@
-import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
 import { fakeApi, smallTargets } from "./helpers";
 
 /*
  * The two floating ads (13.2), on in the fake API with one made-up campaign each (tests/fake-api/server.mjs): the
  * popup from 1024 px only, opened by the visitor's first interaction and at most once in its frequency (24 hours); the
- * bar at the bottom of a phone's screen, below the raised buttons and the footer's end. Neither's code loads before the
- * page has loaded, and neither moves anything. Every other test starts as a visitor who has just seen the popup
+ * bar at the bottom of a phone's screen, drawn at the first interaction, below the raised buttons and the footer's end.
+ * Neither's code loads before the page has loaded, neither is ever the page's largest paint (LCP), and neither moves
+ * anything. Every other test starts as a visitor who has just seen the popup
  * (playwright.config.ts); these start with an empty browser.
  */
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -62,6 +63,14 @@ async function scrollABit(page: Page) {
   await page.evaluate(() => window.scrollBy(0, 300));
 }
 
+/** Scrolls a little until `shown` appears: a scroll before the page's own code is ready is not seen, as for a visitor. */
+async function scrollUntil(page: Page, shown: Locator) {
+  await expect(async () => {
+    await scrollABit(page);
+    await expect(shown).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
+}
+
 /** A press on the page's edge, where there is nothing to follow. */
 const pressThePage = (page: Page) => page.mouse.click(2, 300);
 
@@ -90,8 +99,7 @@ test.describe("the popup", () => {
     await expect(popup(page)).toHaveCount(1);
     await expect(popup(page)).toBeHidden();
 
-    await scrollABit(page);
-    await expect(popup(page)).toBeVisible();
+    await scrollUntil(page, popup(page));
     await expect(popup(page).getByText("إعلان", { exact: true })).toBeVisible();
     await expect(popup(page).getByRole("button", { name: "إغلاق الإعلان" })).toBeFocused();
     const link = popup(page).getByRole("link", { name: "إعلان: شركة تجريبية للمنبثق" });
@@ -120,10 +128,10 @@ test.describe("the popup", () => {
       await page.evaluate(([key, at]) => localStorage.setItem(key, String(at)), [shownKey, Date.now() - ago] as const);
       await arrive(page);
       await popupLoaded(page);
-      await scrollABit(page);
-      await pressThePage(page);
-      if (opens) await expect(popup(page)).toBeVisible();
+      if (opens) await scrollUntil(page, popup(page));
       else {
+        await scrollABit(page);
+        await pressThePage(page);
         await page.waitForTimeout(1500);
         await expect(popup(page)).toBeHidden();
       }
@@ -140,8 +148,7 @@ test.describe("the popup", () => {
     await expect(popup(page)).toBeHidden();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog", { name: "المساعد" })).toBeHidden();
-    await scrollABit(page);
-    await expect(popup(page)).toBeVisible();
+    await scrollUntil(page, popup(page));
   });
 
   test.describe(() => {
@@ -155,8 +162,7 @@ test.describe("the popup", () => {
       await popupLoaded(page);
       await page.waitForTimeout(3000);
       expect(await seenIn(request, agent, "popup")).toEqual([]);
-      await scrollABit(page);
-      await expect(popup(page)).toBeVisible();
+      await scrollUntil(page, popup(page));
       await expect.poll(() => seenIn(request, agent, "popup")).toEqual([{ campaign_id: 9001, placement: "popup", token: true }]);
     });
   });
@@ -167,11 +173,15 @@ test.describe("the phone's bar", () => {
     const agent = `Mozilla/5.0 (raqam-test ads-bar ${Date.now()}-${Math.random()})`;
     test.use({ userAgent: agent });
 
-    test("below 768 px: at the bottom, says «إعلان», loads after the page, and is counted through the site's route", async ({ page, request }) => {
+    test("below 768 px: drawn at the first interaction, at the bottom, says «إعلان», and is counted through the site's route", async ({ page, request }) => {
       test.skip(!isPhone(page), "phone");
       const scripts = recordScripts(page);
       await arrive(page);
-      await expect(bar(page)).toBeVisible();
+      // Nothing done: no bar and none of its code.
+      await page.waitForTimeout(2500);
+      await expect(bar(page)).toHaveCount(0);
+      expect(scripts.holding(markers.bar)).toEqual([]);
+      await scrollUntil(page, bar(page));
       expect(scripts.holding(markers.bar)).toHaveLength(1);
       expect(await scripts.afterLoad(scripts.holding(markers.bar)[0])).toBe(true);
 
@@ -187,10 +197,30 @@ test.describe("the phone's bar", () => {
     });
   });
 
+  test("below 768 px a scroll while the page is still loading draws the bar only after the load", async ({ page }) => {
+    test.skip(!isPhone(page), "phone");
+    // The pictures held back, so the page is still loading while the visitor scrolls.
+    await page.route("**/media/**", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4000));
+      await route.continue();
+    });
+    const scripts = recordScripts(page);
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    for (let i = 0; i < 6; i++) {
+      await page.waitForTimeout(300);
+      await page.evaluate(() => window.scrollBy(0, 40));
+    }
+    expect(await page.evaluate(() => document.readyState), "the scrolls came before the load").not.toBe("complete");
+    await page.waitForLoadState("load");
+    await expect(bar(page)).toBeVisible({ timeout: 10_000 });
+    expect(scripts.holding(markers.bar)).toHaveLength(1);
+    expect(await scripts.afterLoad(scripts.holding(markers.bar)[0])).toBe(true);
+  });
+
   test("below 768 px it covers neither the chat's button, nor «للأعلى», nor the footer's end", async ({ page }) => {
     test.skip(!isPhone(page), "phone");
     await arrive(page);
-    await expect(bar(page)).toBeVisible();
+    await scrollUntil(page, bar(page));
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const top = page.getByRole("link", { name: "للأعلى" });
     await expect(top).toBeVisible();
@@ -210,6 +240,8 @@ test.describe("the phone's bar", () => {
     expect(await (await request.get("/")).text()).toContain('data-ad-bar="" style="--ad-bar-h:58px"');
     const scripts = recordScripts(page);
     await arrive(page);
+    await scrollABit(page);
+    await pressThePage(page);
     await page.waitForTimeout(2500);
     await expect(bar(page)).toHaveCount(0);
     expect(scripts.holding(markers.bar)).toEqual([]);
@@ -219,13 +251,16 @@ test.describe("the phone's bar", () => {
   });
 });
 
-test("the bar's arrival, the popup opening and closing move nothing on the page (CLS 0)", async ({ page }) => {
+test("the bar's arrival, the popup opening and closing move nothing on the page (CLS 0 after the load)", async ({ page }) => {
   await page.addInitScript(() => {
     const record = window as unknown as { shifted: number; moved: string[] };
     record.shifted = 0;
     record.moved = [];
     new PerformanceObserver((list) => {
+      const load = (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.loadEventStart || Infinity;
       for (const entry of list.getEntries() as (PerformanceEntry & { value: number; sources?: { node?: Node }[] })[]) {
+        // Every ad's code runs after the load event, so only what moves from then on can be theirs.
+        if (entry.startTime < load) continue;
         record.shifted += entry.value;
         for (const source of entry.sources ?? []) {
           const node = source.node as HTMLElement | undefined;
@@ -235,11 +270,12 @@ test("the bar's arrival, the popup opening and closing move nothing on the page 
     }).observe({ type: "layout-shift", buffered: true });
   });
   await arrive(page);
-  if (isPhone(page)) await expect(bar(page)).toBeVisible();
+  if (isPhone(page)) {
+    await scrollUntil(page, bar(page));
+  }
   if (isWide(page)) {
     await popupLoaded(page);
-    await scrollABit(page);
-    await expect(popup(page)).toBeVisible();
+    await scrollUntil(page, popup(page));
     await page.keyboard.press("Escape");
     await expect(popup(page)).toBeHidden();
   }
@@ -250,4 +286,27 @@ test("the bar's arrival, the popup opening and closing move nothing on the page 
     return { shifted: record.shifted, moved: record.moved };
   });
   expect(shifted, moved.join("; ")).toBe(0);
+});
+
+test("neither is ever the page's largest paint (LCP), even on a page whose largest paint is text", async ({ page }) => {
+  await page.addInitScript(() => {
+    const record = window as unknown as { largest: string[] };
+    record.largest = [];
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries() as (PerformanceEntry & { element?: Element | null })[])
+        record.largest.push(entry.element?.closest("[data-ad-bar-box], dialog[data-ad-popup]") ? "ad" : (entry.element?.nodeName ?? "?"));
+    }).observe({ type: "largest-contentful-paint", buffered: true });
+  });
+  // At the phone width Lighthouse uses, /faq's largest paint (a link's text) is smaller than the bar's picture.
+  if (isPhone(page)) await page.setViewportSize({ width: 412, height: 823 });
+  await page.goto("/faq");
+  await page.waitForLoadState("load");
+  await page.waitForTimeout(2500);
+  if (isPhone(page)) await scrollUntil(page, bar(page));
+  if (isWide(page)) await scrollUntil(page, popup(page));
+  if (!isPhone(page) && !isWide(page)) await scrollABit(page);
+  await page.waitForTimeout(1000);
+  const largest = await page.evaluate(() => (window as unknown as { largest: string[] }).largest);
+  expect(largest.length).toBeGreaterThan(0);
+  expect(largest).not.toContain("ad");
 });

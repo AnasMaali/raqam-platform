@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { announceAd, type FloatingAd } from "@/lib/ads";
 
 /**
- * The bar at the bottom of a phone's screen (13.2), below 768 px only. It sits in the place the server kept for it
+ * The bar at the bottom of a phone's screen (13.2), below 768 px only, drawn at the visitor's first interaction. It sits in the place the server kept for it
  * (the body's padding and the raised buttons, globals.css), above the phone's own bar (safe-area-inset-bottom). It
  * says «إعلان», and its picture keeps the slot's shape, smaller on a screen too narrow for it.
  */
