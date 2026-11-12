@@ -192,6 +192,47 @@ const p1Routes = { "/api/v1/team": p1.team, "/api/v1/faqs": p1.faqs, "/api/v1/ad
 const pagesData = fromFile("pages");
 const presses = new Map();
 let lastContact = null;
+const chats = [];
+
+/**
+ * The chatbot's answers, by what the visitor sent. Some are what a broken or hostile platform could send (markup,
+ * `javascript:`, links that leave the site), for the site to show as text.
+ */
+function chatAnswer(body) {
+  const conversation = typeof body.conversation === "string" ? body.conversation : "test-conversation-1";
+  const reply = (fields) => ({ status: 200, body: { data: { conversation, reply: { kind: "answer", html: "", text: "", links: [], buttons: [], whatsapp: null, ...fields } } } });
+  const message = typeof body.message === "string" ? body.message : "";
+  if (body.website) return reply({ kind: "no_answer", html: "<p>لم أجد جواباً لسؤالك.</p>", text: "لم أجد جواباً لسؤالك." });
+  if (body.button === 1) {
+    return reply({ html: "<p>نقدّم الإعلان والتغطية والتصوير. التفاصيل في <a href=\"/services\">صفحة الخدمات</a>.</p>", text: "نقدّم الإعلان والتغطية والتصوير. التفاصيل في صفحة الخدمات.", buttons: [{ id: 3, label: "أعلن معنا" }] });
+  }
+  if (body.button) return reply({ kind: "live", html: "<p>أسعار اليوم في صفحة العملات.</p>", text: "أسعار اليوم في صفحة العملات.", links: [{ label: "أسعار العملات", url: "/currencies" }] });
+  if (message.includes("كثير")) return { status: 429, body: { error: { code: "too_many", message: "أرسلت رسائل كثيرة. انتظر دقيقة ثم أعد المحاولة." } } };
+  if (message.includes("سكربت")) {
+    const hostile = '<script>window.__chatRan = 1</script><img src="x" onerror="window.__chatRan = 2">جواب فيه كود';
+    return reply({ html: hostile, text: hostile });
+  }
+  if (message.includes("رابط")) {
+    return reply({
+      html: '<p>اقرأ <a href="javascript:window.__chatRan=3">هذا</a> و<a href="https://evil.example/">الموقع الآخر</a> و<a href="/about">من نحن</a> و<a href="//evil.example/x">ذاك</a>.</p>',
+      text: "اقرأ هذا والموقع الآخر ومن نحن وذاك.",
+      links: [
+        { label: "<b>اضغط هنا</b>", url: "javascript:window.__chatRan=4" },
+        { label: "موقع آخر", url: "https://evil.example/page" },
+        { label: "خبر عندنا", url: "https://example.org/news/1" },
+        { label: "خدماتنا", url: "/services" },
+      ],
+      whatsapp: "https://evil.example/wa",
+    });
+  }
+  return reply({
+    kind: "no_answer",
+    html: "<p>لم أجد جواباً لسؤالك. هذه أقرب المواد من الموقع:</p>",
+    text: "لم أجد جواباً لسؤالك. هذه أقرب المواد من الموقع:",
+    links: [{ label: "آخر الأخبار", url: "/news" }],
+    whatsapp: `https://wa.me/15555550123?text=${encodeURIComponent(`سؤالي: ${message}`)}`,
+  });
+}
 
 function pagesRoute(pathname, params) {
   if (p1Routes[pathname]) return { status: 200, body: p1Routes[pathname] };
@@ -348,6 +389,19 @@ createServer(async (request, response) => {
     presses.set(key, (presses.get(key) ?? 0) + 1);
     response.writeHead(204);
     return response.end();
+  }
+  if (url.pathname === "/api/v1/chat" && request.method === "GET") {
+    return json(200, { data: { enabled: true, welcome: "أهلاً بك! أنا المساعد. اسألني أو اختر من الأزرار.", buttons: [{ id: 1, label: "خدماتنا وأسعارها" }, { id: 2, label: "أسعار العملات اليوم" }], max_length: 500 } });
+  }
+  if (url.pathname === "/__chat") return json(200, { last: chats.findLast((c) => c.body.message === url.searchParams.get("message")) ?? null });
+  if (url.pathname === "/api/v1/chat/messages" && request.method === "POST") {
+    const visitor = { ip: request.headers["x-raqam-visitor-ip"] ?? null, token: request.headers["x-raqam-site-token"] ?? null };
+    if (!visitor.token || !visitor.ip) return json(403, { error: { code: "site_only", message: "المحادثة تُرسَل من الموقع فقط." } });
+    const body = JSON.parse((await readBody(request)) || "{}");
+    chats.push({ body, visitor });
+    if (chats.length > 500) chats.shift();
+    const answer = chatAnswer(body);
+    return json(answer.status, answer.body);
   }
   if (url.pathname === "/api/v1/contact" && request.method === "POST") {
     if (!request.headers["x-raqam-site-token"] || !request.headers["x-raqam-visitor-ip"]) return json(403, { error: { code: "site_only", message: "هذا النموذج يُرسَل من الموقع فقط." } });

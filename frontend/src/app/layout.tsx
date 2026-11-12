@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 
+import { ChatLauncher } from "@/components/chat/ChatLauncher";
 import { BackToTop } from "@/components/site/BackToTop";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -25,7 +26,7 @@ export const viewport: Viewport = {
 };
 
 /**
- * Every page's frame: the skip link, the header, the footer and «للأعلى». Each page brings its own <Main>; every page
+ * Every page's frame: the skip link, the header, the footer, «للأعلى» and the chat's button (while the chatbot is on). Each page brings its own <Main>; every page
  * but the home page also gets the thin currency strip and the breaking bar from the (pages) group.
  */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <SiteFooter menus={menus} site={site} />
         <BackToTop />
+        {site?.features?.chatbot && <ChatLauncher />}
         <ViewReporter />
       </body>
     </html>

@@ -135,6 +135,8 @@ export type Site = {
     map_url?: string | null;
   };
   social: { platform: string; name: string; url: string }[];
+  /** The switches the site acts on (21.14); a missing one is off. */
+  features?: Partial<Record<"chatbot" | "ad_popup" | "ad_mobile_sticky" | "public_view_counts", boolean>>;
 };
 
 export type Video = {
