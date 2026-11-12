@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { labUrl } from "./helpers";
+
 /*
  * The visitor's city (12.4, 12.5), against the fake API's weather (Nablus the default, Jenin's reading old): the position
  * is asked for only on a press of «أقرب مدينة لي» and never leaves the browser; the chosen city is kept in this browser
@@ -41,7 +43,16 @@ async function countPositionAsks(page: Page) {
 }
 const asks = (page: Page) => page.evaluate(() => (window as unknown as { __asks: number }).__asks);
 
-const widget = (page: Page) => page.locator("section[aria-labelledby='weather-title']");
+const widget = (page: Page) => page.locator("section[data-weather-widget]");
+const hebron = city("الخليل");
+
+/** Ids used more than once on the page. */
+const repeatedIds = (page: Page) =>
+  page.evaluate(() => {
+    const ids = [...document.querySelectorAll("[id]")].map((e) => e.id);
+
+    return ids.filter((id, i) => ids.indexOf(id) !== i);
+  });
 
 /** Makes every access to localStorage throw, as a browser that blocks the site's storage does. */
 async function blockStorage(page: Page) {
@@ -161,5 +172,53 @@ test.describe("with the site's storage blocked", () => {
     await page.getByRole("button", { name: "أقرب مدينة لي" }).click();
     await expect(page).toHaveURL(new RegExp(`${encodeURI(jenin.path)}$`));
     expect(errors).toEqual([]);
+  });
+});
+
+test.describe("the home page's widget, drawn on the server for every city", () => {
+  test("one box shown, the others hidden (out of reach of a screen reader and the keyboard); each named by its own heading; no id twice", async ({ page }) => {
+    await page.goto("/");
+    const all = widget(page).locator("[data-city]");
+    await expect(all).toHaveCount(cities.length);
+    // Every box: a group named by the heading inside it.
+    for (const box of await all.all()) {
+      const labelledBy = (await box.getAttribute("aria-labelledby"))!;
+      await expect(box).toHaveAttribute("role", "group");
+      await expect(box.locator(`[id="${labelledBy}"]`)).toHaveCount(1);
+    }
+    await expect(widget(page).locator("[data-city]:not([hidden])")).toHaveCount(1);
+    await expect(widget(page).getByRole("group")).toHaveCount(1);
+    await expect(widget(page).getByRole("group", { name: "طقس نابلس" })).toBeVisible();
+    expect(await repeatedIds(page)).toEqual([]);
+    // The keyboard reaches only what is shown: the visible list's links and «طقس كل المدن».
+    const reachable = await widget(page)
+      .locator("a")
+      .evaluateAll((links) => links.filter((a) => (a as HTMLElement).offsetParent !== null).map((a) => a.textContent?.trim()));
+    expect(reachable).toHaveLength(5);
+    await expect(widget(page).getByRole("link")).toHaveCount(5);
+  });
+
+  test("a chosen city the list does not hold: the list keeps its length and takes the default city back", async ({ page }) => {
+    await page.addInitScript(([k, slug]) => localStorage.setItem(k, slug), [key, hebron.slug]);
+    await page.goto("/");
+    await expect(widget(page).getByRole("group", { name: `طقس ${hebron.name}` })).toBeVisible();
+    await expect(widget(page).getByRole("group")).toHaveCount(1);
+    const listed = widget(page).locator("li:not([hidden])");
+    await expect(listed).toHaveCount(4);
+    await expect(listed.first()).toContainText("نابلس");
+    await expect(listed.filter({ hasText: hebron.name })).toHaveCount(0);
+  });
+
+  test("the lab's three widgets on one page share no id", async ({ page }) => {
+    await page.goto(labUrl("/lab/foundations"));
+    const widgets = page.locator("section[data-weather-widget]");
+    await expect(widgets).toHaveCount(3);
+    // The widgets' ids, against every id of the page (the lab shows some other parts twice; those are not counted).
+    const [mine, everyId] = await Promise.all([
+      widgets.evaluateAll((all) => all.flatMap((w) => [w.id, ...[...w.querySelectorAll("[id]")].map((e) => e.id)])),
+      page.evaluate(() => [...document.querySelectorAll("[id]")].map((e) => e.id)),
+    ]);
+    expect(mine.length).toBeGreaterThan(3);
+    for (const id of mine) expect(everyId.filter((x) => x === id), id).toHaveLength(1);
   });
 });

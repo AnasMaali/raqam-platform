@@ -70,7 +70,7 @@ test("rises and falls are never colour alone: an arrow and a spoken word with ev
 });
 
 test("the weather always carries its OpenWeather credit", async ({ page }) => {
-  const widgets = page.locator("section:has(> h3[id='weather-title']), section[aria-labelledby='weather-title']");
+  const widgets = page.locator("section[data-weather-widget]");
   expect(await widgets.count()).toBeGreaterThan(0);
   for (const widget of await widgets.all()) {
     await expect(widget.getByText("Weather data © OpenWeather")).toBeVisible();
