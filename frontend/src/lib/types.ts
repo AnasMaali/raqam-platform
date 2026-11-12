@@ -104,6 +104,8 @@ export type AdSlot = {
   sizes: { desktop: { width: number; height: number } | null; mobile: { width: number; height: number } | null };
   lazy: boolean;
   active: boolean;
+  /** Popup only: shown to a visitor at most once in this many hours. */
+  frequency_cap_hours: number | null;
   empty: "house" | "hide";
   ads: {
     id: number;

@@ -3,11 +3,14 @@
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
+import { whenIdle } from "@/lib/when-idle";
+
 /*
  * The site's own statistics (decision 22), without cookies and without a library. After the page has loaded and the
  * browser is idle, it reports the page view (or a missing page) to the site's route, which adds what only the server
  * knows (the visitor's address, the post's id) and passes it on. The ads on the page are reported once each, when at
- * least half of one is on screen (13.6), in batches. A new address (a client navigation) is a new view with a new view
+ * least half of one is on screen (13.6), in batches, including the ads drawn later (the popup, the phone's bar), which
+ * announce themselves (lib/ads). A new address (a client navigation) is a new view with a new view
  * id. Reports go with sendBeacon, so leaving the page never loses one and never waits for one.
  */
 
@@ -21,22 +24,6 @@ function send(url: string, body: unknown) {
   void fetch(url, { method: "POST", body: text, keepalive: true, headers: { "Content-Type": "text/plain;charset=UTF-8" } }).catch(() => undefined);
 }
 
-function whenIdle(task: () => void): () => void {
-  let cancelled = false;
-  const run = () => {
-    if (cancelled) return;
-    if ("requestIdleCallback" in window) window.requestIdleCallback(() => !cancelled && task(), { timeout: 3000 });
-    else setTimeout(() => !cancelled && task(), 200);
-  };
-  if (document.readyState === "complete") run();
-  else window.addEventListener("load", run, { once: true });
-
-  return () => {
-    cancelled = true;
-    window.removeEventListener("load", run);
-  };
-}
-
 const viewId = () => (crypto.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 64);
 
 export function ViewReporter() {
@@ -48,6 +35,13 @@ export function ViewReporter() {
     const queue: { campaign_id: number; placement: string }[] = [];
     let timer: ReturnType<typeof setTimeout> | null = null;
     let watcher: IntersectionObserver | null = null;
+
+    const watch = (event: Event) => {
+      const el = (event as CustomEvent<unknown>).detail;
+      if (watcher && el instanceof HTMLElement && el.dataset.adCampaign) watcher.observe(el);
+    };
+    // An ad announced before the watcher exists is in the page by then, and found below.
+    document.addEventListener("raqam:ad", watch);
 
     const flush = () => {
       timer = null;
@@ -90,6 +84,7 @@ export function ViewReporter() {
       stop();
       watcher?.disconnect();
       document.removeEventListener("visibilitychange", leaving);
+      document.removeEventListener("raqam:ad", watch);
       if (timer) {
         clearTimeout(timer);
         flush();

@@ -315,10 +315,42 @@ function videoRoute(pathname, params) {
   return null;
 }
 
-// Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end.
-function timeless(body) {
-  return { ...body, data: body.data.map((slot) => ({ ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) })) };
+// Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end. The popup and the
+// phone's bar (off on a new platform) are on here, each with one made-up campaign, so every test sees the site with
+// both; the switches are on in the site's answer below.
+const floatingCampaigns = {
+  popup: { id: 9001, advertiser: "شركة تجريبية للمنبثق", picture: { width: 1200, height: 1000 }, slot: "popup" },
+  mobile_sticky: { id: 9002, advertiser: "شركة تجريبية للشريط", picture: { width: 640, height: 100 }, slot: "mobile_sticky" },
+};
+
+function floatingAd({ id, advertiser, picture: { width, height }, slot }) {
+  const image = { id, mime_type: "image/jpeg", url: `http://127.0.0.1:${port}/media/floating-${slot}.jpg`, alt: "إعلان تجريبي", caption: null, credit: null, width, height, focal: null, variants: {} };
+
+  return {
+    id,
+    weight: 50,
+    advertiser,
+    starts_at: null,
+    ends_at: null,
+    images: { desktop: slot === "popup" ? image : null, mobile: image },
+    click_url: `http://127.0.0.1:${port}/api/v1/ads/click/${id}/${slot}/fake-signature`,
+    rel: "sponsored noopener",
+  };
 }
+
+function timeless(body) {
+  return {
+    ...body,
+    data: body.data.map((slot) => {
+      const floating = floatingCampaigns[slot.code];
+      if (floating) return { ...slot, active: true, ads: [floatingAd(floating)] };
+
+      return { ...slot, ads: slot.ads.map((ad) => ({ ...ad, starts_at: null, ends_at: null })) };
+    }),
+  };
+}
+
+const withFloatingAds = (body) => ({ ...body, data: { ...body.data, features: { ...body.data.features, ad_popup: true, ad_mobile_sticky: true } } });
 
 const picture = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice"><rect width="1200" height="800" fill="#dfe6f5"/><path d="M640 520h170l210-280H850z" fill="#21ceea"/><path d="M430 520h90l120-160h-90z" fill="#124fff"/></svg>`;
 
@@ -465,7 +497,7 @@ createServer(async (request, response) => {
     response.writeHead(404, { "Content-Type": "application/json" });
     return response.end(JSON.stringify({ error: { code: "not_found", message: "غير موجود" } }));
   }
-  const body = name === "ads" ? timeless(fixture(name)) : fixture(name);
+  const body = name === "ads" ? timeless(fixture(name)) : name === "site" ? withFloatingAds(fixture(name)) : fixture(name);
   response.writeHead(200, { "Content-Type": "application/json" });
   response.end(JSON.stringify(body));
 }).listen(port, "127.0.0.1", () => console.log(`Fake API on http://127.0.0.1:${port}/api/v1`));
