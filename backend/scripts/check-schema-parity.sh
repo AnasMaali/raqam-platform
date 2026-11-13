@@ -29,10 +29,12 @@ cleanup() {
 trap cleanup EXIT
 
 # Schema and data (the seed rows count too), without owners, grants, comment headers or the random \restrict key.
-# Timestamps written by now() defaults differ between the two builds, so they are masked.
+# Timestamps written by now() defaults differ between the two builds, so they are masked. PostgreSQL 16.16 also dumps
+# each column's internal version number (`ALTER COLUMN … SET (pg_attver=N)`), which differs from one database to the
+# next and says nothing about the schema: those lines go too.
 dump() {
   pg_dump --no-owner --no-privileges --exclude-table=migrations --exclude-table=migrations_id_seq "$1" \
-    | sed -E '/^\\(un)?restrict /d; /^--/d; /^$/d' \
+    | sed -E '/^\\(un)?restrict /d; /^--/d; /^$/d; /^ALTER TABLE ONLY [^ ]+ ALTER COLUMN [^ ]+ SET \(pg_attver=[0-9]+\);$/d' \
     | sed -E 's/[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?[+-][0-9]{2}(:[0-9]{2})?/<now()>/g'
 }
 
