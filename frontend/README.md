@@ -168,7 +168,29 @@ page (`data-ad-campaign` on a slot with a campaign, never the house banner) are 
 least half is on screen, up to 8 in a report, with a random view id; what is still waiting is sent when the page is
 hidden. The routes `/api/stats` and `/api/ads/impressions` take the site's own pages only, add the site token and the
 visitor's address and browser, work out the post's id from the address (never from the browser), and always answer 204.
-Ad clicks go through the platform's signed counting link (the slot's `click_url`).
+Ad clicks go through the platform's signed counting link (the slot's `click_url`). An ad drawn after the page (the popup,
+the phone's bar) announces itself with a `raqam:ad` event, so it is watched and counted the same way.
+
+## Floating ads
+
+The popup and the phone's bar (`src/components/ads/FloatingAds.tsx`) exist only while the platform's switch
+(`ad_popup`, `ad_mobile_sticky`) and the slot are both on and the slot has a campaign or the «أعلن معنا» banner
+(`src/lib/server/floating-ads.ts`). Their code loads with `import()` after the page's load, when the browser is idle,
+and only at the width each one shows at. Between 768 and 1023 px there is neither.
+
+- **The phone's bar** (below 768 px) is fixed to the bottom, above the phone's own bar (`safe-area-inset-bottom`). It is
+  drawn at the visitor's first scroll, press or key, when the browser stops looking for the largest paint: a picture
+  arriving later on a page whose largest paint is text would otherwise become its LCP. The server keeps its place from
+  the first paint, so its arrival moves nothing. `data-ad-bar` and `--ad-bar-h` go on the
+  body, then `globals.css` adds the body's padding (the footer ends above the bar) and raises `--float-bottom` (the
+  chat's button and «للأعلى» sit above it).
+- **The popup** (from 1024 px) is the browser's modal dialog. It opens after the visitor's first scroll, press or key,
+  never on arrival. If another window is open (the chat), it waits for the next interaction. It shows at most once in
+  the slot's `frequency_cap_hours` (24 when empty), kept in `localStorage` (`raqam:ad-popup`, no cookie). Without
+  storage it never shows.
+
+The fake API turns both on with a made-up campaign each. Every browser test starts as a visitor who has just seen the
+popup (`playwright.config.ts`), except `tests/e2e/ads.spec.ts`.
 
 ## Video and characters
 

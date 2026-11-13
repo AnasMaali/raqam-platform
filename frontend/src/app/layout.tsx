@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import type { CSSProperties } from "react";
 
+import { FloatingAds } from "@/components/ads/FloatingAds";
 import { ChatLauncher } from "@/components/chat/ChatLauncher";
 import { BackToTop } from "@/components/site/BackToTop";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -7,7 +9,9 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { SkipLink } from "@/components/site/SkipLink";
 import { ViewReporter } from "@/components/site/ViewReporter";
 import { themeScript } from "@/components/theme/theme";
-import { getMenus, getSite } from "@/lib/server/site-data";
+import { barPadding } from "@/lib/ads";
+import { floatingAds } from "@/lib/server/floating-ads";
+import { getAds, getMenus, getSite } from "@/lib/server/site-data";
 
 import { alexandria } from "./fonts";
 import "./globals.css";
@@ -26,11 +30,15 @@ export const viewport: Viewport = {
 };
 
 /**
- * Every page's frame: the skip link, the header, the footer, «للأعلى» and the chat's button (while the chatbot is on). Each page brings its own <Main>; every page
- * but the home page also gets the thin currency strip and the breaking bar from the (pages) group.
+ * Every page's frame: the skip link, the header, the footer, «للأعلى», the chat's button (while the chatbot is on) and
+ * the two floating ads (while their switches are on). Each page brings its own <Main>; every page but the home page
+ * also gets the thin currency strip and the breaking bar from the (pages) group. While the phone's ad bar is on, the
+ * body keeps its place from the first paint (data-ad-bar, globals.css), so the bar arriving later moves nothing.
  */
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [menus, site] = await Promise.all([getMenus(), getSite()]);
+  const [menus, site, ads] = await Promise.all([getMenus(), getSite(), getAds()]);
+  const { popup, bar } = floatingAds(ads, site);
+  const barPlace = bar ? { "data-ad-bar": "", style: { "--ad-bar-h": `${bar.size.height + 2 * barPadding}px` } as CSSProperties } : {};
 
   return (
     // The theme script sets data-theme on this element before React runs.
@@ -38,13 +46,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="relative flex min-h-dvh flex-col">
+      <body className="relative flex min-h-dvh flex-col" {...barPlace}>
         <SkipLink />
         <SiteHeader menus={menus} />
         {children}
         <SiteFooter menus={menus} site={site} />
         <BackToTop />
         {site?.features?.chatbot && <ChatLauncher />}
+        {(popup || bar) && <FloatingAds popup={popup} bar={bar} />}
         <ViewReporter />
       </body>
     </html>

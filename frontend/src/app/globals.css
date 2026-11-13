@@ -221,6 +221,24 @@
     text-decoration-thickness: 1px;
   }
 
+  /* Where the floating buttons (the chat, «للأعلى») sit: above the phone's ad bar while it is on. The server sets the
+     bar's height on the body (data-ad-bar) from the first paint; the body's padding keeps the footer's end above it,
+     and a focused control is never scrolled under it. */
+  :root {
+    --float-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  @media (max-width: 47.99rem) {
+    body[data-ad-bar] {
+      --float-bottom: calc(var(--ad-bar-h) + env(safe-area-inset-bottom) + 0.75rem);
+      padding-block-end: calc(var(--ad-bar-h) + env(safe-area-inset-bottom));
+    }
+
+    html:has(body[data-ad-bar]) {
+      scroll-padding-bottom: calc(var(--ad-bar-h) + env(safe-area-inset-bottom) + 1rem);
+    }
+  }
+
   /* Behind an open dialog the page does not scroll. */
   html:has(dialog[open]) {
     overflow: hidden;

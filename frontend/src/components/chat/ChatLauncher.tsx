@@ -36,7 +36,7 @@ export function ChatLauncher() {
             .catch(() => setOpen(false))
             .finally(() => setLoading(false));
         }}
-        className="fixed start-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-sm bg-brand px-3 font-medium text-on-brand shadow-raised hover:bg-brand/90 aria-busy:cursor-progress"
+        className="fixed start-4 bottom-(--float-bottom) z-40 inline-flex h-12 min-w-12 items-center justify-center gap-2 rounded-sm bg-brand px-3 font-medium text-on-brand shadow-raised hover:bg-brand/90 aria-busy:cursor-progress"
       >
         <Icon name="chat" />
         <span className="max-md:sr-only">اسألنا</span>

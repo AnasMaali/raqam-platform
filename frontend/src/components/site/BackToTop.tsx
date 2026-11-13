@@ -29,7 +29,7 @@ export function BackToTop() {
       <a
         href="#top"
         data-site-frame
-        className={`fixed end-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-12 items-center justify-center rounded-sm border border-line-strong bg-ground text-brand shadow-raised transition-opacity duration-200 ease-out motion-reduce:transition-none ${shown ? "opacity-100" : "invisible opacity-0"}`}
+        className={`fixed end-4 bottom-(--float-bottom) z-40 inline-flex size-12 items-center justify-center rounded-sm border border-line-strong bg-ground text-brand shadow-raised transition-opacity duration-200 ease-out motion-reduce:transition-none ${shown ? "opacity-100" : "invisible opacity-0"}`}
       >
         <Icon name="up" />
         <span className="sr-only">للأعلى</span>

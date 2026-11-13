@@ -16,13 +16,22 @@ const api = {
   INDEXNOW_KEY: "ci-only-indexnow-key-0000",
 };
 
+// The fake API turns the popup on (tests/fake-api/server.mjs). Every browser starts as a visitor who has just seen it,
+// so it never opens over another test; the popup's own tests (ads.spec.ts) start with an empty browser.
+const popupSeen = (origin: string) => ({ origin, localStorage: [{ name: "raqam:ad-popup", value: String(Date.now()) }] });
+
 export default defineConfig({
   testDir: "tests/e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
-  use: { baseURL: "http://127.0.0.1:3100", trace: "retain-on-failure", locale: "ar" },
+  use: {
+    baseURL: "http://127.0.0.1:3100",
+    trace: "retain-on-failure",
+    locale: "ar",
+    storageState: { cookies: [], origins: [popupSeen("http://127.0.0.1:3100"), popupSeen(lab ?? "http://127.0.0.1:3200")] },
+  },
   projects: [
     { name: "phone", testIgnore: /sweep/, use: { ...devices["Desktop Chrome"], viewport: { width: 375, height: 812 }, hasTouch: true, isMobile: true } },
     { name: "tablet", testIgnore: /sweep/, use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 }, hasTouch: true } },
