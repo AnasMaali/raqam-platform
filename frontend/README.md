@@ -202,9 +202,9 @@ the last and a section without videos, and 301 for `/video/page/1`. A filtered l
 
 ## Security headers
 
-`next.config.ts` (`headers()`) puts six headers on every answer: pages, missing and moved pages, the routes under
-`/api`, the feeds and sitemaps, and the build's own files. They are the same for every visitor, so the page cache and
-the CDN keep working.
+`next.config.ts` (`headers()`) puts six headers, and the content security policy below, on every answer: pages,
+missing and moved pages, the routes under `/api`, the feeds and sitemaps, and the build's own files. They are the same
+for every visitor, so the page cache and the CDN keep working.
 
 - `Strict-Transport-Security: max-age=31536000; includeSubDomains`. It is not on the browsers' preload list: a domain
   is hard to take off it.
@@ -220,6 +220,47 @@ the CDN keep working.
 
 `tests/e2e/security-headers.spec.ts` checks each value exactly on each kind of answer. It also checks the features the
 page and the player get, and that the console has no warning about them.
+
+## Content security policy
+
+`next.config.ts` adds `Content-Security-Policy` and `Reporting-Endpoints` to the same answers. The policy is the same
+for every visitor and every page (no nonce), so the static shells, the page cache and the CDN keep working: a nonce
+would make every page dynamic.
+
+| Directive | Sources | For |
+|---|---|---|
+| `default-src` | `'self'` | |
+| `script-src` | `'self' 'unsafe-inline' https://challenges.cloudflare.com` | the build's files, Next's inline page data, Turnstile |
+| `script-src-attr` | `'none'` | no inline event handler (`onerror=`, `onclick=`) ever runs |
+| `style-src` | `'self' 'unsafe-inline'` | the stylesheets, and the `style` attributes React writes |
+| `img-src` | `'self'`, the media origins, `https://i.ytimg.com` | the platform's pictures; a video's picture the platform could not keep |
+| `font-src` | `'self'` | the fonts are served by the site (`next/font`) |
+| `media-src` | the media origins | videos uploaded to the platform |
+| `frame-src` | `https://www.youtube-nocookie.com https://challenges.cloudflare.com` | the YouTube player, Turnstile |
+| `connect-src` | `'self'` | the browser talks to the site's own routes only |
+| `object-src`, `base-uri` | `'none'` | |
+| `form-action` | `'self'` | |
+| `frame-ancestors` | `'none'` | with `X-Frame-Options: DENY` |
+| `upgrade-insecure-requests` | | only when every media origin is https |
+
+- **Why `'unsafe-inline'` for scripts:** Next writes its page data as inline scripts whose text changes with every page
+  and every refresh, so no hash can name them, and a nonce needs dynamic pages. A hash or a nonce in the list would also
+  make the browser ignore `'unsafe-inline'`. What the policy does stop: scripts from anywhere else, `eval`, inline event
+  handlers, plugins, a changed `<base>`, and pictures, frames and requests to unknown places. Text from the platform is
+  cleaned by the platform and escaped by React.
+- **The media origins** are `MEDIA_ORIGINS` (origins only; the build refuses anything else), or else the origin of
+  `API_BASE_URL`. Like the rest of the policy they are read at build time.
+- **In development** scripts may also use `eval` (React's development build needs it).
+- **Reports** go to `/api/csp-report` (`report-uri`, and `report-to` through `Reporting-Endpoints`). The route takes only
+  the two CSP report types (`application/csp-report`, `application/reports+json`), at most 8 KB however it is sent,
+  answers `no-store`, and writes one line per violation: `[csp] <directive> blocked <address> on <page>`, both addresses
+  without their query or fragment. Nothing about the visitor is written.
+
+`tests/e2e/content-security.spec.ts` goes through every page of the sweep to its end, plays a video (YouTube's player,
+a picture from YouTube, an uploaded video), opens the chat, opens the popup and the phone's bar, sends the contact form
+with Turnstile's script and frame, and asks for the nearest city: not one violation, in the browser's events or its
+console. Code slipped into a page (an `onerror` handler, a script from elsewhere) does not run and is reported. The
+route's tests run against a server of their own and read its log.
 
 ## Page cache
 

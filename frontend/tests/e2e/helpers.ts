@@ -43,3 +43,32 @@ export const fakeApi = "http://127.0.0.1:4010";
 
 /** The webhook secret the test server runs with (playwright.config.ts and the CI workflow). */
 export const webhookSecret = process.env.SITE_WEBHOOK_SECRET ?? "ci-only-webhook-secret-not-a-secret";
+
+/** The pages the responsive sweep and the content security policy check go through: one of each kind, and the lab. */
+export const sweepPages = [
+  { name: "home", url: "/" },
+  { name: "404", url: "/no-such-page" },
+  { name: "article", url: encodeURI("/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي") },
+  { name: "episode", url: encodeURI("/podcast/282/الحلقة-10-دروس-مشاريع-تعثرت") },
+  { name: "category", url: encodeURI("/category/طاقة") },
+  { name: "podcast", url: "/podcast" },
+  { name: "history", url: "/history" },
+  { name: "awareness", url: "/awareness" },
+  { name: "writer, page 2", url: encodeURI("/author/محمد-صالح/page/2") },
+  { name: "currencies", url: "/currencies" },
+  { name: "dollar", url: "/currencies/usd" },
+  { name: "city weather", url: encodeURI("/weather/نابلس") },
+  { name: "services", url: "/services" },
+  { name: "a service", url: "/services/podcast-episode" },
+  { name: "contact", url: "/contact" },
+  { name: "about", url: "/about" },
+  { name: "video library", url: "/video" },
+  { name: "a video", url: "/video/23" },
+  { name: "a character", url: "/awareness/characters/raqam" },
+  { name: "team", url: "/team" },
+  { name: "questions", url: "/faq" },
+  { name: "advertise", url: "/advertise" },
+  { name: "sitemap", url: "/sitemap" },
+  { name: "search", url: `/search?q=${encodeURIComponent("الطاقة")}` },
+  { name: "components", url: labUrl("/lab/foundations") },
+];
