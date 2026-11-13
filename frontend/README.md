@@ -200,6 +200,27 @@ popup (`playwright.config.ts`), except `tests/e2e/ads.spec.ts`.
 the last and a section without videos, and 301 for `/video/page/1`. A filtered library is noindex and points to
 `/video`. The video card (`src/components/video/VideoCard.tsx`) is shared with the home page's video chapter.
 
+## Security headers
+
+`next.config.ts` (`headers()`) puts six headers on every answer: pages, missing and moved pages, the routes under
+`/api`, the feeds and sitemaps, and the build's own files. They are the same for every visitor, so the page cache and
+the CDN keep working.
+
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains`. It is not on the browsers' preload list: a domain
+  is hard to take off it.
+- `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`: another site learns where
+  a visitor came from, never which page.
+- `X-Frame-Options: DENY`: no site may frame this one.
+- `Cross-Origin-Opener-Policy: same-origin`. Lighthouse opens its blank page on `robots.txt` for that reason
+  (`scripts/check-lighthouse.mjs`): from `about:blank`, the trace lost the page's start in about one run in ten.
+- `Permissions-Policy`. The visitor's position goes to the site itself, for «أقرب مدينة لي», which asks only on that
+  press. Four features go to the YouTube player: autoplay, encrypted-media, picture-in-picture and fullscreen. Every
+  other feature is off. A frame gets a feature only when the header hands it over and the frame's `allow` asks for it,
+  so `LiteVideo`'s `allow` names the same four.
+
+`tests/e2e/security-headers.spec.ts` checks each value exactly on each kind of answer. It also checks the features the
+page and the player get, and that the console has no warning about them.
+
 ## Page cache
 
 `cache-handler.js` keeps rendered pages in memory (`PAGE_CACHE_MAX_MB`, default 256; the least recently used go

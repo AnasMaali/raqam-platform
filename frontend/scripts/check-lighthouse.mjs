@@ -14,7 +14,7 @@
 // and LIGHTHOUSE_SUMMARY=<file> writes them as JSON lines for scripts/lighthouse-table.mjs.
 //   node scripts/check-lighthouse.mjs http://127.0.0.1:3100/ [more urls…]
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -48,11 +48,23 @@ const dir = mkdtempSync(join(tmpdir(), "lighthouse-"));
 const lighthouse = new URL("../node_modules/.bin/lighthouse", import.meta.url).pathname;
 const failures = [];
 
+// Lighthouse opens a blank page before each run. about:blank has no opener policy and the site's is same-origin
+// (README, "Security headers"), so going from one to the other moves the tab to a new group of windows, and in about
+// one run in ten the trace then lost the page's start (NO_NAVSTART). The site's robots.txt carries the same headers as
+// its pages, so from it the page opens in the same group. Lighthouse empties the cache after the blank page.
+function config(url) {
+  const path = join(dir, `config-${new URL(url).origin.replace(/\W/g, "-")}.json`);
+  if (!existsSync(path)) writeFileSync(path, JSON.stringify({ extends: "lighthouse:default", settings: { blankPage: new URL("/robots.txt", url).href } }));
+
+  return path;
+}
+
 function run(url, out) {
   execFileSync(
     lighthouse,
     [
       url,
+      `--config-path=${config(url)}`,
       "--quiet",
       "--output=json",
       `--output-path=${out}`,
