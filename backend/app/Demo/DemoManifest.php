@@ -20,6 +20,17 @@ class DemoManifest
      * @var array<string, string>
      */
     public const TABLES = [
+        'subscribers' => 'id',
+        'contact_messages' => 'id',
+        'bot_conversations' => 'id',
+        'site_stats_daily' => 'stat_date',
+        'traffic_sources_daily' => "stat_date || '|' || source_code",
+        'device_stats_daily' => "stat_date || '|' || device_type",
+        'event_stats_daily' => "stat_date || '|' || event_code",
+        'search_stats_daily' => "term_id || '|' || stat_date",
+        'search_terms' => 'id',
+        'service_contact_clicks_daily' => "service_id || '|' || channel || '|' || stat_date",
+        'not_found_paths' => 'path',
         'home_blocks' => 'id',
         'menu_items' => 'id',
         'faqs' => 'id',

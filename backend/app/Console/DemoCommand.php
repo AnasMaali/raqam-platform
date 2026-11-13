@@ -82,14 +82,27 @@ class DemoCommand extends Command
         $started = microtime(true);
         $this->info("Writing the demo content (seed {$seed}, {$posts} posts).");
 
-        $this->quietly(function () use ($seeder, $manifest, $user, $posts, $seed, $started) {
+        $this->quietly(function () use ($seeder, $remover, $manifest, $user, $posts, $seed, $started) {
             $before = DemoManifest::snapshot();
-            // One transaction: a run that fails leaves nothing behind but the picture files, which are removed with it.
+            // A transaction for each batch of posts (DemoSeeder::$batch): one for the whole run would hold more locks
+            // than PostgreSQL has room for. A run that fails still leaves nothing behind: the open batch is rolled back,
+            // and what was committed before it is taken away again as --remove would, with the picture files.
+            $level = DB::transactionLevel();
+            DB::beginTransaction();
             try {
-                DB::transaction(function () use ($seeder, $manifest, $user, $posts, $seed, $started) {
-                    $seeder->run((int) $user, $posts, $seed, $manifest, fn (string $step) => $this->line(sprintf('→ %s  [%.0f s]', $step, microtime(true) - $started)));
+                $seeder->run((int) $user, $posts, $seed, $manifest, fn (string $step) => $this->line(sprintf('→ %s  [%.0f s]', $step, microtime(true) - $started)), function () {
+                    DB::commit();
+                    DB::beginTransaction();
                 });
+                DB::commit();
             } catch (\Throwable $e) {
+                if (DB::transactionLevel() > $level) {
+                    DB::rollBack($level);
+                }
+                $manifest->recordSince($before);
+                if (! $manifest->isEmpty()) {
+                    $remover->remove($manifest);
+                }
                 $seeder->discardFiles();
                 throw $e;
             }
@@ -216,6 +229,10 @@ class DemoCommand extends Command
         array_splice($rows, 8, 0, [['videos', count($manifest->keys('videos'))." ({$shorts} shorts)"], ['picture sizes', (string) $variants]]);
         $rows[] = ['pages filled', (string) count($manifest->pages())];
         $rows[] = ['services shown', (string) count($manifest->services())];
+        foreach (['subscribers', 'contact_messages', 'bot_conversations'] as $table) {
+            $rows[] = [$table, (string) count($manifest->keys($table))];
+        }
+        $rows[] = ['days of statistics', (string) count($manifest->keys('site_stats_daily'))];
 
         $this->table(['Written', 'Count'], $rows);
         $this->info(sprintf('Done in %.1f s. Repeat this run with --seed=%d. Remove it with --remove.', $seconds, $seed));
