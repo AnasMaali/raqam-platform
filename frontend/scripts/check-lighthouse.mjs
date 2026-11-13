@@ -13,11 +13,12 @@
 // before it showed. With five runs or more each page also gets its median, its worst and its spread (the calibration),
 // and LIGHTHOUSE_SUMMARY=<file> writes them as JSON lines for scripts/lighthouse-table.mjs.
 //   node scripts/check-lighthouse.mjs http://127.0.0.1:3100/ [more urls…]
-import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync, spawn } from "node:child_process";
+import { appendFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { Launcher } from "chrome-launcher";
 import { chromium } from "playwright";
 
 // Percent-encoded, so an Arabic address reaches the browser as one argument.
@@ -59,23 +60,56 @@ function config(url) {
   return path;
 }
 
+// A fresh browser for each run, with Lighthouse's own flags, its profile in a new folder of the system's temporary
+// space (TMPDIR), removed afterwards. Lighthouse would launch it itself, but on WSL it takes the browser for a Windows
+// one and hands it a Windows path (C:\Users\…), which a Linux browser makes into a folder under the working directory.
+function browser() {
+  const profile = mkdtempSync(join(tmpdir(), "lighthouse-profile-"));
+  const flags = [...Launcher.defaultFlags(), "--headless=new", "--no-sandbox", "--disable-setuid-sandbox", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "about:blank"];
+  const chrome = spawn(chromium.executablePath(), flags, { detached: true, stdio: "ignore" });
+  const portFile = join(profile, "DevToolsActivePort");
+  // The browser writes its port there once it listens; the wait blocks, as the runs do.
+  const portOf = () => (existsSync(portFile) ? Number(readFileSync(portFile, "utf8").split("\n")[0]) || 0 : 0);
+  const wait = new Int32Array(new SharedArrayBuffer(4));
+  let port = portOf();
+  for (let i = 0; i < 200 && !port; i++, port = portOf()) Atomics.wait(wait, 0, 0, 50);
+  const close = () => {
+    try {
+      process.kill(-chrome.pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
+    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+  };
+  if (!port) {
+    close();
+    throw new Error("The browser did not open its debugging port within 10 s");
+  }
+
+  return { port, close };
+}
+
 function run(url, out) {
-  execFileSync(
-    lighthouse,
-    [
-      url,
-      `--config-path=${config(url)}`,
-      "--quiet",
-      "--output=json",
-      `--output-path=${out}`,
-      "--save-assets",
-      "--only-categories=performance,accessibility,seo",
-      `--throttling-method=${method}`,
-      "--chrome-flags=--headless=new --no-sandbox",
-    ],
-    // From a temporary folder: on WSL the browser's profile folder can land in the working directory.
-    { cwd: dir, env: { ...process.env, CHROME_PATH: chromium.executablePath() }, stdio: ["ignore", "ignore", "inherit"] },
-  );
+  const chrome = browser();
+  try {
+    execFileSync(
+      lighthouse,
+      [
+        url,
+        `--port=${chrome.port}`,
+        `--config-path=${config(url)}`,
+        "--quiet",
+        "--output=json",
+        `--output-path=${out}`,
+        "--save-assets",
+        "--only-categories=performance,accessibility,seo",
+        `--throttling-method=${method}`,
+      ],
+      { cwd: dir, stdio: ["ignore", "ignore", "inherit"] },
+    );
+  } finally {
+    chrome.close();
+  }
 
   const report = JSON.parse(readFileSync(out, "utf8"));
   report.scriptsBeforeLcp = scriptsBeforeLcp(out.replace(/\.json$/, "-0.trace.json"));
