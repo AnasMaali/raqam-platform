@@ -1,12 +1,14 @@
-import { readConfig, readReply, sitePath } from "@/lib/chat";
+import { readConfig, readReply, sitePath, whatsappNumber } from "@/lib/chat";
 import { apiGet, apiPost } from "@/lib/server/api";
 import { serverEnv } from "@/lib/server/env";
+import { getSite } from "@/lib/server/site-data";
 import { sameOrigin, visitorOf } from "@/lib/server/visitor";
 
 /*
  * The chatbot (18), through the site's server: the platform's POST /chat/messages takes the site token and the
  * visitor's address, which the browser never holds. Only for the site's own pages (a request from another Origin gets
- * 403), JSON only, 4 KB at most, never cached. The answer goes back as text and site links only (src/lib/chat.ts).
+ * 403), JSON only, 4 KB at most, never cached. The answer goes back as text and site links only (src/lib/chat.ts), and
+ * a WhatsApp link only to the site's own number (/site's contact.whatsapp, from the site's cache).
  *
  *   GET  /api/chat   the welcome and the first buttons, read when the visitor opens the chat (18.15)
  *   POST /api/chat   { message | button, conversation, path, website }
@@ -76,7 +78,10 @@ export async function POST(request: Request) {
 
   const data = (result.body as { data?: { conversation?: unknown; reply?: unknown } } | null)?.data;
   if (result.status === 200 && data && typeof data.conversation === "string") {
-    return Response.json({ data: { conversation: data.conversation, reply: readReply(data.reply, serverEnv().siteUrl.origin) } }, { headers: noStore });
+    const site = await getSite();
+    const reply = readReply(data.reply, serverEnv().siteUrl.origin, whatsappNumber(site?.contact.whatsapp));
+
+    return Response.json({ data: { conversation: data.conversation, reply } }, { headers: noStore });
   }
 
   const error = (result.body as { error?: { code?: unknown; message?: unknown } } | null)?.error;

@@ -1,3 +1,5 @@
+import { type ChildProcess, spawn } from "node:child_process";
+
 import { expect, type Page } from "@playwright/test";
 
 /** The development lab: its own server (port 3200), or the one LAB_URL names. */
@@ -49,6 +51,43 @@ export const site = "http://127.0.0.1:3100";
 
 /** The webhook secret the test server runs with (playwright.config.ts and the CI workflow). */
 export const webhookSecret = process.env.SITE_WEBHOOK_SECRET ?? "ci-only-webhook-secret-not-a-secret";
+
+/** A process of the tests' own, started for one test or one group, and what it printed. */
+function started(command: string, args: string[], env: Record<string, string>, ready: string) {
+  let output = "";
+  const child: ChildProcess = spawn(command, args, { detached: true, env: { ...process.env, ...env } });
+  child.stdout!.on("data", (chunk) => (output += chunk));
+  child.stderr!.on("data", (chunk) => (output += chunk));
+  const exited = new Promise<number | null>((resolve) => child.on("exit", (code) => resolve(code)));
+
+  return {
+    exited,
+    output: () => output,
+    ready: () => expect.poll(async () => (await fetch(ready).catch(() => null))?.status ?? 0, { timeout: 60_000 }).toBe(200),
+    stop: () => {
+      try {
+        process.kill(-child.pid!, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    },
+  };
+}
+
+/**
+ * Another server of the same build on its own port, with the test server's settings unless `env` says otherwise (the
+ * site's address, another fake API).
+ */
+export function startSite(port: number, env: Record<string, string> = {}) {
+  const settings = { API_BASE_URL: `${fakeApi}/api/v1`, API_SITE_TOKEN: "ci-only-site-token-not-a-secret", SITE_URL: site, SITE_WEBHOOK_SECRET: webhookSecret, NEXT_TELEMETRY_DISABLED: "1", ...env };
+
+  return started("node_modules/.bin/next", ["start", "-p", String(port)], settings, `http://127.0.0.1:${port}/robots.txt`);
+}
+
+/** Another fake API (tests/fake-api/server.mjs) on its own port, for a test that changes what the platform answers. */
+export function startFakeApi(port: number) {
+  return started("node", ["tests/fake-api/server.mjs", String(port)], {}, `http://127.0.0.1:${port}/api/v1/site`);
+}
 
 /** The pages the responsive sweep and the content security policy check go through: one of each kind, and the lab. */
 export const sweepPages = [

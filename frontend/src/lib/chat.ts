@@ -15,7 +15,7 @@ export type ChatReply = {
   text: string;
   links: ChatLink[];
   buttons: ChatButton[];
-  /** The ready WhatsApp message (18.8), only ever a wa.me link. */
+  /** The ready WhatsApp message (18.8): only ever a wa.me link to the site's own number. */
   whatsapp: string | null;
 };
 
@@ -46,13 +46,35 @@ export function sitePath(href: unknown, siteOrigin?: string): string | null {
   return path;
 }
 
-/** Only a https://wa.me/… link is a WhatsApp link. */
-export function whatsappLink(href: unknown): string | null {
-  if (typeof href !== "string" || href.length > 2000) return null;
+/** The site's WhatsApp number as wa.me writes it (its digits, without the "+"), from /site's contact.whatsapp; null without one. */
+export function whatsappNumber(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const digits = value.trim().replace(/^\+/, "");
+
+  return /^[0-9]{6,15}$/.test(digits) ? digits : null;
+}
+
+/**
+ * A WhatsApp link, or null: https://wa.me/<number> and nothing after it but a ready message (?text=…), no other part,
+ * parameter, port or name. The site's server passes the site's own number (`number`): another number, or none (null),
+ * is no link. The chat window, which does not know the number, checks the shape again.
+ */
+export function whatsappLink(href: unknown, number?: string | null): string | null {
+  if (typeof href !== "string" || href.length > 2000 || number === null) return null;
   try {
     const url = new URL(href);
+    const params = [...url.searchParams.keys()];
+    const shaped =
+      url.protocol === "https:" &&
+      url.host === "wa.me" &&
+      url.username === "" &&
+      url.password === "" &&
+      /^\/[0-9]{6,15}$/.test(url.pathname) &&
+      url.hash === "" &&
+      (params.length === 0 || (params.length === 1 && params[0] === "text"));
+    if (!shaped || (number !== undefined && url.pathname !== `/${number}`)) return null;
 
-    return url.protocol === "https:" && url.host === "wa.me" ? url.href : null;
+    return url.href;
   } catch {
     return null;
   }
@@ -88,8 +110,11 @@ function buttonsOf(value: unknown): ChatButton[] {
     .filter((b) => b.label);
 }
 
-/** The platform's answer as the site shows it. */
-export function readReply(raw: unknown, siteOrigin?: string): ChatReply {
+/**
+ * The platform's answer as the site shows it. `siteOrigin` is SITE_URL's origin; `siteWhatsapp` the site's WhatsApp
+ * number (whatsappNumber), null when the site has none or /site could not be read, so no WhatsApp link.
+ */
+export function readReply(raw: unknown, siteOrigin?: string, siteWhatsapp?: string | null): ChatReply {
   const reply = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const kind = reply.kind === "answer" || reply.kind === "live" ? reply.kind : "no_answer";
   const html = typeof reply.html === "string" ? reply.html : "";
@@ -117,7 +142,7 @@ export function readReply(raw: unknown, siteOrigin?: string): ChatReply {
     }
   }
 
-  return { kind, text, links: links.slice(0, 12), buttons: buttonsOf(reply.buttons), whatsapp: whatsappLink(reply.whatsapp) };
+  return { kind, text, links: links.slice(0, 12), buttons: buttonsOf(reply.buttons), whatsapp: whatsappLink(reply.whatsapp, siteWhatsapp) };
 }
 
 /** GET /chat as the site uses it. */

@@ -207,6 +207,8 @@ function chatAnswer(body) {
     return reply({ html: "<p>نقدّم الإعلان والتغطية والتصوير. التفاصيل في <a href=\"/services\">صفحة الخدمات</a>.</p>", text: "نقدّم الإعلان والتغطية والتصوير. التفاصيل في صفحة الخدمات.", buttons: [{ id: 3, label: "أعلن معنا" }] });
   }
   if (body.button) return reply({ kind: "live", html: "<p>أسعار اليوم في صفحة العملات.</p>", text: "أسعار اليوم في صفحة العملات.", links: [{ label: "أسعار العملات", url: "/currencies" }] });
+  // "واتساب <link>": the answer offers that WhatsApp link, for the site to keep only one to its own number.
+  if (message.startsWith("واتساب ")) return reply({ html: "<p>تواصل معنا على واتساب.</p>", text: "تواصل معنا على واتساب.", whatsapp: message.slice("واتساب ".length) });
   if (message.includes("كثير")) return { status: 429, body: { error: { code: "too_many", message: "أرسلت رسائل كثيرة. انتظر دقيقة ثم أعد المحاولة." } } };
   if (message.includes("سكربت")) {
     const hostile = '<script>window.__chatRan = 1</script><img src="x" onerror="window.__chatRan = 2">جواب فيه كود';
