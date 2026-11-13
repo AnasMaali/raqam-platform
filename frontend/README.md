@@ -211,7 +211,8 @@ the CDN keep working.
 - `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`: another site learns where
   a visitor came from, never which page.
 - `X-Frame-Options: DENY`: no site may frame this one.
-- `Cross-Origin-Opener-Policy: same-origin`.
+- `Cross-Origin-Opener-Policy: same-origin`. Lighthouse opens its blank page on `robots.txt` for that reason
+  (`scripts/check-lighthouse.mjs`): from `about:blank`, the trace lost the page's start in about one run in ten.
 - `Permissions-Policy`. The visitor's position goes to the site itself, for «أقرب مدينة لي», which asks only on that
   press. Four features go to the YouTube player: autoplay, encrypted-media, picture-in-picture and fullscreen. Every
   other feature is off. A frame gets a feature only when the header hands it over and the frame's `allow` asks for it,
