@@ -3,6 +3,7 @@ import "server-only";
 import { isIP } from "node:net";
 
 import type { Visitor } from "./api";
+import { serverEnv } from "./env";
 
 /*
  * The visitor's address, from the headers the site's own proxies set. Behind Cloudflare (TRUST_CLOUDFLARE=1) it is
@@ -19,14 +20,13 @@ export function visitorOf(headers: Headers): Visitor | null {
   return { ip, userAgent: headers.get("user-agent") ?? "" };
 }
 
-/** A form may be sent only from the site's own pages: the browser's Origin must be this site's. */
+/**
+ * A form may be sent only from the site's own pages: the browser's Origin must be the origin of SITE_URL, character for
+ * character (https and the same host: with www or without, as SITE_URL says). The request's Host and X-Forwarded-Host
+ * are not read: whoever sends the request writes them.
+ */
 export function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (!origin) return false;
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  try {
-    return new URL(origin).host === host;
-  } catch {
-    return false;
-  }
+
+  return origin !== null && origin === serverEnv().siteUrl.origin;
 }

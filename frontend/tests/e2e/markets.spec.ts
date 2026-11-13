@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, fakeApi, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, fakeApi, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The currency and weather pages against the fake API's captured rates and cities: the table, the converter (which
@@ -19,7 +19,6 @@ const markets: {
   city: Record<string, { data: { now: { humidity: number; wind_kmh: number; temperature: number } | null; forecast: { date: string }[] } }>;
   stale: string;
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/markets.json", "utf8"));
-const site = "https://example.org";
 const usd = board.data.find((r) => r.code === "USD")!;
 const money = (value: number) => new Intl.NumberFormat("ar-u-nu-latn", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 const nablus = markets.cities.data.find((c) => c.is_default)!;

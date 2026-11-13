@@ -41,6 +41,12 @@ export async function useTheme(page: Page, theme: "light" | "dark") {
 /** The fake platform API the site reads in the tests (tests/fake-api/server.mjs). */
 export const fakeApi = "http://127.0.0.1:4010";
 
+/**
+ * The site's public address as the test server runs with it (SITE_URL in playwright.config.ts and the CI workflow): the
+ * server's own address, so the browser's Origin is the site's. Every test reads it from here.
+ */
+export const site = "http://127.0.0.1:3100";
+
 /** The webhook secret the test server runs with (playwright.config.ts and the CI workflow). */
 export const webhookSecret = process.env.SITE_WEBHOOK_SECRET ?? "ci-only-webhook-secret-not-a-secret";
 

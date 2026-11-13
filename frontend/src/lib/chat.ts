@@ -26,12 +26,13 @@ const maxLabel = 120;
 
 /**
  * A path of this site, or null: it starts with one "/" (never "//" or "/\", which leave the site), holds no space or
- * control character, and is not too long. An absolute https link to this site's own origin becomes its path.
+ * control character, and is not too long. An absolute link to this site's own origin (SITE_URL's, scheme and all: https
+ * in production) becomes its path.
  */
 export function sitePath(href: unknown, siteOrigin?: string): string | null {
   if (typeof href !== "string" || href.length > 500) return null;
   let path = href.trim();
-  if (siteOrigin && /^https:\/\//i.test(path)) {
+  if (siteOrigin && /^https?:\/\//i.test(path)) {
     try {
       const url = new URL(path);
       if (url.origin !== siteOrigin) return null;

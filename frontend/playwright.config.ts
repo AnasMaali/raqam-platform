@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+import { site } from "./tests/e2e/helpers";
+
 /*
  * Browser tests of the site at three sizes (375, 768, 1440). The site runs as a production build on port 3100 (run
  * `npm run build` first) and the development lab on port 3200, both reading the fake API on port 4010 (made-up demo
@@ -10,7 +12,7 @@ const lab = process.env.LAB_URL;
 const api = {
   API_BASE_URL: "http://127.0.0.1:4010/api/v1",
   API_SITE_TOKEN: "ci-only-site-token-not-a-secret",
-  SITE_URL: "https://example.org",
+  SITE_URL: site,
   TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
   SITE_WEBHOOK_SECRET: "ci-only-webhook-secret-not-a-secret",
   INDEXNOW_KEY: "ci-only-indexnow-key-0000",
@@ -27,7 +29,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: "http://127.0.0.1:3100",
+    baseURL: site,
     trace: "retain-on-failure",
     locale: "ar",
     storageState: { cookies: [], origins: [popupSeen("http://127.0.0.1:3100"), popupSeen(lab ?? "http://127.0.0.1:3200")] },

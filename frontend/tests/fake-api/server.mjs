@@ -219,7 +219,8 @@ function chatAnswer(body) {
       links: [
         { label: "<b>اضغط هنا</b>", url: "javascript:window.__chatRan=4" },
         { label: "موقع آخر", url: "https://evil.example/page" },
-        { label: "خبر عندنا", url: "https://example.org/news/1" },
+        // The site's own address (SITE_URL; the tests' test server by default): it becomes a link to its path.
+        { label: "خبر عندنا", url: `${process.env.SITE_URL ?? "http://127.0.0.1:3100"}/news/1` },
         { label: "خدماتنا", url: "/services" },
       ],
       whatsapp: "https://evil.example/wa",

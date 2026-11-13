@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, fakeApi, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, fakeApi, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The article template, shared by every kind, against the fake API's posts (one of each kind, and a made-up variant
@@ -14,7 +14,6 @@ const posts: Summary[] = JSON.parse(readFileSync("tests/fake-api/fixtures/posts.
 const detail = (id: number) => JSON.parse(readFileSync(`tests/fake-api/fixtures/posts/${id}.json`, "utf8")).data;
 const byKind = (code: string) => posts.find((p) => p.kind.code === code && p.id !== 900001)!;
 const variant = posts.find((p) => p.id === 900001)!;
-const site = "https://example.org";
 
 async function graphOf(page: Page) {
   const json = JSON.parse((await page.locator("script[type='application/ld+json']").textContent())!);

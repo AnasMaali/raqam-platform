@@ -64,11 +64,15 @@ with `appendonly yes` (and its data on a volume), so a restart loses at most a s
 lowers a stored figure, whatever Redis lost. Never run `FLUSHALL`, and never point `REDIS_DB` (queues and counters)
 at the cache database: `cache:clear` empties the cache database only.
 
-## The website's content security policy
+## The website: its address and content security policy
 
 The website sends a content security policy on every answer (`frontend/next.config.ts`; `frontend/README.md`, "Content
 security policy"). It is written when the site is built, so the build must see the production settings.
 
+- **`SITE_URL`** is the address visitors use, exactly: `https://raqam.example` or `https://www.raqam.example`, whichever
+  is the real one, and the other one redirects to it with a 301 in Cloudflare. The forms take a request only when its
+  Origin is this origin character for character, so the wrong one refuses every form (403). The build and the server
+  refuse to start with a path, a closing slash or plain http.
 - **`MEDIA_ORIGINS`**: the origins the platform's pictures and uploaded videos are served from (the media subdomain,
   e.g. `https://media.example.org`), separated by spaces or commas, each an origin only (scheme, host and port). When it
   is empty the API's own origin is used, which is wrong as soon as the site reaches the API on an internal address: every

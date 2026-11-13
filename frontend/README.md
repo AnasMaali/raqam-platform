@@ -42,6 +42,13 @@ The build needs the API: a failed request while building stops it, so a page fra
 - **Newsletter.** `/api/newsletter/{subscribe,resend,confirm}` add the site token and the visitor's address and keep the
   platform's challenge in an httpOnly cookie. They accept JSON from the site's own pages only (Origin). The form needs
   `TURNSTILE_SITE_KEY`; the content security policy (hardening) must allow `challenges.cloudflare.com`.
+- **The site's own pages only.** The forms' routes (the chat, the contact form, the newsletter and unsubscribing, a
+  service's contact) and the two reports (page views, ad views) take a request only when its `Origin` is the origin of
+  `SITE_URL`, character for character (`src/lib/server/visitor.ts`): https and the same host, with www or without as
+  `SITE_URL` says. `Host` and `X-Forwarded-Host` are not read, since whoever sends the request writes them. The build and
+  the production server refuse to start unless `SITE_URL` is exactly an origin: https (http only for `localhost` and
+  `127.0.0.1`), no path, no closing slash (`next.config.ts`). The tests run with `SITE_URL=http://127.0.0.1:3100`, the
+  test server's own address (`site` in `tests/e2e/helpers.ts`).
 - **Chat.** While the platform's `chatbot` switch is on, every page has the chat's button, drawn on the server and
   fixed to the corner. The chat's window, code and styles load only when it is pressed (`import()` in
   `src/components/chat/ChatLauncher.tsx`). `/api/chat` reads the welcome (GET) and passes messages on (POST), adding the
@@ -276,7 +283,7 @@ The tests read a fake API (`tests/fake-api/`, made-up demo content captured by `
 
 ```bash
 npm run fake-api &                                       # http://127.0.0.1:4010/api/v1
-export API_BASE_URL=http://127.0.0.1:4010/api/v1 API_SITE_TOKEN=ci-only-site-token-not-a-secret SITE_URL=https://example.org \
+export API_BASE_URL=http://127.0.0.1:4010/api/v1 API_SITE_TOKEN=ci-only-site-token-not-a-secret SITE_URL=http://127.0.0.1:3100 \
   TURNSTILE_SITE_KEY=1x00000000000000000000AA SITE_WEBHOOK_SECRET=ci-only-webhook-secret-not-a-secret
 npm run build
 npm run test:e2e             # 375, 768 and 1440 px; the sweep 320 to 1920 px, held sideways, 200% zoom

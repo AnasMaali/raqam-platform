@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The team, the questions, «أعلن معنا» and the sitemap for visitors, against the fake API (capture-p1.mjs; the contact
@@ -18,7 +18,6 @@ const fixture: {
   advertise: { data: { placements: Place[]; packages: { name: string; path: string; price: { text: string } }[]; contact: { whatsapp: string; phone: string; email: string } } };
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/p1.json", "utf8"));
 const playlists: { slug: string; name: string }[] = JSON.parse(readFileSync("tests/fake-api/fixtures/video.json", "utf8")).playlists.data;
-const site = "https://example.org";
 
 async function graphOf(page: Page) {
   return JSON.parse((await page.locator("script[type='application/ld+json']").textContent())!)["@graph"] as Record<string, unknown>[];

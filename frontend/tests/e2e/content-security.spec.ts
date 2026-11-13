@@ -202,7 +202,7 @@ test.describe("/api/csp-report", () => {
     if (info.project.name !== "desktop") return;
     server = spawn("node_modules/.bin/next", ["start", "-p", String(port)], {
       detached: true,
-      env: { ...process.env, API_BASE_URL: `${fakeApi}/api/v1`, API_SITE_TOKEN: "ci-only-site-token-not-a-secret", SITE_URL: "https://example.org", NEXT_TELEMETRY_DISABLED: "1" },
+      env: { ...process.env, API_BASE_URL: `${fakeApi}/api/v1`, API_SITE_TOKEN: "ci-only-site-token-not-a-secret", SITE_URL: base, NEXT_TELEMETRY_DISABLED: "1" },
     });
     server.stdout!.on("data", (chunk) => (log += chunk));
     server.stderr!.on("data", (chunk) => (log += chunk));
