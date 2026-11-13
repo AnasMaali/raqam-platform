@@ -301,7 +301,8 @@ function videoRoute(pathname, params) {
     return known ? { status: 200, body: known } : { status: 200, body: { data: [], meta: { page: Number(params.get("page") ?? 1), per_page: 12, total: 0, last_page: 1 } } };
   }
   const one = /^\/api\/v1\/videos\/(\d+)$/.exec(pathname);
-  if (one) return videoData.video[one[1]] ? { status: 200, body: videoData.video[one[1]] } : notFoundAnswer;
+  const known = one && (videoData.video[one[1]] ?? testVideos[one[1]]);
+  if (one) return known ? { status: 200, body: known } : notFoundAnswer;
   if (pathname === "/api/v1/playlists") return { status: 200, body: videoData.playlists };
   const list = /^\/api\/v1\/playlists\/([^/]+)$/.exec(pathname);
   if (list) return videoData.playlist[decodeURIComponent(list[1])] ? { status: 200, body: videoData.playlist[decodeURIComponent(list[1])] } : notFoundAnswer;
@@ -314,6 +315,19 @@ function videoRoute(pathname, params) {
   }
   return null;
 }
+
+// Two videos only the tests open (tests/e2e/content-security.spec.ts), made from video 23: one whose picture the
+// platform could not keep, so its address is YouTube's own (i.ytimg.com), and one uploaded to the platform.
+const testVideo = (id, changes) => {
+  const { data } = videoData.video["23"];
+  const thumbnail = changes.thumbnail_url ?? data.thumbnail_url;
+
+  return { data: { ...data, id, path: `/video/${id}`, ...changes, structured_data: { ...data.structured_data, thumbnailUrl: [thumbnail] } } };
+};
+const testVideos = {
+  9101: testVideo(9101, { title: "فيديو صورته من يوتيوب", thumbnail_url: "https://i.ytimg.com/vi/18_W0PD9k9b/hqdefault.jpg" }),
+  9102: testVideo(9102, { title: "فيديو مرفوع على المنصة", source: "upload", youtube: null, upload: { url: `http://127.0.0.1:${port}/media/test-upload.mp4`, mime_type: "video/mp4" } }),
+};
 
 // Campaign dates would run out one day and empty every slot in CI: the fake campaigns never end. The popup and the
 // phone's bar (off on a new platform) are on here, each with one made-up campaign, so every test sees the site with

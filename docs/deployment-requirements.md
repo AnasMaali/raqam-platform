@@ -63,3 +63,23 @@ Visit counters (decision 22) stay in Redis up to an hour before `stats:flush` wr
 with `appendonly yes` (and its data on a volume), so a restart loses at most a second of counts. A transfer never
 lowers a stored figure, whatever Redis lost. Never run `FLUSHALL`, and never point `REDIS_DB` (queues and counters)
 at the cache database: `cache:clear` empties the cache database only.
+
+## The website's content security policy
+
+The website sends a content security policy on every answer (`frontend/next.config.ts`; `frontend/README.md`, "Content
+security policy"). It is written when the site is built, so the build must see the production settings.
+
+- **`MEDIA_ORIGINS`**: the origins the platform's pictures and uploaded videos are served from (the media subdomain,
+  e.g. `https://media.example.org`), separated by spaces or commas, each an origin only (scheme, host and port). When it
+  is empty the API's own origin is used, which is wrong as soon as the site reaches the API on an internal address: every
+  picture would then be blocked. Set it whenever the media are not served from the API's origin.
+- **Cloudflare features that rewrite pages must stay off** for the website's zone, or the policy blocks what they add:
+  Rocket Loader, Email Address Obfuscation, the automatic Web Analytics beacon (Real User Monitoring), and Zaraz.
+- **Rate limits in Cloudflare (WAF rules)** on `/api/csp-report` (anyone may send a report, and each one writes a line
+  to the log) and on `/api/chat`. The routes check sizes and types, but not how often an address calls them.
+- **Turnstile, checked by hand on staging** once with the real site key: the tests stand in for Turnstile's script, so
+  only a real browser on staging shows that the widget draws, passes, and leaves no "Refused to…" line in the console
+  (contact form and newsletter).
+- **Watch the reports after each deploy**: lines starting with `[csp]` in the website's log name the directive, the
+  blocked address and the page (no query, no visitor data). A new kind of line after a deploy is a page that needs a
+  source added to the policy, or something the policy is right to block.

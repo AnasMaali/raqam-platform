@@ -44,3 +44,8 @@ next-env.d.ts
 # browser tests
 /test-results/
 /playwright-report/
+
+# browser profiles of Lighthouse runs: on WSL a launched browser can be handed a Windows path (C:\Users\…\lighthouse.*)
+# that a Linux browser makes into a folder under the working directory
+lighthouse.*/
+C:*

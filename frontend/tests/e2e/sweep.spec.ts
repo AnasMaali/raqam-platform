@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { expectNoSidewaysScroll, labUrl, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, sweepPages as pages, useTheme } from "./helpers";
 
 /*
  * Every width from a small phone to a large screen, a phone held sideways, and 200% zoom (WCAG reflow: a 1280 px
@@ -17,34 +17,6 @@ const sizes = [
   { width: 1440, height: 900 },
   { width: 1920, height: 1080 },
   { width: 812, height: 375, label: "a phone held sideways" },
-];
-
-const pages = [
-  { name: "home", url: "/" },
-  { name: "404", url: "/no-such-page" },
-  { name: "article", url: encodeURI("/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي") },
-  { name: "episode", url: encodeURI("/podcast/282/الحلقة-10-دروس-مشاريع-تعثرت") },
-  { name: "category", url: encodeURI("/category/طاقة") },
-  { name: "podcast", url: "/podcast" },
-  { name: "history", url: "/history" },
-  { name: "awareness", url: "/awareness" },
-  { name: "writer, page 2", url: encodeURI("/author/محمد-صالح/page/2") },
-  { name: "currencies", url: "/currencies" },
-  { name: "dollar", url: "/currencies/usd" },
-  { name: "city weather", url: encodeURI("/weather/نابلس") },
-  { name: "services", url: "/services" },
-  { name: "a service", url: "/services/podcast-episode" },
-  { name: "contact", url: "/contact" },
-  { name: "about", url: "/about" },
-  { name: "video library", url: "/video" },
-  { name: "a video", url: "/video/23" },
-  { name: "a character", url: "/awareness/characters/raqam" },
-  { name: "team", url: "/team" },
-  { name: "questions", url: "/faq" },
-  { name: "advertise", url: "/advertise" },
-  { name: "sitemap", url: "/sitemap" },
-  { name: "search", url: `/search?q=${encodeURIComponent("الطاقة")}` },
-  { name: "components", url: labUrl("/lab/foundations") },
 ];
 
 for (const theme of ["light", "dark"] as const) {

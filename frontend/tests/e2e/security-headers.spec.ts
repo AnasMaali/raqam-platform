@@ -1,7 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { fakeApi } from "./helpers";
+
 /*
- * The security headers (next.config.ts): on every kind of answer the site gives, each with its exact value, and the
+ * The security headers (next.config.ts): on every kind of answer the site gives, each with its exact value (the content
+ * security policy as the browser applies it: content-security.spec.ts), and the
  * browser features as the site hands them out: the visitor's position to the site itself, four to the YouTube player
  * and nothing else to anyone, without a single warning in the console.
  */
@@ -30,6 +33,25 @@ const expected: Record<string, string> = {
   ].join(", "),
   "x-frame-options": "DENY",
   "cross-origin-opener-policy": "same-origin",
+  // The platform's pictures and uploaded videos come from the API's origin here (MEDIA_ORIGINS is not set).
+  "content-security-policy": [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+    "script-src-attr 'none'",
+    "style-src 'self' 'unsafe-inline'",
+    `img-src 'self' ${new URL(fakeApi).origin} https://i.ytimg.com`,
+    "font-src 'self'",
+    `media-src ${new URL(fakeApi).origin}`,
+    "frame-src https://www.youtube-nocookie.com https://challenges.cloudflare.com",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "report-uri /api/csp-report",
+    "report-to csp",
+  ].join("; "),
+  "reporting-endpoints": 'csp="/api/csp-report"',
 };
 
 /** Warnings about browser features: an unknown name in the header, a frame asking for what it was not handed. */
@@ -47,7 +69,7 @@ function watchConsole(page: Page) {
 test.describe("the security headers", () => {
   test.beforeEach(({}, info) => test.skip(info.project.name !== "desktop", "the same answers at every size"));
 
-  test("every kind of answer carries all six, each with its exact value", async ({ request }) => {
+  test("every kind of answer carries all eight, each with its exact value", async ({ request }) => {
     const home = await (await request.get("/")).text();
     const buildFile = /\/_next\/static\/[^"]+\.js/.exec(home)![0];
     const answers = [
