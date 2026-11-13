@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The home page (the directory): the first screen, the chapters in the admin's order, each block in its own shape, the
@@ -125,10 +125,10 @@ test.describe("what search engines read", () => {
     await page.goto("/");
     await expect(page).toHaveTitle("رقم: تاريخ الاقتصاد ومستقبله");
     await expect(page.locator("meta[name='description']")).toHaveAttribute("content", /.{50,}/);
-    await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", "https://example.org");
+    await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", site);
     await expect(page.locator("meta[property='og:type']")).toHaveAttribute("content", "website");
-    await expect(page.locator("meta[property='og:url']")).toHaveAttribute("content", "https://example.org");
-    await expect(page.locator("meta[property='og:image']")).toHaveAttribute("content", "https://example.org/og/default.png");
+    await expect(page.locator("meta[property='og:url']")).toHaveAttribute("content", site);
+    await expect(page.locator("meta[property='og:image']")).toHaveAttribute("content", `${site}/og/default.png`);
     await expect(page.locator("meta[name='twitter:card']")).toHaveAttribute("content", "summary_large_image");
   });
 
@@ -137,14 +137,14 @@ test.describe("what search engines read", () => {
     const json = JSON.parse((await page.locator("script[type='application/ld+json']").textContent())!);
     const graph = json["@graph"] as Record<string, unknown>[];
     const org = graph.find((n) => n["@type"] === "NewsMediaOrganization")!;
-    const site = graph.find((n) => n["@type"] === "WebSite")!;
+    const webSite = graph.find((n) => n["@type"] === "WebSite")!;
     expect(json["@context"]).toBe("https://schema.org");
-    expect(org).toMatchObject({ "@id": "https://example.org/#organization", url: "https://example.org/", logo: { "@type": "ImageObject" } });
-    expect(site).toMatchObject({
-      url: "https://example.org/",
+    expect(org).toMatchObject({ "@id": `${site}/#organization`, url: `${site}/`, logo: { "@type": "ImageObject" } });
+    expect(webSite).toMatchObject({
+      url: `${site}/`,
       inLanguage: "ar",
-      publisher: { "@id": "https://example.org/#organization" },
-      potentialAction: { "@type": "SearchAction", target: { urlTemplate: "https://example.org/search?q={search_term_string}" }, "query-input": "required name=search_term_string" },
+      publisher: { "@id": `${site}/#organization` },
+      potentialAction: { "@type": "SearchAction", target: { urlTemplate: `${site}/search?q={search_term_string}` }, "query-input": "required name=search_term_string" },
     });
     // The default logo and share picture exist.
     expect((await request.get("/brand/logo-512.png")).status()).toBe(200);

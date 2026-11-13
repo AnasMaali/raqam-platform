@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The seven sections and /news against the fake API's captured sections: the introduction, the featured item, 12 items
@@ -18,7 +18,6 @@ type Fixture = {
   news: Item[];
 };
 const fixture: Fixture = JSON.parse(readFileSync("tests/fake-api/fixtures/sections-pages.json", "utf8"));
-const site = "https://example.org";
 const slugs = Object.keys(fixture.detail);
 const itemsOf = (slug: string) => (slug === "news" ? fixture.news : fixture.items[slug]);
 

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The video library, one video, a playlist, and an awareness character's page, against the fake API's captured
@@ -19,7 +19,6 @@ const fixture: {
   video: Record<string, { data: V }>;
   character: Record<string, { detail: { data: { name: string; slug: string } }; cards: { data: { title: string }[]; meta: { total: number } } }>;
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/video.json", "utf8"));
-const site = "https://example.org";
 const first = fixture.library["page=1"];
 const withChapters = Object.values(fixture.video).find((v) => v.data.chapters.length > 1)!.data;
 const playlist = Object.values(fixture.playlist)[0].data;

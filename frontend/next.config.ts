@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER } from "next/constants";
 
 // A browser-visible variable must never carry a credential: NEXT_PUBLIC_* values are copied
 // into the JavaScript sent to every visitor.
@@ -9,6 +10,20 @@ const leaking = Object.keys(process.env).filter(
 );
 if (leaking.length > 0) {
   throw new Error(`Browser-visible variables that look like credentials: ${leaking.join(", ")}`);
+}
+
+// The site's public address. For the production build and server it must be exactly an origin: https, or http for
+// localhost and 127.0.0.1 only, with no path and no closing slash. The forms' routes take a request only when its
+// Origin is this, character for character (src/lib/server/visitor.ts), so a wrong value would refuse every form.
+function checkSiteUrl() {
+  const value = process.env.SITE_URL ?? "";
+  const url = URL.canParse(value) ? new URL(value) : null;
+  const local = url !== null && url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
+  if (!url || value !== url.origin || !(url.protocol === "https:" || local)) {
+    const message = `SITE_URL must be the site's public origin, exactly: https://<host> (http only for localhost and 127.0.0.1), with no path and no closing slash. It is ${JSON.stringify(value)}.`;
+    console.error(message);
+    throw new Error(message);
+  }
 }
 
 // The browser features the site uses: the visitor's position for «أقرب مدينة» (asked only on that press), and four for
@@ -133,4 +148,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Checked when the site is built and when its server starts; not by the development server, nor by `next typegen`
+// (npm run typecheck), which loads this file as a build does but only writes types.
+export default function config(phase: string): NextConfig {
+  const typegen = process.argv.includes("typegen");
+  if ((phase === PHASE_PRODUCTION_BUILD && !typegen) || phase === PHASE_PRODUCTION_SERVER) checkSiteUrl();
+
+  return nextConfig;
+}

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, fakeApi, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, fakeApi, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The services, the contact page and the pages from the panel, against the fake API's captured services and pages
@@ -17,7 +17,6 @@ const fixture: {
   detail: Record<string, { data: Service & { faqs: { question: string; answer: string }[]; deliverables: string[]; examples: { title: string }[] } }>;
   pages: Record<string, { slug: string; title: string; system_key: string | null }>;
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/pages.json", "utf8"));
-const site = "https://example.org";
 const all = fixture.services.data.groups.flatMap((g) => g.services);
 const withQuestions = Object.values(fixture.detail).find((d) => d.data.faqs.length > 0)!.data;
 const noLinks = all.find((s) => !s.contact.whatsapp && !s.contact.phone && !s.contact.email)!;

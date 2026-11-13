@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
+import { site } from "./helpers";
+
 /*
  * The files search engines and answer engines read, against the fake API (capture-seo.mjs, crawler names made up):
  * robots.txt, llms.txt, the sitemap and its parts (every address in them answers 200; pages not built yet and noindex
@@ -17,7 +19,6 @@ const seo: {
   llms: { data: { name: string; groups: { title: string }[] } };
 } = JSON.parse(readFileSync("tests/fake-api/fixtures/seo.json", "utf8"));
 const video: { video: Record<string, unknown>; playlist: Record<string, unknown>; character: Record<string, unknown> } = JSON.parse(readFileSync("tests/fake-api/fixtures/video.json", "utf8"));
-const site = "https://example.org";
 const locs = (body: string) => [...body.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].replace(/&amp;/g, "&"));
 
 test("robots.txt: one group per policy, the platform's closed paths and the site's own routes, the sitemap", async ({ request }) => {

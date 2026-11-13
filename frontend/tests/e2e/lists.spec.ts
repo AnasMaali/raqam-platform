@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The list pages (a category, a tag, a writer, a guest) against the fake API's captured lists: 12 items a page, each
@@ -11,7 +11,6 @@ import { expectNoSidewaysScroll, smallTargets, useTheme } from "./helpers";
 
 type Entity = { name: string; slug: string; job_title?: string | null };
 const lists: { entities: Record<string, Record<string, Entity>>; items: Record<string, { title: string }[]> } = JSON.parse(readFileSync("tests/fake-api/fixtures/lists.json", "utf8"));
-const site = "https://example.org";
 const one = (kind: string) => {
   const entity = Object.values(lists.entities[kind]).find((e) => (lists.items[`${kind}:${e.slug}`] ?? []).length > 0)!;
   return { ...entity, total: lists.items[`${kind}:${entity.slug}`].length };
