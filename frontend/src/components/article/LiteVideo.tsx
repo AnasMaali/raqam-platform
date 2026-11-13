@@ -59,8 +59,8 @@ export function LiteVideo({
             ref={frame}
             src={`${embedUrl}?autoplay=1&rel=0&enablejsapi=1&start=${start}`}
             title={title}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
+            // Only what the player needs; the site's Permissions-Policy hands it the same four (next.config.ts).
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
             className="size-full"
           />
         ) : (

@@ -11,7 +11,36 @@ if (leaking.length > 0) {
   throw new Error(`Browser-visible variables that look like credentials: ${leaking.join(", ")}`);
 }
 
+// The browser features the site uses: the visitor's position for «أقرب مدينة» (asked only on that press), and four for
+// the YouTube player, which it may use only because they are handed to it here and in its frame's `allow`. Every other
+// feature is off for the site and anything it frames.
+const youtube = '(self "https://www.youtube-nocookie.com")';
+const permissions = [
+  "geolocation=(self)",
+  `autoplay=${youtube}`,
+  `encrypted-media=${youtube}`,
+  `picture-in-picture=${youtube}`,
+  `fullscreen=${youtube}`,
+  ...["accelerometer", "camera", "display-capture", "gyroscope", "magnetometer", "microphone", "midi", "payment", "usb", "browsing-topics"].map((f) => `${f}=()`),
+].join(", ");
+
+// On every answer of the site: pages, its routes, its files and its build's files (README, "Security headers").
+const securityHeaders = [
+  // HTTPS only for a year, subdomains too; not on the browsers' preload list (hard to leave once on it).
+  { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  // Another site (an advertiser) learns which site a visitor came from, never which page.
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: permissions },
+  // No site may frame this one (the content security policy's frame-ancestors says the same to newer browsers).
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+];
+
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   cacheComponents: true,
   partialPrefetching: true,
   agentRules: false,
