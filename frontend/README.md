@@ -53,8 +53,10 @@ The build needs the API: a failed request while building stops it, so a page fra
   fixed to the corner. The chat's window, code and styles load only when it is pressed (`import()` in
   `src/components/chat/ChatLauncher.tsx`). `/api/chat` reads the welcome (GET) and passes messages on (POST), adding the
   site token and the visitor's address. It refuses any other Origin with 403 and is never cached. Answers go back as
-  text only (`src/lib/chat.ts`): never the platform's HTML, a link only for a path of this site, and WhatsApp only as a
-  `https://wa.me/` link. The conversation's key lives in the open window only.
+  text only (`src/lib/chat.ts`): never the platform's HTML, a link only for a path of this site, and WhatsApp only as
+  `https://wa.me/<the site's number>`, with a ready message (`?text=`) or without. The number is `/site`'s
+  `contact.whatsapp`, from the site's cache (the platform's webhook refreshes it); another number, any other part, or
+  no number at all is no link. The conversation's key lives in the open window only.
 
 ## Articles
 

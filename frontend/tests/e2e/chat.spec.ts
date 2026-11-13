@@ -1,11 +1,15 @@
-import { expect, test, type Page } from "@playwright/test";
+import { createHmac } from "node:crypto";
+import { readFileSync } from "node:fs";
 
-import { fakeApi, smallTargets } from "./helpers";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+
+import { fakeApi, site, smallTargets, startFakeApi, startSite, webhookSecret } from "./helpers";
 
 /*
  * The chatbot (18, P1 decision): the button is drawn on the server and moves nothing; the chat's code loads only when
  * it is pressed; the site's route takes requests from the site's own pages only and is never cached; every answer is
- * text, with links only to the site's own pages. Against the fake API's answers (tests/fake-api/server.mjs).
+ * text, with links only to the site's own pages, and WhatsApp only to the site's own number. Against the fake API's
+ * answers (tests/fake-api/server.mjs).
  */
 
 const launcher = (page: Page) => page.locator("[data-chat-launcher]");
@@ -151,8 +155,6 @@ test("the window: the whole screen on a phone, a panel from 768 px; every contro
 });
 
 test.describe("the site's route", () => {
-  const site = "http://127.0.0.1:3100";
-
   test("a request from another site gets 403, never cached", async ({ request }) => {
     for (const answer of [
       await request.post("/api/chat", { headers: { Origin: "https://evil.example" }, data: { message: "مرحبا" } }),
@@ -189,5 +191,93 @@ test.describe("the site's route", () => {
     expect(long.status()).toBe(422);
     const form = await request.post("/api/chat", { headers: { Origin: site }, form: { message: "مرحبا" } });
     expect(form.status()).toBe(415);
+  });
+});
+
+/** What the site's route keeps of the WhatsApp link the platform's answer offers ("واتساب <link>" to the fake API). */
+async function whatsappKept(request: APIRequestContext, offered: string, base = site) {
+  const answer = await request.post(`${base}/api/chat`, { headers: { Origin: site }, data: { message: `واتساب ${offered}` } });
+  expect(answer.status(), offered).toBe(200);
+
+  return (await answer.json()).data.reply.whatsapp as string | null;
+}
+
+const ready = `?text=${encodeURIComponent("مرحباً، سؤالي: كم السعر؟")}`;
+
+test.describe("WhatsApp: the site's own number only", () => {
+  test.beforeEach(({}, info) => test.skip(info.project.name !== "desktop", "the route, the same at every size"));
+
+  test("wa.me with the number /site gives, with a ready message or without, is kept", async ({ request }) => {
+    // The fake API's /site: +15555550123.
+    for (const link of ["https://wa.me/15555550123", `https://wa.me/15555550123${ready}`]) expect(await whatsappKept(request, link)).toBe(link);
+  });
+
+  test("another number, address or part is no link", async ({ request }) => {
+    const refused = [
+      `https://wa.me/15555550999${ready}`,
+      "https://wa.me/155555501234",
+      "https://wa.me/1555555012",
+      "https://wa.me/+15555550123",
+      "https://wa.me/15555550123/x",
+      "https://wa.me/15555550123?text=x&phone=15555550999",
+      "https://wa.me/15555550123?phone=15555550999",
+      "https://wa.me/15555550123?text=x&text=y",
+      "https://wa.me/15555550123#x",
+      "http://wa.me/15555550123",
+      "https://wa.me:8443/15555550123",
+      "https://someone@wa.me/15555550123",
+      "https://wa.me.evil.example/15555550123",
+      "https://api.whatsapp.com/send?phone=15555550123",
+      "javascript:alert(1)//wa.me/15555550123",
+    ];
+    for (const link of refused) expect(await whatsappKept(request, link), link).toBeNull();
+  });
+});
+
+test.describe("WhatsApp follows the number the platform's /site gives", () => {
+  test.describe.configure({ mode: "serial" });
+  test.beforeEach(({}, info) => test.skip(info.project.name !== "desktop", "the route, the same at every size"));
+
+  // A fake API and a server of their own: the number changes for them only.
+  const api = 4011;
+  const port = 3120;
+  const base = `http://127.0.0.1:${port}`;
+  const fixture = JSON.parse(readFileSync("tests/fake-api/fixtures/site.json", "utf8"));
+  const withNumber = (whatsapp: string | null) => ({
+    ...fixture,
+    data: { ...fixture.data, contact: { ...fixture.data.contact, whatsapp, whatsapp_url: whatsapp ? `https://wa.me/${whatsapp.slice(1)}` : null } },
+  });
+  let running: { stop: () => void }[] = [];
+
+  test.beforeAll(async ({ request }, info) => {
+    if (info.project.name !== "desktop") return;
+    const fake = startFakeApi(api);
+    running.push(fake);
+    await fake.ready();
+    expect((await request.put(`http://127.0.0.1:${api}/__fixtures/site`, { data: withNumber("+15555550999") })).ok()).toBe(true);
+    const server = startSite(port, { API_BASE_URL: `http://127.0.0.1:${api}/api/v1` });
+    running.push(server);
+    await server.ready();
+  });
+
+  test.afterAll(() => {
+    running.forEach((p) => p.stop());
+    running = [];
+  });
+
+  test("another number in /site: its link is kept, the old one's is not", async ({ request }) => {
+    expect(await whatsappKept(request, `https://wa.me/15555550999${ready}`, base)).toBe(`https://wa.me/15555550999${ready}`);
+    expect(await whatsappKept(request, `https://wa.me/15555550123${ready}`, base)).toBeNull();
+  });
+
+  test("no number in /site: no WhatsApp link at all, once the platform says the settings changed", async ({ request }) => {
+    expect((await request.put(`http://127.0.0.1:${api}/__fixtures/site`, { data: withNumber(null) })).ok()).toBe(true);
+    const body = JSON.stringify({ type: "site", change: "settings", paths: [] });
+    const t = Math.floor(Date.now() / 1000);
+    const signature = `sha256=${createHmac("sha256", webhookSecret).update(`${t}.${body}`).digest("hex")}`;
+    const told = await request.post(`${base}/api/revalidate`, { data: Buffer.from(body), headers: { "Content-Type": "application/json", "X-Raqam-Timestamp": String(t), "X-Raqam-Signature": signature } });
+    expect(told.status()).toBe(200);
+    await expect.poll(() => whatsappKept(request, `https://wa.me/15555550999${ready}`, base), { timeout: 15_000 }).toBeNull();
+    expect(await whatsappKept(request, "https://wa.me/15555550999", base)).toBeNull();
   });
 });

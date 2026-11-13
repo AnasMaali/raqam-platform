@@ -1,8 +1,6 @@
-import { type ChildProcess, spawn } from "node:child_process";
-
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
-import { fakeApi, site } from "./helpers";
+import { fakeApi, site, startSite } from "./helpers";
 
 /*
  * The forms' and reports' routes take a request only from the site's own pages: its Origin must be SITE_URL's origin,
@@ -71,31 +69,6 @@ test.describe("the site's own Origin, character for character", () => {
   });
 });
 
-/** A server of the same build, on its own port, with its own SITE_URL; and what it printed. */
-function startServer(port: number, siteUrl: string) {
-  let output = "";
-  const server: ChildProcess = spawn("node_modules/.bin/next", ["start", "-p", String(port)], {
-    detached: true,
-    env: { ...process.env, API_BASE_URL: `${fakeApi}/api/v1`, API_SITE_TOKEN: "ci-only-site-token-not-a-secret", SITE_URL: siteUrl, NEXT_TELEMETRY_DISABLED: "1" },
-  });
-  server.stdout!.on("data", (chunk) => (output += chunk));
-  server.stderr!.on("data", (chunk) => (output += chunk));
-  const exited = new Promise<number | null>((resolve) => server.on("exit", (code) => resolve(code)));
-
-  return {
-    exited,
-    output: () => output,
-    ready: () => expect.poll(async () => (await fetch(`http://127.0.0.1:${port}/robots.txt`).catch(() => null))?.status ?? 0, { timeout: 60_000 }).toBe(200),
-    stop: () => {
-      try {
-        process.kill(-server.pid!, "SIGKILL");
-      } catch {
-        // Already gone.
-      }
-    },
-  };
-}
-
 test.describe("with www or without, as SITE_URL says", () => {
   test.describe.configure({ mode: "serial" });
   test.beforeEach(({}, info) => test.skip(info.project.name !== "desktop", "routes, the same at every size"));
@@ -104,11 +77,11 @@ test.describe("with www or without, as SITE_URL says", () => {
     { port: 3102, siteUrl: "https://raqam.example", other: "https://www.raqam.example" },
     { port: 3103, siteUrl: "https://www.raqam.example", other: "https://raqam.example" },
   ];
-  let running: ReturnType<typeof startServer>[] = [];
+  let running: ReturnType<typeof startSite>[] = [];
 
   test.beforeAll(async ({}, info) => {
     if (info.project.name !== "desktop") return;
-    running = servers.map(({ port, siteUrl }) => startServer(port, siteUrl));
+    running = servers.map(({ port, siteUrl }) => startSite(port, { SITE_URL: siteUrl }));
     for (const server of running) await server.ready();
   });
 
@@ -133,7 +106,7 @@ test.describe("the server refuses to start without an exact SITE_URL", () => {
   for (const [i, value] of wrong.entries()) {
     test(`SITE_URL ${JSON.stringify(value)}: it stops, and says why`, async () => {
       // A port each: the server opens its port a moment before it reads its settings.
-      const server = startServer(3110 + i, value);
+      const server = startSite(3110 + i, { SITE_URL: value });
       try {
         const code = await Promise.race([server.exited, new Promise<"running">((r) => setTimeout(() => r("running"), 30_000))]);
         expect(code, server.output()).not.toBe("running");
@@ -147,7 +120,7 @@ test.describe("the server refuses to start without an exact SITE_URL", () => {
 
   for (const [port, value] of [[3105, "http://localhost:3105"], [3106, "https://raqam.example"]] as const) {
     test(`SITE_URL ${value}: it starts`, async () => {
-      const server = startServer(port, value);
+      const server = startSite(port, { SITE_URL: value });
       try {
         await server.ready();
       } finally {
