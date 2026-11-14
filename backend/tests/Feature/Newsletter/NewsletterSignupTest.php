@@ -23,6 +23,19 @@ function confirmCode(string $challenge, ?string $code = null, string $ip = '203.
     return newsletterCall('confirm', ['challenge' => $challenge, 'code' => $code ?? newsletterCode()], $ip);
 }
 
+test('confirming is never written before asking, even with the server\'s clock ahead of the database\'s', function (bool $comingBack) {
+    // The time of asking comes from the server's clock (it travels in the challenge); the time of confirming is the
+    // database's. A server clock a little ahead (seen once in CI, one second) must not leave confirmed before subscribed.
+    if ($comingBack) {
+        DB::table('subscribers')->insert(['email' => 'reader@example.com', 'status' => 'unsubscribed', 'unsubscribed_at' => now()->subWeek(), 'source_placement' => 'footer']);
+    }
+    $this->travelTo(now()->addMinutes(10));
+    confirmCode(subscribeRequest()->json('data.challenge'))->assertOk();
+
+    $s = DB::table('subscribers')->first(['subscribed_at', 'confirmed_at']);
+    expect(strtotime($s->confirmed_at))->toBeGreaterThanOrEqual(strtotime($s->subscribed_at));
+})->with(['a new reader' => false, 'a reader coming back' => true]);
+
 test('asking to subscribe gives a challenge and mails a 6-digit code; nothing about the person is kept yet', function () {
     $r = subscribeRequest()->assertStatus(202)->assertHeader('Cache-Control', 'no-store, private');
     validateAgainstPath($r->json(), '/newsletter/subscribe', 'post', 202);

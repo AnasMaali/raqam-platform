@@ -181,16 +181,21 @@ final class NewsletterSignup
         });
     }
 
-    /** @param  array<string, mixed>  $c */
+    /**
+     * The time of asking comes from the server's clock (it travels in the challenge), the time of confirming from the
+     * database's: greatest() keeps confirmed from coming before asked when the server's clock is ahead (decision 2026-10-21).
+     *
+     * @param  array<string, mixed>  $c
+     */
     private function subscribe(array $c): void
     {
         DB::statement(
             "INSERT INTO subscribers (email, name, status, source_path, source_placement, consent_ip_hash, subscribed_at, confirmed_at)
-             VALUES (?, ?, 'active', ?, ?, ?, to_timestamp(?), now())
+             VALUES (?, ?, 'active', ?, ?, ?, to_timestamp(?), greatest(now(), to_timestamp(?)))
              ON CONFLICT (email) DO UPDATE SET name = COALESCE(EXCLUDED.name, subscribers.name), status = 'active',
                  source_path = EXCLUDED.source_path, source_placement = EXCLUDED.source_placement, consent_ip_hash = EXCLUDED.consent_ip_hash,
-                 subscribed_at = EXCLUDED.subscribed_at, confirmed_at = now(), unsubscribed_at = NULL, updated_at = now()",
-            [$c['e'], $c['n'], $c['s'], $c['p'], $c['i'], (int) $c['t']],
+                 subscribed_at = EXCLUDED.subscribed_at, confirmed_at = EXCLUDED.confirmed_at, unsubscribed_at = NULL, updated_at = now()",
+            [$c['e'], $c['n'], $c['s'], $c['p'], $c['i'], (int) $c['t'], (int) $c['t']],
         );
         SyncSubscriberToBrevo::queueFor((string) $c['e']);
     }

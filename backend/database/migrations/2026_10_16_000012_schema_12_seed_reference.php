@@ -66,7 +66,7 @@ INSERT INTO provider_health (provider_code) SELECT code FROM data_providers;
 INSERT INTO social_platforms (code, name, sort_order) VALUES
   ('facebook', 'Facebook', 1), ('instagram', 'Instagram', 2), ('tiktok', 'TikTok', 3),
   ('youtube', 'YouTube', 4), ('whatsapp', 'WhatsApp', 5), ('x', 'X', 6),
-  ('linkedin', 'LinkedIn', 7), ('website', 'Website', 8);
+  ('linkedin', 'LinkedIn', 7), ('website', 'الموقع الإلكتروني', 8);
 
 INSERT INTO sections (key, name_ar, slug, sort_order) VALUES
   ('podcast',         'البودكاست',              'podcast',          1),

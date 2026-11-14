@@ -68,3 +68,7 @@ test('seeded typed settings are valid for their type', function () {
     expect(DB::table('settings')->where('key', 'newsletter.send_time')->value('value'))->toBe('09:00')
         ->and(DB::table('settings')->where('key', 'audit.retention_days')->value('value'))->toBe('730');
 });
+
+test('the platform that is not a brand is named in Arabic, as the editor reads it', function () {
+    expect(DB::table('social_platforms')->where('code', 'website')->value('name'))->toBe('الموقع الإلكتروني');
+});

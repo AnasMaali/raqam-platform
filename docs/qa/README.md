@@ -82,7 +82,5 @@ Words in Latin letters on purpose are listed in the spec, each group with its re
 - settings' names;
 - file names.
 
-Stored values (the audit trail's fields and values) count as data.
-
-**Known, waiting for a decision:** shown in the run's notes, not failed.
-- The social platform «Website» comes from the reference seed: its Arabic name is a change to the seed.
+Stored values count as data: the audit trail's values before and after, and a field the trail records that has no
+Arabic name yet (shown as stored, left to right; `AuditFieldNamesTest` fails on every such field in CI).
