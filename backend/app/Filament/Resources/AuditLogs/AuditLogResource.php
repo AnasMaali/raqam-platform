@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\AuditLogs;
 
+use App\Audit\AuditFieldNames;
 use App\Audit\AuditSubjects;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\AuditLogs\Pages\ListAuditLogs;
@@ -114,8 +115,10 @@ class AuditLogResource extends Resource
             ]),
             Section::make('التغييرات: قبل وبعد')->schema([
                 RepeatableEntry::make('changes')->label('الحقول')->hiddenLabel()->contained(false)->columns(['default' => 1, 'md' => 3])->schema([
-                    // The field's name and its values as they are stored: data, whatever letters they are in.
-                    TextEntry::make('field')->label('الحقل')->extraAttributes(['dir' => 'ltr', 'data-latin-ok' => true]),
+                    // The field by its Arabic name; one the dictionary does not name yet, as it is stored. The values
+                    // before and after are data, whatever letters they are in.
+                    TextEntry::make('field')->label('الحقل')->formatStateUsing(fn (string $state) => AuditFieldNames::label($state) ?? $state)
+                        ->extraAttributes(fn (?string $state) => AuditFieldNames::label((string) $state) === null ? ['dir' => 'ltr', 'data-latin-ok' => true] : []),
                     TextEntry::make('old_value')->label('قبل')->placeholder('—')->extraAttributes(['data-latin-ok' => true]),
                     TextEntry::make('new_value')->label('بعد')->placeholder('—')->extraAttributes(['data-latin-ok' => true]),
                 ])->placeholder('لا حقول لهذه العملية.'),
@@ -173,7 +176,7 @@ class AuditLogResource extends Resource
         ];
     }
 
-    /** Who did it, which item (by its Arabic name or number), which field or value: one box searches them all. */
+    /** Who did it, which item (by its Arabic name or number), which field (by its Arabic name too) or value: one box searches them all. */
     private static function search(Builder $query, string $search): Builder
     {
         $like = '%'.str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search).'%';
@@ -185,7 +188,8 @@ class AuditLogResource extends Resource
             ->when($tables !== [], fn (Builder $t) => $t->orWhereIn('subject_table', $tables))
             ->when(ctype_digit($search) && strlen($search) <= 18, fn (Builder $n) => $n->orWhere('subject_id', (int) $search)->orWhere('id', (int) $search))
             ->orWhereExists(fn ($c) => $c->selectRaw('1')->from('audit_log_changes')->whereColumn('audit_log_changes.audit_id', 'audit_log.id')
-                ->where(fn ($v) => $v->where('field', 'ilike', $like)->orWhere('old_value', 'ilike', $like)->orWhere('new_value', 'ilike', $like))));
+                ->where(fn ($v) => $v->where('field', 'ilike', $like)->orWhere('old_value', 'ilike', $like)->orWhere('new_value', 'ilike', $like)
+                    ->when(($fields = AuditFieldNames::matching($search)) !== [], fn ($f) => $f->orWhereIn('field', $fields)))));
     }
 
     private static function subject(AuditLog $record): string

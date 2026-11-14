@@ -60,11 +60,6 @@ const LATIN_ON_PURPOSE = new Set(
     ].map((w) => w.toLowerCase()),
 );
 
-/** Known, and waiting for a decision: shown in the run's notes, not failed. */
-const KNOWN: Record<string, string> = {
-    Website: "the social_platforms seed row is named 'Website' (an Arabic name means a change to the seed)",
-};
-
 type PageReport = { english: string[]; overflow: string[]; scrolls: boolean };
 
 /** Reads the page as the editor sees it: visible English words, and what sticks out sideways. */
@@ -149,11 +144,7 @@ for (const screen of screens()) {
 
         const seen = await read(page);
         if (seen.scrolls) problems.push('the page scrolls sideways');
-        for (const finding of seen.english) {
-            const word = finding.split('  ')[0];
-            if (KNOWN[word]) test.info().annotations.push({ type: 'known', description: `«${word}»: ${KNOWN[word]}` });
-            else problems.push(`English: ${finding}`);
-        }
+        problems.push(...seen.english.map((e) => `English: ${e}`));
         problems.push(...seen.overflow.map((o) => `sticks out: ${o}`));
         expect(problems, `${screen} on ${test.info().project.name}`).toEqual([]);
     });
