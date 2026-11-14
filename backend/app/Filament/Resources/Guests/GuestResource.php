@@ -76,7 +76,7 @@ class GuestResource extends Resource
             ]),
             Section::make('الروابط')->columns(['default' => 1, 'md' => 2])->collapsed()->schema($links),
             Section::make('ظهوراته')->visible(fn (?Guest $record) => $record !== null)->schema([
-                TextEntry::make('appearances')->hiddenLabel()->placeholder('لم يظهر في أي مادة بعد.')->bulleted()
+                TextEntry::make('appearances')->label('ظهوراته')->hiddenLabel()->placeholder('لم يظهر في أي مادة بعد.')->bulleted()
                     ->state(fn (Guest $record) => self::appearances($record)),
             ]),
             SeoSection::make('اتركها فارغة لاستعمال اسم الضيف ونبذته.'),

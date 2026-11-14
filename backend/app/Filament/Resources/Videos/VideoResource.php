@@ -110,7 +110,7 @@ class VideoResource extends Resource
                     ])->helperText('الوقت مثل 12:30 أو 1:05:00، ولا يتجاوز مدة الفيديو. الضغط على المحور في الموقع ينقل الفيديو لوقته.'),
             ]),
             Section::make('أين يُستخدم؟')->visible(fn (?Video $record) => $record !== null)->schema([
-                TextEntry::make('usage')->hiddenLabel()->placeholder('غير مستخدم في أي مكان.')->bulleted()->state(fn (Video $record) => self::usage($record)),
+                TextEntry::make('usage')->label('أين يُستخدم')->hiddenLabel()->placeholder('غير مستخدم في أي مكان.')->bulleted()->state(fn (Video $record) => self::usage($record)),
             ]),
         ]);
     }

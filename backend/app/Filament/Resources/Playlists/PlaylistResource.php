@@ -71,8 +71,8 @@ class PlaylistResource extends Resource
                 Toggle::make('is_visible')->label('ظاهرة في الموقع')->default(true),
             ]),
             Section::make('الفيديوهات (اسحب للترتيب)')->schema([
-                Repeater::make('videos')->hiddenLabel()->reorderable()->defaultItems(0)->addActionLabel('إضافة فيديو')->maxItems(500)
-                    ->schema([VideoSelect::make('video_id')->hiddenLabel()->required()]),
+                Repeater::make('videos')->label('الفيديوهات')->hiddenLabel()->reorderable()->defaultItems(0)->addActionLabel('إضافة فيديو')->maxItems(500)
+                    ->schema([VideoSelect::make('video_id')->label('الفيديو')->hiddenLabel()->required()]),
             ]),
             SeoSection::make('اتركها فارغة لاستعمال اسم القائمة ووصفها.'),
         ]);

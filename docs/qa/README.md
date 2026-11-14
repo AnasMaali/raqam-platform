@@ -52,3 +52,37 @@ to the log. The Bank of Israel needs no key, so the currency fetch reaches the r
 Every e-mail address is `@example.org`, and every phone number is in the range kept for fiction (`+1 555 555 01xx`).
 Statistics already in the database (the site's own counts) are kept as they are. `--remove` takes away only the
 demo's own rows, as its record lists them.
+
+## The panel, screen by screen (QA 2)
+
+`e2e/qa/panel-crawl.spec.ts` opens every screen of the panel on the QA database:
+- every list, create, edit and view screen and every settings page, taken from the panel's own route list;
+- a real record for each edit or view screen, and for the post editor one post of every kind;
+- at two sizes: a computer (1280 px) and a 360 px phone.
+
+On each screen it checks four things:
+- no server error;
+- no error in the console;
+- no English text: visible words, and also what a screen reader reads (a field's hidden label, `placeholder`, `aria-label`, `title`);
+- nothing sticking out sideways (RTL), outside the parts that scroll on purpose.
+
+```sh
+backend/scripts/qa.sh serve                 # in one terminal
+cd e2e && npx playwright test -c playwright.qa.config.ts
+```
+
+- **Signing in:** the run signs in as the QA admin, with the code read from the QA mail log. It keeps the session in `e2e/.qa/` (git-ignored) for the next run, because a new code is sent at most once a minute and three times an hour. The kept cookie is saved again as the server renews it.
+- **The panel's address:** read from `ADMIN_PATH` in `.env.qa`, and never written into a test. Screens are named by what comes after it.
+- **The run's own output stays local:** Playwright's timeout messages print full addresses.
+
+Words in Latin letters on purpose are listed in the spec, each group with its reason:
+- keys of the keyboard;
+- names of services and formats;
+- a browser and its system as the sign-in records name them;
+- settings' names;
+- file names.
+
+Stored values (the audit trail's fields and values) count as data.
+
+**Known, waiting for a decision:** shown in the run's notes, not failed.
+- The social platform «Website» comes from the reference seed: its Arabic name is a change to the seed.

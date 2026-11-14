@@ -74,15 +74,22 @@ final class MediaUsage
             SQL));
     }
 
-    /** The identifying columns of a referencing row, e.g. "id=5" or "post_id=5, media_id=3". */
+    /**
+     * The item a referencing row belongs to, as an editor knows it: a post by its title (its cover, its gallery, a
+     * picture in its text), anything else by its number ("رقم 5").
+     */
     private function identify(string $table, array $row): string
     {
+        $postId = $table === 'posts' ? ($row['id'] ?? null) : ($row['post_id'] ?? null);
+        if ($postId !== null && ($title = DB::table('posts')->where('id', $postId)->value('title')) !== null) {
+            return "«{$title}»";
+        }
         $keys = DB::select(<<<'SQL'
             SELECT a.attname FROM pg_index i
             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)
             WHERE i.indrelid = ?::regclass AND i.indisprimary
             SQL, [$table]);
 
-        return collect($keys)->map(fn ($k) => $k->attname.'='.($row[$k->attname] ?? '?'))->implode(', ');
+        return 'رقم '.collect($keys)->map(fn ($k) => $row[$k->attname] ?? '?')->implode('/');
     }
 }
