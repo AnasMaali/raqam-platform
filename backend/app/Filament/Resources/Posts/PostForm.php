@@ -69,7 +69,7 @@ final class PostForm
             ]),
             ...self::kindSections(),
             Section::make('الضيوف')->visible(fn (?Post $record) => in_array($record?->kind_code, ['episode', 'roundtable'], true))->schema([
-                Repeater::make('guests')->hiddenLabel()->defaultItems(0)->reorderable()->addActionLabel('إضافة ضيف')
+                Repeater::make('guests')->label('الضيوف')->hiddenLabel()->defaultItems(0)->reorderable()->addActionLabel('إضافة ضيف')
                     ->schema([
                         Select::make('guest_id')->label('الضيف')->native(false)->searchable()->required()
                             ->getSearchResultsUsing(fn (string $search) => DB::table('guests')->whereNull('deleted_at')->whereRaw('search_name ILIKE \'%\' || normalize_ar(?) || \'%\'', [$search])->limit(30)->pluck('name', 'id')->all())
@@ -126,7 +126,7 @@ final class PostForm
                     ->nestedRecursiveRules(['string', 'max:80'])->placeholder('اكتب وسماً واضغط Enter'),
             ]),
             Section::make('مساعد SEO')->collapsed(false)->schema([
-                TextEntry::make('seo_assistant')->hiddenLabel()
+                TextEntry::make('seo_assistant')->label('مساعد SEO')->hiddenLabel()
                     ->state(function (Get $get, ?Post $record) {
                         $checks = app(SeoChecklist::class)->evaluate([
                             'title' => $get('title'), 'excerpt' => $get('excerpt'), 'body' => $get('body'), 'slug' => $get('slug') ?: ArabicSlug::forTitle($get('title')),

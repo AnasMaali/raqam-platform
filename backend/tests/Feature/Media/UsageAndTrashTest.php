@@ -77,17 +77,19 @@ test('the message names where the file is used', function () {
     try {
         $this->trash->trash($this->asset);
     } catch (MediaInUse $e) {
-        expect($e->getMessage())->toContain('صورة كاتب')->toContain("id={$author}")->toContain('مستخدمة');
+        expect($e->getMessage())->toContain('صورة كاتب')->toContain("رقم {$author}")->toContain('مستخدمة');
     }
 });
 
-test('the usage list shows the place and the row, for several places at once', function () {
+test('the usage list shows the place and the item in Arabic, a post by its title, for several places at once', function () {
     $post = insertPost(['cover_media_id' => $this->asset->id]);
     $author = useAsAuthorPhoto($this->asset->id);
+    $title = DB::table('posts')->where('id', $post)->value('title');
 
     $usages = collect($this->usage->of($this->asset))->map(fn ($u) => "{$u['label']}|{$u['id']}")->all();
 
-    expect($usages)->toContain("الصورة الرئيسية لمادة|id={$post}")->toContain("صورة كاتب|id={$author}");
+    expect($usages)->toContain("الصورة الرئيسية لمادة|«{$title}»")->toContain("صورة كاتب|رقم {$author}")
+        ->and(implode(' ', $usages))->not->toMatch('/[a-z_]+=/');
 });
 
 test('a file that is not used has an empty usage list', function () {

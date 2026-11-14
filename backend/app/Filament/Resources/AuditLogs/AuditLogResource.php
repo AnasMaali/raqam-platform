@@ -114,9 +114,10 @@ class AuditLogResource extends Resource
             ]),
             Section::make('التغييرات: قبل وبعد')->schema([
                 RepeatableEntry::make('changes')->label('الحقول')->hiddenLabel()->contained(false)->columns(['default' => 1, 'md' => 3])->schema([
-                    TextEntry::make('field')->label('الحقل')->extraAttributes(['dir' => 'ltr']),
-                    TextEntry::make('old_value')->label('قبل')->placeholder('—'),
-                    TextEntry::make('new_value')->label('بعد')->placeholder('—'),
+                    // The field's name and its values as they are stored: data, whatever letters they are in.
+                    TextEntry::make('field')->label('الحقل')->extraAttributes(['dir' => 'ltr', 'data-latin-ok' => true]),
+                    TextEntry::make('old_value')->label('قبل')->placeholder('—')->extraAttributes(['data-latin-ok' => true]),
+                    TextEntry::make('new_value')->label('بعد')->placeholder('—')->extraAttributes(['data-latin-ok' => true]),
                 ])->placeholder('لا حقول لهذه العملية.'),
             ]),
         ]);

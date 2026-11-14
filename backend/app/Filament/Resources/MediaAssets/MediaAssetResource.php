@@ -106,11 +106,11 @@ class MediaAssetResource extends Resource
                 TextInput::make('credit')->label('المصدر / الحقوق')->maxLength(200),
             ]),
             Section::make('نقطة التركيز')->visible(fn (?MediaAsset $record) => $record?->isRaster() ?? false)->schema([
-                FocalPoint::make('focal')->hiddenLabel()
+                FocalPoint::make('focal')->label('نقطة التركيز')->hiddenLabel()
                     ->imageUrl(fn (MediaAsset $record) => app(MediaStorage::class)->url($record)),
             ]),
             Section::make('أين تُستخدم؟')->visible(fn (?MediaAsset $record) => $record !== null)->schema([
-                TextEntry::make('usage')->hiddenLabel()->placeholder('غير مستخدمة في أي مكان.')
+                TextEntry::make('usage')->label('أين تُستخدم')->hiddenLabel()->placeholder('غير مستخدمة في أي مكان.')
                     ->state(function (MediaAsset $record) {
                         $usages = app(MediaUsage::class)->of($record);
 

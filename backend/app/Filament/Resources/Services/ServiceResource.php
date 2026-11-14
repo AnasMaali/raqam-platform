@@ -82,7 +82,7 @@ class ServiceResource extends Resource
                     ->helperText('تعرض صفحة الخدمة أحدث المواد المنشورة من هذا القسم كأمثلة.'),
             ]),
             Section::make('ماذا تشمل')->schema([
-                Repeater::make('deliverables')->hiddenLabel()->simple(TextInput::make('label')->required()->maxLength(200))
+                Repeater::make('deliverables')->label('ماذا تشمل')->hiddenLabel()->simple(TextInput::make('label')->label('البند')->required()->maxLength(200))
                     ->reorderable()->maxItems(20)->addActionLabel('إضافة بند')->defaultItems(0),
             ]),
             Section::make('السعر')->columns(['default' => 1, 'md' => 3])->schema([
@@ -99,7 +99,7 @@ class ServiceResource extends Resource
                     ->visible(fn (Get $get) => self::priced($get) && $get('offer'))->required(fn (Get $get) => self::priced($get) && $get('offer')),
             ]),
             Section::make('أسئلة شائعة خاصة بالخدمة')->schema([
-                Repeater::make('faqs')->hiddenLabel()->schema([
+                Repeater::make('faqs')->label('أسئلة شائعة خاصة بالخدمة')->hiddenLabel()->schema([
                     TextInput::make('question')->label('السؤال')->required()->maxLength(300),
                     Textarea::make('answer')->label('الجواب')->required()->maxLength(3000)->rows(3),
                     Toggle::make('is_published')->label('ظاهر')->default(true),

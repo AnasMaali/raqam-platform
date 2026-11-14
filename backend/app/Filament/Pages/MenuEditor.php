@@ -82,7 +82,7 @@ class MenuEditor extends Page
         $tabs = [];
         foreach ($store->menus() as $key => $name) {
             $tabs[] = Tab::make($name)->schema([
-                Repeater::make($key)->hiddenLabel()->schema(self::itemFields(withChildren: true))
+                Repeater::make($key)->label($name)->hiddenLabel()->schema(self::itemFields(withChildren: true))
                     ->reorderableWithDragAndDrop()->collapsible()->collapsed()->cloneable()
                     ->itemLabel(fn (array $state) => $state['label_ar'] ?? null)
                     ->addActionLabel('إضافة رابط')->defaultItems(0)->maxItems(MenuStore::MAX_ITEMS),

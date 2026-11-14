@@ -71,7 +71,7 @@ class HomeLayoutEditor extends Page
     public function form(Schema $schema): Schema
     {
         return $schema->statePath('data')->components([
-            Repeater::make('blocks')->hiddenLabel()
+            Repeater::make('blocks')->label('أجزاء الصفحة الرئيسية')->hiddenLabel()
                 ->schema([
                     TextInput::make('id')->hidden()->dehydratedWhenHidden(),
                     Select::make('block_type')->label('النوع')->native(false)->required()->live()->options(HomeLayout::TYPES),

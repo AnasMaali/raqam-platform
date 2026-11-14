@@ -61,7 +61,7 @@ setup() {
 import sys
 values = {
     "APP_ENV": "qa", "APP_KEY": "base64:$(openssl rand -base64 32)", "APP_DEBUG": "false", "APP_URL": "http://127.0.0.1:$PORT",
-    "LOG_CHANNEL": "single", "LOG_LEVEL": "info",
+    "LOG_CHANNEL": "single", "LOG_LEVEL": "debug",
     "DB_DATABASE": "$DB", "DB_USERNAME": "$PGUSER", "DB_PASSWORD": "",
     "REDIS_DB": "14", "REDIS_CACHE_DB": "14", "REDIS_SESSION_DB": "15",
     "MAIL_MAILER": "log", "MEDIA_DISK": "local",
@@ -105,7 +105,7 @@ admin() {
   password="$(openssl rand -base64 30 | tr -d '/+=' | cut -c1-32)"
   (umask 077 && printf 'email=qa-admin@example.org\npassword=%s\n' "$password" > "$login")
   # The password goes in through the command's own questions, never on its command line.
-  printf 'QA admin\n%s\n%s\n' "$password" "$password" | artisan admin:create qa-admin@example.org
+  printf 'مسؤول الفحص\n%s\n%s\n' "$password" "$password" | artisan admin:create qa-admin@example.org
 }
 
 demo() {
@@ -118,7 +118,8 @@ serve() {
   checked
   echo "API and panel on http://127.0.0.1:$PORT (the panel's address is ADMIN_PATH in backend/.env.qa)."
   cd "$QA_HOME/public"
-  APP_ENV=qa exec php -d variables_order=EGPCS -d memory_limit=512M -d upload_max_filesize=40M -d post_max_size=48M \
+  # Several workers: the browser checks load pages side by side, and one PHP process answers one request at a time.
+  APP_ENV=qa PHP_CLI_SERVER_WORKERS="${RAQAM_QA_WORKERS:-4}" exec php -d variables_order=EGPCS -d memory_limit=512M -d upload_max_filesize=40M -d post_max_size=48M \
     -S "127.0.0.1:$PORT" "$BACKEND/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
 }
 
