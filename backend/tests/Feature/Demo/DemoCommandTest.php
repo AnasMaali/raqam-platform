@@ -2,10 +2,14 @@
 
 use App\Demo\DemoImages;
 use App\Demo\DemoManifest;
+use App\Demo\DemoSeeder;
 use App\Jobs\SendSiteWebhook;
 use App\Jobs\SubmitIndexNow;
+use App\Support\ArabicNormalizer;
+use Illuminate\Database\Events\TransactionBeginning;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
@@ -190,6 +194,115 @@ test('a small run fills every part of the site the API serves, quietly', functio
     expect(json_decode(file_get_contents($this->manifestPath), true)['rows']['posts'])->toHaveCount(24);
 });
 
+test('the readers\' side: subscribers, messages, chat conversations and 90 days of statistics that add up', function () {
+    $this->artisan('raqam:demo', ['--posts' => 40, '--seed' => 11])->assertSuccessful()->expectsOutputToContain('days of statistics');
+    $today = now('Asia/Hebron')->startOfDay();
+    $first = $today->copy()->subDays(89)->toDateString();
+
+    // Readers in every state, each with its consent proof; the inbox has new and handled messages, oldest first.
+    $statuses = DB::table('subscribers')->groupBy('status')->selectRaw('status, count(*) AS n')->pluck('n', 'status')->all();
+    expect(array_sum($statuses))->toBe(30)->and(array_keys($statuses))->toContain('active', 'pending')
+        ->and(DB::table('subscribers')->whereNull('consent_ip_hash')->count())->toBe(0)
+        ->and(DB::table('subscribers')->where('email', 'not like', '%@example.org')->count())->toBe(0);
+    $inbox = DB::table('contact_messages')->orderBy('id')->get();
+    expect($inbox)->toHaveCount(6)->and($inbox->where('status', 'new'))->not->toBeEmpty()
+        ->and($inbox->where('status', '<>', 'new')->every(fn ($m) => $m->handled_by !== null && $m->handled_at >= $m->created_at))->toBeTrue()
+        ->and($inbox->pluck('created_at')->all())->toBe($inbox->pluck('created_at')->sort()->values()->all());
+
+    // Conversations of one to three turns, a question and its answer each; some found an answer, some did not.
+    $conversations = DB::table('bot_conversations')->count();
+    $turns = DB::table('bot_messages')->groupBy('conversation_id')->selectRaw("count(*) FILTER (WHERE role = 'user') AS q, count(*) FILTER (WHERE role = 'bot') AS a")->get();
+    expect($conversations)->toBe(10)->and($turns)->toHaveCount(10)
+        ->and($turns->every(fn ($t) => $t->q === $t->a && $t->q >= 1 && $t->q <= 3))->toBeTrue()
+        ->and(DB::table('bot_messages')->where('role', 'user')->whereNotNull('matched_entry_id')->count())->toBeGreaterThan(0)
+        ->and(DB::table('bot_messages')->where('role', 'user')->whereNull('matched_entry_id')->count())->toBeGreaterThan(0);
+
+    // 90 days, today included; each day's page views hold the posts' own, and its visitors split exactly into devices and sources.
+    $days = DB::table('site_stats_daily')->orderBy('stat_date')->pluck('stat_date')->all();
+    expect($days)->toHaveCount(90)->and($days[0])->toBe($first)->and(end($days))->toBe($today->toDateString());
+    $broken = DB::select(<<<'SQL'
+        SELECT s.stat_date FROM site_stats_daily s
+        WHERE s.page_views < coalesce((SELECT sum(views) FROM post_views_daily p WHERE p.stat_date = s.stat_date), 0)
+           OR s.unique_visitors <> (SELECT sum(visits) FROM device_stats_daily d WHERE d.stat_date = s.stat_date)
+           OR s.unique_visitors <> (SELECT sum(visits) FROM traffic_sources_daily t WHERE t.stat_date = s.stat_date)
+        SQL);
+    expect($broken)->toBe([])
+        ->and(DB::table('post_views_daily')->where('stat_date', '<', $first)->count())->toBe(0)
+        ->and(DB::table('post_views_daily')->min('stat_date'))->toBeLessThan($today->copy()->subDays(30)->toDateString())
+        ->and(DB::table('event_stats_daily')->distinct()->count('event_code'))->toBe(DB::table('event_types')->count());
+
+    // Searches, some of which find nothing; the terms are stored normalised.
+    expect(DB::table('search_stats_daily')->whereColumn('zero_result_searches', 'searches')->count())->toBeGreaterThan(0)
+        ->and(DB::table('search_terms')->pluck('normalized_term')->every(fn ($t) => $t === ArabicNormalizer::normalize($t)))->toBeTrue();
+
+    // Ad views only on the days a campaign ran, in its own places; contacts, plays and missing pages too.
+    $outside = DB::select(<<<'SQL'
+        SELECT 1 FROM ad_stats_daily s JOIN ad_campaigns c ON c.id = s.campaign_id
+        WHERE s.stat_date < (c.starts_at AT TIME ZONE 'Asia/Hebron')::date OR s.stat_date > (c.ends_at AT TIME ZONE 'Asia/Hebron')::date
+           OR NOT EXISTS (SELECT 1 FROM ad_campaign_placements p WHERE p.campaign_id = s.campaign_id AND p.placement_code = s.placement_code)
+        SQL);
+    foreach (['site_stats_daily', 'post_views_daily', 'ad_stats_daily', 'search_stats_daily', 'service_contact_clicks_daily', 'video_plays_daily'] as $table) {
+        expect(DB::table($table)->max('stat_date'))->toBeLessThanOrEqual($today->toDateString(), "{$table} has no day after today");
+    }
+    expect(DB::table('ad_stats_daily')->count())->toBeGreaterThan(0)->and($outside)->toBe([])
+        ->and(DB::table('ad_stats_daily')->whereColumn('clicks', '>', 'impressions')->count())->toBe(0)
+        ->and(DB::table('service_contact_clicks_daily')->count())->toBeGreaterThan(0)
+        ->and(DB::table('video_plays_daily')->count())->toBeGreaterThan(0)
+        ->and(DB::table('not_found_paths')->count())->toBe(12);
+});
+
+test('statistics the site counted itself stay as they are, and stay when the demo is removed', function () {
+    $today = now('Asia/Hebron')->toDateString();
+    DB::table('site_stats_daily')->insert(['stat_date' => $today, 'page_views' => 7, 'unique_visitors' => 3]);
+    DB::table('search_terms')->insert(['normalized_term' => ArabicNormalizer::normalize('سعر الدولار')]);
+    DB::table('not_found_paths')->insert(['path' => '/news/old', 'hits' => 2]);
+
+    $this->artisan('raqam:demo', ['--posts' => 11, '--seed' => 5])->assertSuccessful();
+    expect((array) DB::table('site_stats_daily')->where('stat_date', $today)->first(['page_views', 'unique_visitors']))->toBe(['page_views' => 7, 'unique_visitors' => 3])
+        ->and(DB::table('not_found_paths')->where('path', '/news/old')->value('hits'))->toBe(2)
+        ->and(DB::table('site_stats_daily')->count())->toBe(90);
+
+    $this->artisan('raqam:demo', ['--remove' => true, '--force' => true])->assertSuccessful();
+    expect(DB::table('site_stats_daily')->pluck('stat_date')->all())->toBe([$today])
+        ->and(DB::table('search_terms')->count())->toBe(1)
+        ->and(DB::table('not_found_paths')->pluck('path')->all())->toBe(['/news/old']);
+});
+
+test('a long run commits a batch of posts at a time (one transaction for 2000 posts runs out of locks)', function () {
+    $this->app->resolving(DemoSeeder::class, fn ($seeder) => $seeder->batch = 10);
+    // The run's own transactions are the ones opened one level above the test's (RefreshDatabase holds one open).
+    $outer = DB::transactionLevel() + 1;
+    $postsWhenOpened = [];
+    Event::listen(TransactionBeginning::class, function () use ($outer, &$postsWhenOpened) {
+        if (DB::transactionLevel() === $outer && DB::table('posts')->count() < 24) {
+            $postsWhenOpened[] = DB::table('posts')->count();
+        }
+    });
+
+    $this->artisan('raqam:demo', ['--posts' => 24, '--seed' => 7])->assertSuccessful();
+
+    expect(array_values(array_unique($postsWhenOpened)))->toBe([0, 10, 20])->and(DB::table('posts')->count())->toBe(24);
+});
+
+test('a run that fails after a batch was committed leaves nothing behind, files included', function () {
+    $this->app->resolving(DemoSeeder::class, fn ($seeder) => $seeder->batch = 10);
+    $before = installedState();
+    // The FAQ comes after every post: two batches are committed by then.
+    DB::listen(function ($query) {
+        if (str_starts_with($query->sql, 'insert into "faqs"')) {
+            throw new RuntimeException('the run stops here');
+        }
+    });
+
+    expect(fn () => $this->artisan('raqam:demo', ['--posts' => 24, '--seed' => 7])->run())->toThrow(RuntimeException::class, 'the run stops here');
+
+    expect(installedState())->toEqual($before);
+    foreach (['posts', 'videos', 'authors', 'guests', 'media_assets', 'playlists', 'advertisers', 'ad_campaigns', 'exchange_rates', 'post_views_daily'] as $table) {
+        expect(DB::table($table)->count())->toBe(0, "{$table} is empty again");
+    }
+    expect(Storage::disk('media_local_public')->allFiles())->toBe([])->and(is_file($this->manifestPath))->toBeFalse();
+});
+
 test('removing the demo gives the database back as raqam:install left it', function () {
     $before = installedState();
 
@@ -200,7 +313,10 @@ test('removing the demo gives the database back as raqam:install left it', funct
 
     expect(installedState())->toEqual($before);
     foreach (['posts', 'videos', 'authors', 'guests', 'organizations', 'sectors', 'eras', 'tags', 'media_assets', 'playlists', 'podcast_seasons',
-        'advertisers', 'ad_campaigns', 'house_ads', 'character_poses', 'menu_items', 'faqs', 'exchange_rates', 'weather_observations', 'weather_forecasts'] as $table) {
+        'advertisers', 'ad_campaigns', 'house_ads', 'character_poses', 'menu_items', 'faqs', 'exchange_rates', 'weather_observations', 'weather_forecasts',
+        'subscribers', 'contact_messages', 'bot_conversations', 'bot_messages', 'site_stats_daily', 'traffic_sources_daily', 'device_stats_daily',
+        'event_stats_daily', 'search_terms', 'search_stats_daily', 'post_views_daily', 'ad_stats_daily', 'service_contact_clicks_daily',
+        'video_plays_daily', 'not_found_paths'] as $table) {
         expect(DB::table($table)->count())->toBe(0, "{$table} is empty again");
     }
     expect(Storage::disk('media_local_public')->allFiles())->toBe([])->and(is_file($this->manifestPath))->toBeFalse();

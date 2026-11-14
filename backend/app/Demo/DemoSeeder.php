@@ -43,7 +43,8 @@ use Random\Randomizer;
  * same services the panel uses (PostSaver, MediaUploader, VideoLibrary, AdCampaigns, ServiceCatalog, MenuStore,
  * HomeLayout ...), so every rule, subtype row and revision is what an editor would have produced. Only the market data
  * (a year of rates, today's weather) and the reading counts are written straight to their tables, in the shape the
- * fetchers and the statistics transfer write them.
+ * fetchers and the statistics transfer write them; so is the readers' side (DemoActivity: subscribers, messages, chat
+ * conversations and the last 90 days of statistics).
  */
 class DemoSeeder
 {
@@ -130,6 +131,15 @@ class DemoSeeder
     /** @var (callable(string): void)|null */
     private $progress = null;
 
+    /**
+     * Posts written between two checkpoints. Each post's save holds about eight locks until its transaction ends, and
+     * PostgreSQL has room for 64 × max_connections (6400 by default) in all: one transaction for 2000 posts runs out.
+     */
+    public int $batch = 200;
+
+    /** @var (callable(): void)|null called after every batch of posts, where the caller commits what came before */
+    private $checkpoint = null;
+
     public function __construct(
         private PostSaver $posts,
         private MediaUploader $uploader,
@@ -146,12 +156,15 @@ class DemoSeeder
     ) {}
 
     /**
-     * Writes everything. The caller runs it inside one transaction and records the new rows afterwards.
+     * Writes everything. The caller runs it inside a transaction, commits it at each checkpoint (a batch of posts) and
+     * records the new rows afterwards.
      *
      * @param  (callable(string): void)|null  $progress
+     * @param  (callable(): void)|null  $checkpoint
      */
-    public function run(int $userId, int $postCount, int $seed, DemoManifest $manifest, ?callable $progress = null): void
+    public function run(int $userId, int $postCount, int $seed, DemoManifest $manifest, ?callable $progress = null, ?callable $checkpoint = null): void
     {
+        $this->checkpoint = $checkpoint;
         $this->rng = new Randomizer(new Mt19937($seed));
         $this->user = $userId;
         $this->now = CarbonImmutable::now();
@@ -185,6 +198,8 @@ class DemoSeeder
             $this->makePages($manifest);
             $this->makeMenus();
             $this->makeHome();
+            $this->step('readers, messages, chat and '.DemoActivity::DAYS.' days of statistics');
+            (new DemoActivity($this->rng, $this->now, $this->user))->run($postCount);
         } finally {
             $this->images->cleanUp();
         }
@@ -427,6 +442,9 @@ class DemoSeeder
             }
             if (++$done % 50 === 0) {
                 $this->step("  {$done} of ".count($kinds).' posts');
+            }
+            if ($done % $this->batch === 0 && $done < count($kinds) && $this->checkpoint !== null) {
+                ($this->checkpoint)();
             }
         }
     }
@@ -812,10 +830,10 @@ class DemoSeeder
     {
         $today = $this->now->setTimezone('Asia/Hebron')->startOfDay();
         $rows = [];
-        foreach (DB::table('posts')->where('status', 'published')->where('published_at', '>', $this->now->subDays(30))->get(['id', 'published_at']) as $post) {
+        foreach (DB::table('posts')->where('status', 'published')->where('published_at', '>', $this->now->subDays(DemoActivity::DAYS))->get(['id', 'published_at']) as $post) {
             $base = $this->rng->getInt(40, 1600);
             $first = CarbonImmutable::parse($post->published_at)->setTimezone('Asia/Hebron')->startOfDay();
-            for ($day = $first->max($today->subDays(13)); $day->lessThanOrEqualTo($today); $day = $day->addDay()) {
+            for ($day = $first->max($today->subDays(DemoActivity::DAYS - 1)); $day->lessThanOrEqualTo($today); $day = $day->addDay()) {
                 $age = (int) $first->diffInDays($day);
                 $rows[] = ['post_id' => $post->id, 'stat_date' => $day->toDateString(), 'views' => max(1, (int) round($base / (1 + $age * 0.6) * $this->rng->getFloat(0.7, 1.3)))];
             }
