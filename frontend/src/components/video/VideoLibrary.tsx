@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { Breadcrumbs, type Crumb } from "@/components/article/ArticleParts";
-import { Pagination, pageNumber } from "@/components/lists/ListView";
+import { Pagination, pageNumber, pagedDescription } from "@/components/lists/ListView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Pic } from "@/components/ui/Pic";
 import { serverEnv } from "@/lib/server/env";
@@ -46,7 +46,7 @@ export async function videoMetadata(rawPage: string | undefined, query: Query): 
 
   return {
     title: name,
-    description: "فيديوهات رَقَم: حلقات البودكاست والطاولات المستديرة والتقارير المصوّرة، مرتّبة في قوائم تشغيل.",
+    description: pagedDescription("فيديوهات رَقَم: حلقات البودكاست والطاولات المستديرة والتقارير المصوّرة، مرتّبة في قوائم تشغيل.", page),
     alternates: { canonical: section ? "/video" : path },
     robots: section ? { index: false, follow: true } : undefined,
     openGraph: { type: "website", url: path, title: name, siteName: "رَقَم", locale: "ar_AR", images: [{ url: "/og/default.png", width: 1200, height: 630, alt: "شعار رقم" }] },

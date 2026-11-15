@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { expectNoSidewaysScroll, fakeApi, smallTargets, useTheme } from "./helpers";
+import { expectNoSidewaysScroll, fakeApi, site, smallTargets, useTheme } from "./helpers";
 
 /*
  * The newsletter's own page (placement newsletter_page) and the unsubscribe page: opening the link changes nothing,
@@ -45,6 +45,8 @@ test.describe("/newsletter/unsubscribe", () => {
     expect(response?.status()).toBe(200);
     await expect(page.locator("meta[name='robots']")).toHaveAttribute("content", /noindex/);
     await expect(page.locator("meta[name='referrer']")).toHaveAttribute("content", "no-referrer");
+    // Its canonical address is the page itself, without the link's signature.
+    await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", `${site}/newsletter/unsubscribe`);
     expect(response?.headers()["cache-control"]).toMatch(/no-store/);
     expect(await unsubscribedCount(request, s)).toBe(0);
     await page.getByRole("button", { name: "ألغِ اشتراكي" }).click();

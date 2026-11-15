@@ -14,6 +14,9 @@
 #   scripts/qa.sh demo [--posts=2000 ...]  fill raqam_qa with raqam:demo (2000 posts unless told otherwise)
 #   scripts/qa.sh artisan <command ...>    any artisan command against raqam_qa
 #   scripts/qa.sh serve                    the API and the panel on 127.0.0.1:8100, media from the QA storage
+#   scripts/qa.sh worker                   the queue (the webhooks to the site, the search index, picture sizes)
+#   scripts/qa.sh site build               build the website against the QA API, in a copy of frontend/ of its own
+#   scripts/qa.sh site start               the website on 127.0.0.1:3300 (where the QA webhooks go)
 set -euo pipefail
 
 BACKEND="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -123,11 +126,47 @@ serve() {
     -S "127.0.0.1:$PORT" "$BACKEND/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
 }
 
+# A value of backend/.env.qa (written by setup: no quotes, no spaces).
+qa_value() { grep -E "^$1=" "$ENV_FILE" | head -1 | cut -d= -f2-; }
+
+# The website, built and served from a copy of frontend/ (in $QA_HOME/site), so its build never replaces the one the
+# site's own tests use. It reads the QA API with the QA site token; the QA webhooks reach it with the QA secret. Only
+# these values are given to it: nothing from the developer's shell or frontend/.env.local.
+site() {
+  checked
+  local source="$BACKEND/../frontend" copy="$QA_HOME/site" site_port="${SITE##*:}"
+  local settings=(PATH="$PATH" HOME="$HOME" NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
+    API_BASE_URL="http://127.0.0.1:$PORT/api/v1" API_SITE_TOKEN="$(qa_value API_SITE_TOKEN)" SITE_URL="$SITE"
+    SITE_WEBHOOK_SECRET="$(qa_value SITE_WEBHOOK_SECRET)" MEDIA_ORIGINS="http://127.0.0.1:$PORT")
+  case "${1:-}" in
+    build)
+      mkdir -p "$copy"
+      rsync -a --delete --exclude /node_modules --exclude /.next --exclude /test-results --exclude '/.env*' "$source/" "$copy/"
+      # The packages of the lock file, installed again only when it changed.
+      if ! cmp -s "$copy/package-lock.json" "$copy/node_modules/.qa-package-lock.json"; then
+        (cd "$copy" && npm ci --no-audit --no-fund && cp package-lock.json node_modules/.qa-package-lock.json)
+      fi
+      (cd "$copy" && env -i "${settings[@]}" node_modules/.bin/next build && env -i "${settings[@]}" node scripts/check-client-bundle.mjs)
+      ;;
+    start)
+      [ -d "$copy/.next" ] || die "the QA website is not built; run scripts/qa.sh site build first."
+      echo "The QA website on $SITE (reading the API on 127.0.0.1:$PORT); its output also goes to $QA_HOME/site.log."
+      # The site checks read that file: a violation of the content security policy is written there as a [csp] line.
+      # On localhost, not 127.0.0.1: the not-found page is a rewrite to the server under that name, and a server bound
+      # to another name sends it out as an outside request, which fails (docs/deployment-requirements.md).
+      cd "$copy" && exec env -i "${settings[@]}" node_modules/.bin/next start -H localhost -p "$site_port" > >(tee -a "$QA_HOME/site.log") 2>&1
+      ;;
+    *) die "scripts/qa.sh site build | start" ;;
+  esac
+}
+
 case "${1:-}" in
   setup) setup ;;
   admin) admin ;;
   demo) shift; demo "$@" ;;
   artisan) shift; artisan "$@" ;;
   serve) serve ;;
-  *) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  worker) artisan queue:work --sleep=1 --tries=3 ;;
+  site) shift; site "$@" ;;
+  *) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

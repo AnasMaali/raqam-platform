@@ -57,6 +57,8 @@ test.describe("featured item and pages", () => {
     const response = await page.goto(`/${slug}/page/${last}`);
     expect(response?.status()).toBe(200);
     await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", `${site}/${slug}/page/${last}`);
+    // A description of its own: the section's, with the page's number.
+    await expect(page.locator("meta[name='description']")).toHaveAttribute("content", new RegExp(`صفحة ${last}`));
     await expect(page.locator("main li article")).toHaveCount(itemsOf(slug).length - (last - 1) * 12);
     expect((await request.get(`/${slug}/page/${last + 1}`, { maxRedirects: 0 })).status()).toBe(404);
     expect((await request.get(`/${slug}/page/0`, { maxRedirects: 0 })).status()).toBe(404);
@@ -101,13 +103,20 @@ test("history hangs on the kashida's line, from the oldest", async ({ page }) =>
   expect(years).toEqual([...years].sort((a, b) => a - b));
 });
 
-test("awareness shows its characters; each leads to the cards it has said", async ({ page }) => {
+test("awareness shows its characters; each leads to its own page, the one search engines keep", async ({ page }) => {
   await page.goto("/awareness");
   const characters = page.getByRole("region", { name: "الشخصيات" });
   const first = fixture.awareness.characters[0];
   await expect(characters.getByRole("link")).toHaveCount(fixture.awareness.characters.length);
+  // Not the section filtered by it (noindex): the QA crawl found the character pages in the sitemap and linked from nowhere.
+  for (const c of fixture.awareness.characters) {
+    await expect(characters.getByRole("link", { name: new RegExp(c.name) })).toHaveAttribute("href", `/awareness/characters/${c.slug}`);
+  }
   await characters.getByRole("link", { name: new RegExp(first.name) }).click();
-  await expect(page).toHaveURL(new RegExp(`character=${first.slug}`));
+  await expect(page).toHaveURL(new RegExp(`/awareness/characters/${encodeURIComponent(first.slug)}$`));
+  await expect(page.getByRole("heading", { level: 1 })).toContainText(first.name);
+  // The section filtered by the character, with every card, is still there, with the way back to all of them.
+  await page.goto(`/awareness?character=${first.slug}`);
   const said = fixture.items.awareness.filter((i) => i.facts?.character?.slug === first.slug);
   await expect(page.locator("main li article")).toHaveCount(Math.min(12, said.length));
   await expect(characters.getByRole("link", { name: "كل الشخصيات" })).toHaveAttribute("href", "/awareness");

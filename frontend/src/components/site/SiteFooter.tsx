@@ -79,10 +79,18 @@ export function SiteFooter({ menus, site }: { menus: Menus | null; site: Site | 
           <ThemeChoice />
         </div>
       </div>
-      <div className="border-t border-line">
-        <p className="mx-auto max-w-page px-4 py-4 text-small text-muted sm:px-6 lg:px-8">
-          © <Year /> رقم. جميع الحقوق محفوظة.
-        </p>
+      {/* Room under the last line for the buttons fixed to the corners (the chat, back to the top): at the page's end they
+          sit below it, never over it. */}
+      <div className="border-t border-line pb-[calc(var(--float-bottom)+3rem)]">
+        {/* The visitors' map of the site (28.p) on every page, whatever the menus hold: the way to every list and page. */}
+        <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-6 px-4 py-2 text-small text-muted sm:px-6 lg:px-8">
+          <p className="py-2">
+            © <Year /> رقم. جميع الحقوق محفوظة.
+          </p>
+          <Link href="/sitemap" className="inline-flex min-h-11 items-center hover:text-brand hover:underline">
+            خريطة الموقع
+          </Link>
+        </div>
       </div>
     </footer>
   );

@@ -53,6 +53,13 @@ test.describe("pages of a list", () => {
     const response = await page.goto(path("author", author.slug, 2));
     expect(response?.status()).toBe(200);
     await expect(page).toHaveTitle(new RegExp(`صفحة 2`));
+    // A description of its own too: the first page's, with the page's number (no two pages share one).
+    const further = await page.locator("meta[name='description']").getAttribute("content");
+    await page.goto(path("author", author.slug));
+    const firstPage = await page.locator("meta[name='description']").getAttribute("content");
+    expect(further).toContain("صفحة 2");
+    expect(further).not.toBe(firstPage);
+    await page.goto(path("author", author.slug, 2));
     await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", `${site}${path("author", author.slug, 2)}`);
     const nav = page.getByRole("navigation", { name: "صفحات القائمة" });
     await expect(nav.locator("[aria-current='page']")).toHaveText(/2/);

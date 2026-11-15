@@ -77,6 +77,10 @@ security policy"). It is written when the site is built, so the build must see t
   e.g. `https://media.example.org`), separated by spaces or commas, each an origin only (scheme, host and port). When it
   is empty the API's own origin is used, which is wrong as soon as the site reaches the API on an internal address: every
   picture would then be blocked. Set it whenever the media are not served from the API's origin.
+- **The website's server listens on `0.0.0.0` or `localhost`** (`next start -H`, or `HOSTNAME` for the standalone
+  server), never on one IP address such as `127.0.0.1`: the not-found page is a rewrite to the server itself under the
+  name `localhost`, and a server bound to another name passes that rewrite on as an outside request, which fails (every
+  address with nothing at it answers 500 after a long wait instead of 404).
 - **Cloudflare features that rewrite pages must stay off** for the website's zone, or the policy blocks what they add:
   Rocket Loader, Email Address Obfuscation, the automatic Web Analytics beacon (Real User Monitoring), and Zaraz.
 - **Rate limits in Cloudflare (WAF rules)** on `/api/csp-report` (anyone may send a report, and each one writes a line

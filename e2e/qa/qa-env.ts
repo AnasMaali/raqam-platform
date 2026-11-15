@@ -25,6 +25,13 @@ if (env.DB_DATABASE !== 'raqam_qa') throw new Error('backend/.env.qa does not na
 if (!env.ADMIN_PATH) throw new Error('backend/.env.qa has no ADMIN_PATH.');
 
 export const QA_URL = env.APP_URL;
+
+/** A value of backend/.env.qa. */
+export function qaSetting(key: string): string {
+    const value = env[key];
+    if (!value) throw new Error(`backend/.env.qa has no ${key}.`);
+    return value;
+}
 const ADMIN_PATH = env.ADMIN_PATH;
 export const LOG_FILE = join(env.LARAVEL_STORAGE_PATH, 'logs/laravel.log');
 

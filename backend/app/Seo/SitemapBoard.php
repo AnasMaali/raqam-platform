@@ -75,6 +75,8 @@ final class SitemapBoard
     public function pageEntries(): array
     {
         $entries = [['path' => '/', 'updated_at' => $this->iso(Post::query()->live()->max('updated_at'))]];
+        // The news of every kind (news, reports, opinion, infographics) in one list: a section of its own on the site.
+        $entries[] = ['path' => '/news', 'updated_at' => $this->iso(Post::query()->live()->whereIn('kind_code', DB::table('post_kinds')->whereNull('section_id')->select('code'))->max('updated_at'))];
         $add = function (iterable $rows, callable $path, ?string $time = 'updated_at') use (&$entries) {
             foreach ($rows as $row) {
                 $entries[] = ['path' => $path($row), 'updated_at' => $time ? $this->iso($row->{$time}) : null];
@@ -107,6 +109,8 @@ final class SitemapBoard
             $entries[] = ['path' => $city['path'], 'updated_at' => null];
         }
         $entries[] = ['path' => '/video', 'updated_at' => null];
+        // The visitors' map of the site (28.p).
+        $entries[] = ['path' => '/sitemap', 'updated_at' => null];
 
         return array_slice(array_values(array_unique($entries, SORT_REGULAR)), 0, self::PAGES_LIMIT);
     }

@@ -65,10 +65,18 @@ function titleOf(kind: ListKind, entity: ListEntity, page: number) {
   return page > 1 ? `${base}، صفحة ${page}` : base;
 }
 
-function descriptionOf(kind: ListKind, entity: ListEntity) {
+function descriptionOf(kind: ListKind, entity: ListEntity, page: number) {
   const fallback = kind === "tag" ? `المواد الموسومة بـ«${entity.name}» في رَقَم، الأحدث أولاً.` : `مواد ${entity.name} في رَقَم، الأحدث أولاً.`;
 
-  return entity.seo?.description || entity.description || entity.bio || fallback;
+  return pagedDescription(entity.seo?.description || entity.description || entity.bio || fallback, page);
+}
+
+/**
+ * A further page of a list describes itself as that page: the first page's description with its number, as its title
+ * has it, so no two pages of the site share one description.
+ */
+export function pagedDescription(description: string, page: number) {
+  return page > 1 ? `${description.trim().replace(/[.،؛]+$/u, "")}، صفحة ${page}.` : description;
 }
 
 export async function listMetadata(kind: ListKind, rawSlug: string, rawPage?: string): Promise<Metadata> {
@@ -77,7 +85,7 @@ export async function listMetadata(kind: ListKind, rawSlug: string, rawPage?: st
   const { entity, page } = loaded;
   const path = encodeURI(listPath(kind, entity.slug, page));
   const title = titleOf(kind, entity, page);
-  const description = descriptionOf(kind, entity);
+  const description = descriptionOf(kind, entity, page);
   const image = entity.seo?.share_image ?? entity.photo;
 
   return {

@@ -15,6 +15,8 @@ export const instant = false;
 
 export const metadata: Metadata = {
   title: "إلغاء الاشتراك في النشرة",
+  // The page itself, without the link's signature.
+  alternates: { canonical: "/newsletter/unsubscribe" },
   robots: { index: false, follow: false },
   referrer: "no-referrer",
 };

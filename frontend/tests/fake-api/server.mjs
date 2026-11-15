@@ -62,6 +62,8 @@ const removedPost = 900410;
 const failingPost = 900503;
 // Any slug is this post's current one, so a test can ask for a page address no earlier test has asked for.
 const anySlugPost = 900200;
+// A post an editor renames: its slug is the one a test sets (PUT /__fixtures/renamed {"slug": …}), "عنوان-أول" before.
+const renamedPost = 900302;
 const headerPath = (path) => path.split("/").map(encodeURIComponent).join("/");
 function post(id, slug) {
   if (id === removedPost) return { status: 410, body: { error: { code: "gone", message: "حُذفت هذه المادة." } } };
@@ -69,6 +71,14 @@ function post(id, slug) {
   if (id === anySlugPost && slug) {
     const base = JSON.parse(readFileSync(new URL("./fixtures/posts/900001.json", import.meta.url), "utf8"));
     const data = { ...base.data, id, slug, path: `/news/${id}/${slug}`, seo: { ...base.data.seo, noindex: true } };
+
+    return { status: 200, body: { data }, path: headerPath(data.path) };
+  }
+  if (id === renamedPost) {
+    const base = JSON.parse(readFileSync(new URL("./fixtures/posts/900001.json", import.meta.url), "utf8"));
+    const current = replaced.get("renamed")?.slug ?? "عنوان-أول";
+    const data = { ...base.data, id, slug: current, path: `/news/${id}/${current}` };
+    if (slug !== undefined && slug !== current) return { status: 301, body: { path: data.path }, location: `/api/v1/posts/${id}/${encodeURIComponent(current)}`, path: headerPath(data.path) };
 
     return { status: 200, body: { data }, path: headerPath(data.path) };
   }

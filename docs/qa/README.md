@@ -25,8 +25,16 @@ scripts/qa.sh setup                  # .env.qa, the database, the storage folder
 scripts/qa.sh admin                  # the QA admin; its password goes to ~/.raqam-qa-login (mode 600), never on screen
 scripts/qa.sh demo --seed=2026       # 2000 posts (raqam:demo --posts=2000)
 scripts/qa.sh serve                  # the API and the panel; the panel's address is ADMIN_PATH in .env.qa
+scripts/qa.sh worker                 # the queue: the webhooks to the website, the search index, picture sizes
+scripts/qa.sh site build             # the website, built against the QA API (needs serve running)
+scripts/qa.sh site start             # the website on 127.0.0.1:3300; its output also goes to ~/raqam-qa/site.log
 scripts/qa.sh artisan <command>      # anything else, against raqam_qa
 ```
+
+The website is built and served from a copy of `frontend/` in `~/raqam-qa/site` (with its own packages, installed
+again only when the lock file changes), so the QA build never replaces the one the site's own tests use. It is given
+only its QA values: the QA API, the QA site token and webhook secret, `SITE_URL`. Nothing comes from the developer's
+shell or `frontend/.env.local`. Build it again after a change to `frontend/`.
 
 `setup` refuses if `.env.qa` or the database already exist. To start again, drop `raqam_qa` and delete `.env.qa` by
 hand. The script never drops or empties anything itself.
@@ -84,3 +92,60 @@ Words in Latin letters on purpose are listed in the spec, each group with its re
 
 Stored values count as data: the audit trail's values before and after, and a field the trail records that has no
 Arabic name yet (shown as stored, left to right; `AuditFieldNamesTest` fails on every such field in CI).
+
+## The website, page by page (QA 3)
+
+`e2e/qa/site-*.spec.ts` checks the QA website as a search engine and a visitor meet it, on the real API with the demo
+data. It needs `serve`, `worker` and `site start` running.
+
+```sh
+cd e2e && npx playwright test -c playwright.qa.config.ts --project=site-webhook
+```
+
+That runs every part in order:
+
+1. **The map** (`site-map`): every address of the sitemaps, every link between pages, and the site's own pages from
+   its source (so a page nothing links to is found too). Each page is read once, as the server sends it. About 3000
+   pages, 8 minutes. It is kept in `e2e/.qa/site/map.json` (git-ignored) for the parts after it.
+2. **The checks** (`site-checks`), on the map:
+   - every address answers, without a server error; the sitemap lists pages, never an address that moves;
+   - no link inside the site is broken; every picture and video file arrives;
+   - every page has a title and a description, and no two indexed pages share one (two posts with the same headline
+     are the demo data's, and are only noted);
+   - the canonical address is the page itself (a filtered list's is the list);
+   - noindex only on a search, the newsletter's forms and a filtered list, never on a page of the sitemap;
+   - the structured data reads, and each kind has its basic fields (an article: headline, description, picture, dates,
+     author, publisher, address; a video: name, description, picture, date; a breadcrumb: its steps on the site…), and
+     each kind of page carries its own (the home page a WebSite, a writer a ProfilePage…);
+   - one h1 a page;
+   - every indexed page is in the sitemap (or is a further page of a list), and another page links to it;
+   - an address with nothing at it (an unknown post, list, page, video or currency) answers 404 within 10 seconds, in
+     the site's frame, and a post under a wrong slug moves to its own address.
+3. **The browser pass** (`site-browser`): every page opened in Chromium, down to its end, in 16 parts side by side:
+   - no error in the console or in a script;
+   - no violation of the content security policy;
+   - no request of the site or of the platform's media that fails;
+   - no picture that does not draw;
+   - no id twice on a page.
+
+   What the site asks of other hosts (YouTube's pictures) is answered on the machine.
+4. **Accessibility** (`site-axe`): axe-core on one page of every kind, in the light and the dark theme, at 1440 and
+   375 px. Not one serious or critical violation.
+5. **The webhook** (`site-webhook`), last because it changes what the others read. The panel is signed in again first
+   (`panel-session`): the parts before it take longer than a session's 30 idle minutes. Done in the panel, as an editor
+   does:
+   - a post published: it is on the site, on the home page and in the sitemap;
+   - its address changed: the old one answers 301 to the new one, on every visit, once the webhook has arrived;
+   - the post deleted: 404, and gone from the home page and the sitemap;
+   - a home page block hidden and shown again;
+   - a menu item renamed and named back;
+   - the contact address changed and put back.
+
+   Each change is put back, and the deleted post stays in the trash (a run stopped half way sends its post there too).
+
+After any QA run, the teardown reads what the servers wrote while it ran. It fails the run on any of these:
+- a `[csp]` line in the site's output (a violation a browser reported);
+- an error of the site's server;
+- an `ERROR` line of the API.
+
+`--no-deps` runs one part again on the map already made.

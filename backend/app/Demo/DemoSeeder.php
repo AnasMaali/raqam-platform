@@ -340,7 +340,7 @@ class DemoSeeder
         $playlist = fn (string $name, ?int $sectionId, int $order) => Playlist::query()->create([
             'name_ar' => $name, 'slug' => UniqueSlug::for('playlists', $name, fallback: 'playlist'), 'section_id' => $sectionId,
             'cover_media_id' => $this->pick($this->pictures['wide']), 'sort_order' => $order, 'is_visible' => true,
-            'description' => 'قائمة تشغيل من مكتبة فيديو رَقَم.',
+            'description' => "«{$name}»: قائمة تشغيل من مكتبة فيديو رَقَم.",
         ]);
 
         // The podcast's seasons, each with its own playlist; the episodes join it as they are saved.

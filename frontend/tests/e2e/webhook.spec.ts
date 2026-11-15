@@ -112,4 +112,25 @@ test.describe("the platform's webhook", () => {
       await signed(request, { type: "home", change: "layout", paths: ["/"] });
     }
   });
+
+  test("a post renamed: right after the webhook, its old address moves to the new one (301), never the old page", async ({ request }) => {
+    const before = encodeURI("/news/900302/عنوان-أول");
+    const after = encodeURI("/news/900302/عنوان-ثان");
+    const visit = (path: string) => request.get(path, { maxRedirects: 0 });
+    expect((await visit(before)).status()).toBe(200);
+    try {
+      expect((await request.put(`${fakeApi}/__fixtures/renamed`, { data: { slug: "عنوان-ثان" } })).ok()).toBe(true);
+      expect((await signed(request, { type: "post", id: 900302, change: "updated", paths: [decodeURI(before), decodeURI(after)] })).status()).toBe(200);
+      // Each visit, not only the first: the old page is never served again, nor a move without its address.
+      for (let i = 0; i < 3; i++) {
+        const moved = await visit(before);
+        expect(moved.status(), `visit ${i + 1} of the old address`).toBe(301);
+        expect(new URL(moved.headers().location ?? "", "http://x").pathname).toBe(after);
+      }
+      expect((await visit(after)).status()).toBe(200);
+    } finally {
+      await request.delete(`${fakeApi}/__fixtures/renamed`);
+      await signed(request, { type: "post", id: 900302, change: "updated", paths: [] });
+    }
+  });
 });
