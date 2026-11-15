@@ -32,9 +32,29 @@ test.describe("the page frame", () => {
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.locator("main#main")).toHaveCount(1);
     await expect(page.locator("footer")).toBeVisible();
+    // The visitors' map of the site, on every page whatever the menus hold: the way to /news, /newsletter and the rest.
+    await expect(page.locator("footer").getByRole("link", { name: "خريطة الموقع" })).toHaveAttribute("href", "/sitemap");
     // The home page has the board beside its main story instead of the strip.
     await expect(page.locator("#rates-strip-title")).toHaveCount(0);
     await expectNoSidewaysScroll(page);
+  });
+
+  test("at the page's end, the buttons fixed to the corners cover nothing of the footer", async ({ page }) => {
+    await page.goto("/about");
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    // The back-to-top button shows once the page has moved; the chat's is always there.
+    await expect(page.locator("[data-chat-launcher]")).toBeVisible();
+    await page.waitForTimeout(400);
+    const covered = await page.evaluate(() => {
+      const floating = [...document.querySelectorAll<HTMLElement>("[data-chat-launcher], [data-site-frame].fixed, button.fixed")]
+        .filter((el) => getComputedStyle(el).position === "fixed" && getComputedStyle(el).visibility !== "hidden" && Number(getComputedStyle(el).opacity) > 0)
+        .map((el) => el.getBoundingClientRect());
+      const meets = (a: DOMRect, b: DOMRect) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      return [...document.querySelectorAll<HTMLElement>("footer a, footer p, footer button")]
+        .filter((el) => el.getClientRects().length > 0 && floating.some((f) => meets(f, el.getBoundingClientRect())))
+        .map((el) => (el.textContent ?? "").trim().slice(0, 40));
+    });
+    expect(covered).toEqual([]);
   });
 
   test("one font file, announced before the page is read, holds the Arabic letters, the space and the digits", async ({ page }) => {

@@ -34,7 +34,9 @@ export async function generateMetadata({ params }: PageProps<"/video/[id]">): Pr
   const { video } = loaded;
 
   return {
-    title: video.title,
+    // The item that shows the video (an episode, a round table) often has its very name: the page says it is the video,
+    // so the two never share one title.
+    title: `${video.title} (فيديو)`,
     description: video.description ?? undefined,
     alternates: { canonical: video.path },
     openGraph: {

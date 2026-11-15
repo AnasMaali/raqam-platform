@@ -68,6 +68,7 @@ test.describe("/video", () => {
     const response = await page.goto("/video/page/2");
     expect(response?.status()).toBe(200);
     await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", `${site}/video/page/2`);
+    await expect(page.locator("meta[name='description']")).toHaveAttribute("content", /صفحة 2/);
     expect((await request.get(`/video/page/${first.meta.last_page + 5}`, { maxRedirects: 0 })).status()).toBe(404);
     expect((await request.get("/video?section=no-such-section", { maxRedirects: 0 })).status()).toBe(404);
     const moved = await request.get("/video/page/1", { maxRedirects: 0 });
@@ -86,6 +87,9 @@ test.describe("/video/{id}", () => {
     const response = await page.goto(withChapters.path);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(withChapters.title);
+    // Its title says it is the video: the item that shows it (an episode) has the same name, and two pages never share
+    // one title.
+    await expect(page).toHaveTitle(`${withChapters.title} (فيديو) | رقم`);
     await expect(page.locator("link[rel='canonical']")).toHaveAttribute("href", `${site}${withChapters.path}`);
     await page.waitForLoadState("networkidle");
     expect(asked).toEqual([]);

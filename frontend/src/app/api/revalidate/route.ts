@@ -1,12 +1,14 @@
 import { revalidateTag } from "next/cache";
 
+import { forgetAddresses } from "@/lib/address-memory";
 import { tagsFor } from "@/lib/server/cache-tags";
 import { maxBodyBytes, verifyWebhook } from "@/lib/server/webhook";
 
 /**
  * The platform tells the site that content changed (SITE_WEBHOOK_URL in the backend points here). Only a message
  * signed with SITE_WEBHOOK_SECRET, at most five minutes old, is accepted; it refreshes the cached answers its type
- * names, at once: the next visitor gets fresh data (a post taken down must not be served again).
+ * names, at once: the next visitor gets fresh data (a post taken down must not be served again). What the proxy
+ * remembers of each address is forgotten too: a renamed post's old address must move at once, not serve the old page.
  */
 export async function POST(request: Request) {
   const length = Number(request.headers.get("content-length") ?? 0);
@@ -37,6 +39,7 @@ export async function POST(request: Request) {
 
   const refreshed = tagsFor(message.type, message.id);
   for (const tag of refreshed) revalidateTag(tag, { expire: 0 });
+  forgetAddresses();
 
   return Response.json({ refreshed }, { headers: { "Cache-Control": "no-store" } });
 }

@@ -5,7 +5,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { Breadcrumbs, type Crumb } from "@/components/article/ArticleParts";
 import { LeadCard, ListCard } from "@/components/cards/PostCard";
 import styles from "@/components/home/HistoryLine.module.css";
-import { Pagination, pageNumber } from "@/components/lists/ListView";
+import { Pagination, pageNumber, pagedDescription } from "@/components/lists/ListView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Pic } from "@/components/ui/Pic";
 import { factsLine, historyYear } from "@/lib/facts";
@@ -78,7 +78,7 @@ export async function sectionMetadata(slug: Slug, rawPage: string | undefined, q
   const { section, page, filters } = loaded;
   const filtered = Object.keys(filters).length > 0;
   const title = titleOf(section, page, filters);
-  const description = section.description || (slug === "news" ? "أخبار الاقتصاد وتقاريره ومقالات الرأي والإنفوغراف في رَقَم، الأحدث أولاً." : `مواد ${section.name} في رَقَم، الأحدث أولاً.`);
+  const description = pagedDescription(section.description || (slug === "news" ? "أخبار الاقتصاد وتقاريره ومقالات الرأي والإنفوغراف في رَقَم، الأحدث أولاً." : `مواد ${section.name} في رَقَم، الأحدث أولاً.`), page);
   // A filtered page points to the section's own page; every other page is its own.
   const canonical = encodeURI(filtered ? sectionPath(slug) : sectionPath(slug, page));
 
@@ -164,7 +164,10 @@ function Filters({ slug, section, filters }: { slug: Slug; section: SectionInfo;
   );
 }
 
-/** The awareness characters, each a link to the cards it has said (7.10: a still picture here). */
+/**
+ * The awareness characters, each a link to its own page (7.13: who it is and the cards it has said; that page leads on to
+ * this section filtered by it). The filtered page is noindex; the character's page is the one search engines keep.
+ */
 async function Characters({ filters }: { filters: Record<string, string> }) {
   const characters = await getCharacters();
   if (characters.length === 0) return null;
@@ -189,7 +192,7 @@ async function Characters({ filters }: { filters: Record<string, string> }) {
           return (
             <li key={c.slug} className="w-36 shrink-0">
               <Link
-                href={sectionPath("awareness", 1, { character: c.slug })}
+                href={`/awareness/characters/${c.slug}`}
                 aria-current={current ? "page" : undefined}
                 className={`group block rounded-md border p-3 text-center ${current ? "border-brand" : "border-line hover:border-brand"}`}
               >

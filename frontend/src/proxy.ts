@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { recall, remember, type Verdict } from "@/lib/address-memory";
+
 /*
  * An article's status before its page streams. A streamed page has already answered 200 when it finds out that the
  * post is unknown, removed or at another address (Next.js docs, loading.js: Status codes), so this asks the platform
@@ -10,8 +12,8 @@ import { NextResponse, type NextRequest } from "next/server";
  *   a current address                                    the page, as usual
  *
  * Each answer is kept in this server's memory, so a widely read article costs the platform one request a minute, not
- * one per visit: a page or a move for 60 s, a missing post for 30 s, at most 5000 addresses (the oldest go first). A
- * 429 or 5xx from the platform is never kept and the page decides alone, as it does when the platform does not answer
+ * one per visit: a page or a move for 60 s, a missing post for 30 s, at most 5000 addresses (the oldest go first);
+ * the platform's webhook forgets them all (src/lib/address-memory.ts), so a renamed post moves at once. A 429 or 5xx from the platform is never kept and the page decides alone, as it does when the platform does not answer
  * in time. Client navigations (RSC requests) are left to the page, which handles all of these itself.
  *
  * The list pages (a category, a tag, a writer, a guest; 12 items a page) are checked the same way: an unknown one, a
@@ -84,28 +86,6 @@ export const config = {
     "/((?!_next/|api/|feeds/|sitemaps/|lab/|brand/|og/)[^/]+/[^/]+(?:/[^/]+)?)",
   ],
 };
-
-type Verdict = { kind: "page" } | { kind: "moved"; to: string; status?: 301 | 302 } | { kind: "missing" };
-
-const maxEntries = 5000;
-const keepFor = { page: 60_000, moved: 60_000, missing: 30_000 } as const;
-const answers = new Map<string, { verdict: Verdict; until: number }>();
-
-function recall(key: string): Verdict | null {
-  const entry = answers.get(key);
-  if (!entry) return null;
-  if (entry.until > Date.now()) return entry.verdict;
-  answers.delete(key);
-
-  return null;
-}
-
-function remember(key: string, verdict: Verdict) {
-  answers.delete(key);
-  // A Map keeps its insertion order: the first key is the oldest.
-  while (answers.size >= maxEntries) answers.delete(answers.keys().next().value!);
-  answers.set(key, { verdict, until: Date.now() + keepFor[verdict.kind] });
-}
 
 const decoded = (path: string) => {
   try {

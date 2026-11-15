@@ -113,7 +113,9 @@ test('the pages sitemap lists what a visitor can open and leaves out the hidden,
     validateAgainstPath($body, '/sitemaps/pages');
     $paths = array_column($body['data'], 'path');
 
-    expect($paths)->toContain('/', '/category/طاقة-x', '/about', '/author/samer', '/podcast', '/tag/used-tag', '/currencies', '/weather', '/weather/نابلس', '/video')
+    // The news of every kind (/news) and the visitors' map of the site (/sitemap) are pages of their own too (found by the
+    // QA crawl: no page linked to them and the sitemap left them out).
+    expect($paths)->toContain('/', '/news', '/category/طاقة-x', '/about', '/author/samer', '/podcast', '/tag/used-tag', '/currencies', '/weather', '/weather/نابلس', '/video', '/sitemap')
         ->and(count($paths))->toBe(count(array_unique($paths)));
     // One by one: a negated toContain with several values fails only when all of them are there.
     foreach (['/category/مخفي-x', '/category/بدون-فهرسة', '/draft-x', '/author/old-author', '/round-table', '/tag/empty-tag', '/weather/غزة'] as $left) {
