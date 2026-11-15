@@ -44,6 +44,6 @@ export default defineConfig({
     // CI starts these two before the tests (the build needs the API; the production checks need the server).
     { command: "node tests/fake-api/server.mjs 4010", url: "http://127.0.0.1:4010/api/v1/site", reuseExistingServer: true },
     { command: "npx next start -p 3100", url: "http://127.0.0.1:3100/", env: api, reuseExistingServer: true, timeout: 60_000 },
-    ...(lab ? [] : [{ command: "npx next dev -p 3200", url: "http://127.0.0.1:3200/lab", env: api, reuseExistingServer: !process.env.CI, timeout: 120_000 }]),
+    ...(lab ? [] : [{ command: "npx next dev -p 3200", url: "http://127.0.0.1:3200/lab/foundations", env: api, reuseExistingServer: !process.env.CI, timeout: 120_000 }]),
   ],
 });

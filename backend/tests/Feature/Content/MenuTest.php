@@ -119,7 +119,8 @@ test('a link needs a name, a type and a target of that type', function (array $i
 ]);
 
 test('addresses must stay on the site or be a web address, never script or protocol-relative', function (string $url, bool $ok) {
-    $attempt = fn () => $this->store->save('header', [menuLink('أ', 'url', ['url' => $url])]);
+    // In the footer: a link to / is refused only among the header's items (its own test below).
+    $attempt = fn () => $this->store->save('footer_main', [menuLink('أ', 'url', ['url' => $url])]);
 
     $ok ? expect($attempt)->not->toThrow(ValidationException::class) : expect($attempt)->toThrow(ValidationException::class);
 })->with([
@@ -220,4 +221,31 @@ test('the screen reports a wrong link instead of saving', function () {
     $component->fillForm($state)->call('save')->assertNotified();
 
     expect(DB::table('menu_items')->count())->toBe(0);
+});
+
+test('the header refuses a link to the home page among its items: the site\'s header has its own, and would never show it', function () {
+    try {
+        $this->store->save('header', [menuLink('الطاقة', 'category', ['category_id' => $this->energy]), menuLink('الرئيسية', 'url', ['url' => ' / '])]);
+        $this->fail('saved');
+    } catch (ValidationException $e) {
+        expect($e->errors())->toHaveKey('1.url')->and($e->errors()['1.url'][0])->toContain('الرئيسية ثابتة في رأس الموقع');
+    }
+
+    expect(DB::table('menu_items')->count())->toBe(0);
+});
+
+test('a link to the home page stays allowed where the site shows it: in the footer, and under an item of the header', function () {
+    $this->store->save('footer_main', [menuLink('الرئيسية', 'url', ['url' => '/'])]);
+    $this->store->save('header', [menuLink('عن رقم', 'url', ['url' => '/about'], ['children' => [menuLink('الرئيسية', 'url', ['url' => '/'])]])]);
+
+    expect(labels('footer_main'))->toBe([['الرئيسية', []]])->and(labels('header'))->toBe([['عن رقم', ['الرئيسية']]]);
+});
+
+test('the header\'s address field says the home page is fixed in the site\'s header; the footer\'s does not', function () {
+    $this->store->save('header', [menuLink('الأخبار', 'url', ['url' => '/news'])]);
+    Livewire::test(MenuEditor::class)->assertSee('الرئيسية (/) ثابتة في رأس الموقع');
+
+    DB::table('menu_items')->delete();
+    $this->store->save('footer_main', [menuLink('اتصل بنا', 'url', ['url' => '/contact'])]);
+    Livewire::test(MenuEditor::class)->assertDontSee('الرئيسية (/) ثابتة في رأس الموقع');
 });

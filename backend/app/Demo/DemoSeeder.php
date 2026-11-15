@@ -1048,8 +1048,8 @@ class DemoSeeder
         $page = fn (string $key) => isset($pages[$key]) ? ['label_ar' => DB::table('pages')->where('id', $pages[$key])->value('title'), 'type' => 'page', 'page_id' => $pages[$key]] : null;
 
         $trees = [
+            // No link to the home page: the site's header has its own, and the menu refuses one (MenuStore).
             'header' => [
-                $url('الرئيسية', '/'),
                 ...array_map(fn ($slug, $id) => ['label_ar' => DB::table('categories')->where('id', $id)->value('name_ar'), 'type' => 'category', 'category_id' => $id], array_keys($this->categories), $this->categories),
                 ['label_ar' => 'أقسام رَقَم', 'type' => 'section', 'section_id' => $sections->first()?->id,
                     'children' => $sections->map(fn ($s) => ['label_ar' => $s->name_ar, 'type' => 'section', 'section_id' => $s->id])->all()],

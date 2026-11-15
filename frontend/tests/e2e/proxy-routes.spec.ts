@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-import { config, leftAlone, routeOf } from "../../src/proxy";
+import { config, leftAlone, notFoundPage, routeOf } from "../../src/proxy";
 
 /*
  * The check before the page (src/proxy.ts) answers 404 to any address of two or three parts it does not know, so a
@@ -55,6 +55,8 @@ test("every page and route under src/app gets past the check", () => {
       return samples[param] ?? "x";
     });
     const path = `/${address.join("/")}`;
+    // The not-found page is reached only through the check's rewrite: a visit to its address is a 404 on purpose.
+    if (path === notFoundPage) continue;
     const kind = routeOf(path);
     if (kind === "not-a-page") refused.push(`/${parts.join("/")} (as ${path})`);
     // A route of the site's own, without parameters, is its own page: the check must not ask the platform about it

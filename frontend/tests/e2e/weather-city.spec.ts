@@ -140,18 +140,27 @@ test("the home page's box keeps its size whatever the city, and the change moves
     await expect(widget(page).getByRole("heading", { name: `طقس ${chosen.name}` })).toBeVisible();
     const now = await box();
     expect([Math.round(now.width), Math.round(now.height)], chosen.name).toEqual([Math.round(usual.width), Math.round(usual.height)]);
-    const shift = await page.evaluate(
+    const { shift, moved } = await page.evaluate(
       () =>
-        new Promise<number>((resolve) => {
+        new Promise<{ shift: number; moved: string[] }>((resolve) => {
           let total = 0;
+          const moved: string[] = [];
           new PerformanceObserver((list) => {
-            for (const entry of list.getEntries() as (PerformanceEntry & { value: number })[]) total += entry.value;
+            for (const entry of list.getEntries() as (PerformanceEntry & { value: number; sources?: { node?: Node | null; previousRect: DOMRectReadOnly; currentRect: DOMRectReadOnly }[] })[]) {
+              total += entry.value;
+              // What moved, and from where to where: a failure names its cause.
+              for (const source of entry.sources ?? []) {
+                const element = source.node instanceof Element ? source.node : source.node?.parentElement;
+                const [a, b] = [source.previousRect, source.currentRect];
+                moved.push(`${element?.tagName.toLowerCase()} «${(element?.textContent ?? "").trim().slice(0, 24)}» at ${Math.round(entry.startTime)} ms: ${Math.round(a.x)},${Math.round(a.y)} → ${Math.round(b.x)},${Math.round(b.y)}`);
+              }
+            }
           }).observe({ type: "layout-shift", buffered: true });
-          setTimeout(() => resolve(total), 500);
+          setTimeout(() => resolve({ shift: total, moved }), 500);
         }),
     );
     // The page's whole layout shift, the change of city included, stays where it was without it (no shift at all).
-    expect(shift, chosen.name).toBe(0);
+    expect(shift, `${chosen.name}: ${moved.join(" | ")}`).toBe(0);
   }
   await expect(widget(page).getByText(/^آخر قراءة الساعة/)).toBeVisible();
 });

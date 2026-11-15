@@ -27,6 +27,38 @@ async function graphOf(page: Page) {
   return JSON.parse((await page.locator("script[type='application/ld+json']").textContent())!)["@graph"] as Record<string, unknown>[];
 }
 
+test.describe("the home page's currency board", () => {
+  test("nothing in it moves while the page loads, on a slow machine and when the font comes after the first paint", async ({ page, context, browserName }) => {
+    test.skip(browserName !== "chromium", "CPU throttling is Chromium's");
+    // A loaded processor and a font that arrives late, as on a slow connection: the page is first drawn in the
+    // fallback font, and the font replaces it a moment later. Its digits are not as wide as the fallback's.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    await page.route(/\.woff2$/, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      await route.continue();
+    });
+    await page.addInitScript(() => {
+      const moved: string[] = [];
+      (window as unknown as { __moved: string[] }).__moved = moved;
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries() as (PerformanceEntry & { sources?: { node?: Node | null }[] })[]) {
+          for (const source of entry.sources ?? []) {
+            const element = source.node instanceof Element ? source.node : source.node?.parentElement;
+            if (element?.closest("[aria-labelledby='rates-board-title']")) moved.push(`${element.tagName} «${(element.textContent ?? "").trim().slice(0, 20)}» at ${Math.round(entry.startTime)} ms`);
+          }
+        }
+      }).observe({ type: "layout-shift", buffered: true });
+    });
+    await page.goto("/", { waitUntil: "load" });
+    await expect(page.locator("[aria-labelledby='rates-board-title'] tbody tr").first()).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => document.fonts.check("16px Alexandria") || [...document.fonts].some((f) => f.status === "loaded")), "the font came").toBe(true);
+    expect(await page.evaluate(() => (window as unknown as { __moved: string[] }).__moved)).toEqual([]);
+  });
+});
+
 test.describe("/currencies", () => {
   test("today's table: buy and sell of every currency, «آخر تحديث», the rates are indicative, its structured data", async ({ page }) => {
     const response = await page.goto("/currencies");
@@ -232,6 +264,8 @@ test.describe("Recharts stays on the currency page", () => {
   }
 
   test("no other page loads it, not even when scrolled; the currency page loads it for its chart", async ({ page }) => {
+    // Six pages, each loaded to quiet twice and scrolled to its end: past the default 30 s when the suite loads the machine.
+    test.setTimeout(90_000);
     for (const path of ["/", "/currencies", "/weather", encodeURI(nablus.path), encodeURI("/news/300/مشروع-لتخزين-الطاقة-نابلس-يدخل-مرحلة-التشغيل-التجريبي")]) {
       const scripts = await scriptsOf(page, path);
       expect(scripts.length, path).toBeGreaterThan(0);

@@ -66,6 +66,7 @@ test.describe("the page frame", () => {
         if (request.resourceType() === "font") fonts.push(new URL(request.url()).pathname);
       });
       const response = await page.goto(path);
+      expect(response?.status(), path).toBe(200);
       await page.evaluate(() => document.fonts.ready);
       expect(fonts, path).toHaveLength(1);
       expect(response?.headers().link ?? "", path).toContain(`<${fonts[0]}>; rel=preload; as="font"`);
@@ -78,6 +79,21 @@ test.describe("the page frame", () => {
       return [...document.fonts].filter((face) => face.status === "loaded").length;
     });
     expect(covered).toBe(1);
+  });
+
+  test("a missing address's answer announces the font too, as every page's, and is sent drawn: frame and words in its HTML", async ({ request }) => {
+    const font = /<\/_next\/static\/media\/[^>]+\.woff2>; rel=preload; as="font"/;
+    // A page from the panel, an article, a currency, a list: each kind of address the check answers 404 for.
+    // And the not-found page's own address (src/proxy.ts sends every one of them there).
+    for (const path of ["/no-such-page", encodeURI("/news/999999/لا-يوجد"), "/currencies/xyz", "/category/no-such-category", "/errors/not-found"]) {
+      const response = await request.get(path, { maxRedirects: 0 });
+      expect(response.status(), path).toBe(404);
+      expect(response.headers().link ?? "", path).toMatch(font);
+      // In the HTML as it is sent, not only once the scripts run: the frame and the page's own words.
+      const html = await response.text();
+      expect(html, path).toMatch(/<header[\s>]/);
+      expect(html, path).toContain("الصفحة غير موجودة");
+    }
   });
 
   test("an unknown address answers 404 inside the frame", async ({ page }) => {
