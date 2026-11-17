@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RequestMemo;
 use Illuminate\Database\Eloquent\Model;
 
 /** The part a guest plays in one item (decision 6.10): host, guest or panelist. The three codes are seeded. */
@@ -28,11 +29,10 @@ class GuestRole extends Model
      */
     public static function names(): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('guest_roles.names')) {
-            $kept->set('guest_roles.names', self::options());
+        if (! RequestMemo::has('guest_roles.names')) {
+            RequestMemo::put('guest_roles.names', self::options());
         }
 
-        return $kept->get('guest_roles.names');
+        return RequestMemo::get('guest_roles.names');
     }
 }

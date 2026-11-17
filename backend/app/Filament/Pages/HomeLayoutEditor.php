@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Navigation\HomeLayout;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -108,9 +109,8 @@ class HomeLayoutEditor extends Page
      */
     private static function choices(string $kind): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('home_layout.'.$kind)) {
-            $kept->set('home_layout.'.$kind, match ($kind) {
+        if (! RequestMemo::has('home_layout.'.$kind)) {
+            RequestMemo::put('home_layout.'.$kind, match ($kind) {
                 'category' => DB::table('categories')->orderBy('sort_order')->orderBy('name_ar')->pluck('name_ar', 'id')->all(),
                 'section' => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all(),
                 'playlist' => DB::table('playlists')->orderBy('sort_order')->orderBy('name_ar')->pluck('name_ar', 'id')->all(),
@@ -118,7 +118,7 @@ class HomeLayoutEditor extends Page
             });
         }
 
-        return $kept->get('home_layout.'.$kind);
+        return RequestMemo::get('home_layout.'.$kind);
     }
 
     /** "قسم تصنيف: اقتصاد (مخفي)" — what a collapsed block says about itself. */

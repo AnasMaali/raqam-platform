@@ -9,6 +9,7 @@ use App\Media\MediaStorage;
 use App\Models\MediaAsset;
 use App\Models\Post;
 use App\Models\Video;
+use App\Support\RequestMemo;
 use App\Video\VideoView;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -37,12 +38,11 @@ final class Presenter
      */
     private function forThisRequest(string $key, \Closure $read): mixed
     {
-        $kept = request()->attributes;
-        if (! $kept->has('presenter.'.$key)) {
-            $kept->set('presenter.'.$key, $read());
+        if (! RequestMemo::has('presenter.'.$key)) {
+            RequestMemo::put('presenter.'.$key, $read());
         }
 
-        return $kept->get('presenter.'.$key);
+        return RequestMemo::get('presenter.'.$key);
     }
 
     /** Loads pictures in two queries so a list of twelve does not ask twelve times. */

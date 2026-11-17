@@ -20,6 +20,7 @@ use App\Panel\SystemFailures;
 use App\Search\SearchSync;
 use App\Support\ProductionChecks;
 use App\Support\QueryTally;
+use App\Support\RequestMemo;
 use App\Support\TrackingHash;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
@@ -72,6 +73,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+
+        // A queue worker runs every job on one request object: what an earlier job kept for "this request" must not
+        // reach the next (RequestMemo; QA-5).
+        Queue::before(fn () => RequestMemo::flush());
 
         if ($this->app->isProduction()) {
             self::pinUrls();

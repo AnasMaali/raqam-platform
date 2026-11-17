@@ -12,6 +12,7 @@ use App\Filament\Resources\Playlists\Pages\EditPlaylist;
 use App\Filament\Resources\Playlists\Pages\ListPlaylists;
 use App\Models\Playlist;
 use App\Support\ArabicSlug;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -81,12 +82,11 @@ class PlaylistResource extends Resource
     /** @return array<int, int> playlist id => its number of videos, for the whole list in one query, once per request (QA-5) */
     private static function videoCounts(): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('playlists.counts')) {
-            $kept->set('playlists.counts', DB::table('playlist_videos')->groupBy('playlist_id')->selectRaw('playlist_id, count(*) AS n')->pluck('n', 'playlist_id')->map(fn ($n) => (int) $n)->all());
+        if (! RequestMemo::has('playlists.counts')) {
+            RequestMemo::put('playlists.counts', DB::table('playlist_videos')->groupBy('playlist_id')->selectRaw('playlist_id, count(*) AS n')->pluck('n', 'playlist_id')->map(fn ($n) => (int) $n)->all());
         }
 
-        return $kept->get('playlists.counts');
+        return RequestMemo::get('playlists.counts');
     }
 
     public static function table(Table $table): Table

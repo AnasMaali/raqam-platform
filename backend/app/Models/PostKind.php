@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RequestMemo;
 use Illuminate\Database\Eloquent\Model;
 
 /** The 11 kinds of content (decision 3). The code is the primary key; the rows come from the seed. */
@@ -30,11 +31,10 @@ class PostKind extends Model
      */
     public static function names(): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('post_kinds.names')) {
-            $kept->set('post_kinds.names', self::options());
+        if (! RequestMemo::has('post_kinds.names')) {
+            RequestMemo::put('post_kinds.names', self::options());
         }
 
-        return $kept->get('post_kinds.names');
+        return RequestMemo::get('post_kinds.names');
     }
 }

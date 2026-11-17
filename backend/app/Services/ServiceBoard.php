@@ -7,6 +7,7 @@ use App\Jobs\SendSiteWebhook;
 use App\Models\Post;
 use App\Models\Service;
 use App\Settings\FeatureFlags;
+use App\Support\RequestMemo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -91,11 +92,10 @@ final class ServiceBoard
             return ['mode' => 'on_request', 'amount' => null, 'currency' => null, 'symbol' => null, 'note' => null, 'text' => Service::MODES['on_request'], 'offer' => null];
         }
         // Every currency once per request (a list of services asks for each), kept on the request; QA-5.
-        $kept = request()->attributes;
-        if (! $kept->has('services.currencies')) {
-            $kept->set('services.currencies', DB::table('currencies')->get(['code', 'symbol', 'minor_units'])->keyBy(fn ($c) => trim($c->code)));
+        if (! RequestMemo::has('services.currencies')) {
+            RequestMemo::put('services.currencies', DB::table('currencies')->get(['code', 'symbol', 'minor_units'])->keyBy(fn ($c) => trim($c->code)));
         }
-        $currency = $kept->get('services.currencies')->get(trim((string) $s->currency_code));
+        $currency = RequestMemo::get('services.currencies')->get(trim((string) $s->currency_code));
         $decimals = (int) ($currency->minor_units ?? 2);
         $offer = $s->sale_price_amount !== null && $s->sale_ends_at !== null && $s->sale_ends_at > $now;
         $minor = $offer ? $s->sale_price_amount : $s->price_amount;

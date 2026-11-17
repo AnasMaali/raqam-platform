@@ -14,6 +14,7 @@ use App\Markets\RateOverrides;
 use App\Markets\RateRejected;
 use App\Models\Currency;
 use App\Models\RateBoardCurrency;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Action;
@@ -252,19 +253,18 @@ class CurrencyResource extends Resource
     /** After a change: the table drawn again in the same request reads the board and the overrides afresh. */
     private static function forgetBoard(): void
     {
-        request()->attributes->remove('currencies.live');
-        request()->attributes->remove('currencies.overrides');
+        RequestMemo::forget('currencies.live');
+        RequestMemo::forget('currencies.overrides');
     }
 
     private static function live(RateBoardCurrency $r): ?object
     {
         // The whole board in one query, read once per request (kept on it, so the next one reads it fresh).
-        $kept = request()->attributes;
-        if (! $kept->has('currencies.live')) {
-            $kept->set('currencies.live', DB::table('rate_board')->get()->keyBy(fn ($row) => trim($row->currency_code))->all());
+        if (! RequestMemo::has('currencies.live')) {
+            RequestMemo::put('currencies.live', DB::table('rate_board')->get()->keyBy(fn ($row) => trim($row->currency_code))->all());
         }
 
-        return $kept->get('currencies.live')[$r->currency_code] ?? null;
+        return RequestMemo::get('currencies.live')[$r->currency_code] ?? null;
     }
 
     private static function shown(RateBoardCurrency $r, string $column): ?string
@@ -275,12 +275,11 @@ class CurrencyResource extends Resource
     private static function override(RateBoardCurrency $r): ?string
     {
         // The overrides in force of the whole board, in one query (QA-5), read once per request (kept on it).
-        $kept = request()->attributes;
-        if (! $kept->has('currencies.overrides')) {
-            $kept->set('currencies.overrides', DB::table('rate_overrides')->whereRaw('valid_from <= now() AND (valid_until IS NULL OR valid_until > now())')
+        if (! RequestMemo::has('currencies.overrides')) {
+            RequestMemo::put('currencies.overrides', DB::table('rate_overrides')->whereRaw('valid_from <= now() AND (valid_until IS NULL OR valid_until > now())')
                 ->get()->keyBy(fn ($o) => trim($o->currency_code)));
         }
-        $o = $kept->get('currencies.overrides')->get(trim($r->currency_code));
+        $o = RequestMemo::get('currencies.overrides')->get(trim($r->currency_code));
 
         return $o === null ? null : ($o->valid_until ? 'حتى '.Carbon::parse($o->valid_until)->timezone('Asia/Hebron')->format('Y-m-d H:i') : 'حتى الإلغاء');
     }

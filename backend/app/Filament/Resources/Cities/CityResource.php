@@ -9,6 +9,7 @@ use App\Integrations\ProviderAlerts;
 use App\Jobs\FetchCityWeather;
 use App\Models\City;
 use App\Models\WeatherLocation;
+use App\Support\RequestMemo;
 use App\Weather\WeatherBoard;
 use App\Weather\WeatherCities;
 use App\Weather\WeatherFetcher;
@@ -138,7 +139,7 @@ class CityResource extends Resource
             ])
             ->action(function (array $data) {
                 DataProviders::switchTo('weather', (string) $data['provider']);
-                request()->attributes->remove('cities.ready');   // the buttons drawn again now follow the new source
+                RequestMemo::forget('cities.ready');   // the buttons drawn again now follow the new source
                 WeatherBoard::changed();
                 Notification::make()->success()->title('حُفظ مصدر الطقس.')->send();
             });
@@ -182,23 +183,21 @@ class CityResource extends Resource
     /** Whether the weather source can fetch, asked once per request (each row's buttons ask it; QA-5). */
     private static function ready(): bool
     {
-        $kept = request()->attributes;
-        if (! $kept->has('cities.ready')) {
-            $kept->set('cities.ready', WeatherSources::ready());
+        if (! RequestMemo::has('cities.ready')) {
+            RequestMemo::put('cities.ready', WeatherSources::ready());
         }
 
-        return $kept->get('cities.ready');
+        return RequestMemo::get('cities.ready');
     }
 
     private static function latest(WeatherLocation $r): ?string
     {
         // The newest reading of every city in one query, read once per request (QA-5): DISTINCT ON keeps each city's first row, the newest.
-        $kept = request()->attributes;
-        if (! $kept->has('cities.latest')) {
-            $kept->set('cities.latest', DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
+        if (! RequestMemo::has('cities.latest')) {
+            RequestMemo::put('cities.latest', DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
                 ->orderBy('city_id')->orderByDesc('observed_at')->selectRaw('DISTINCT ON (city_id) city_id, temperature_c, description_ar, observed_at')->get()->keyBy('city_id'));
         }
-        $o = $kept->get('cities.latest')->get($r->city_id);
+        $o = RequestMemo::get('cities.latest')->get($r->city_id);
 
         return $o === null ? null : rtrim(rtrim($o->temperature_c, '0'), '.').'° '.$o->description_ar.' ('.Carbon::parse($o->observed_at)->timezone('Asia/Hebron')->format('H:i').')';
     }

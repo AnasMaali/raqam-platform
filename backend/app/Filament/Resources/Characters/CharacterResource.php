@@ -12,6 +12,7 @@ use App\Filament\Resources\Characters\Pages\EditCharacter;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
 use App\Models\Character;
 use App\Support\ArabicSlug;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\ColorPicker;
@@ -100,8 +101,7 @@ class CharacterResource extends Resource
      */
     private static function listFacts(): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('characters.list')) {
+        if (! RequestMemo::has('characters.list')) {
             $kinds = DB::table('pose_types')->orderBy('sort_order')->pluck('name_ar', 'code');
             $have = DB::table('character_poses')->get(['character_id', 'pose_type_code'])->groupBy('character_id');
             $missing = [];
@@ -110,10 +110,10 @@ class CharacterResource extends Resource
             }
             $cards = DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
                 ->groupBy('character_poses.character_id')->selectRaw('character_poses.character_id, count(*) AS n')->pluck('n', 'character_id')->map(fn ($n) => (int) $n)->all();
-            $kept->set('characters.list', ['missing' => $missing, 'cards' => $cards]);
+            RequestMemo::put('characters.list', ['missing' => $missing, 'cards' => $cards]);
         }
 
-        return $kept->get('characters.list');
+        return RequestMemo::get('characters.list');
     }
 
     public static function table(Table $table): Table

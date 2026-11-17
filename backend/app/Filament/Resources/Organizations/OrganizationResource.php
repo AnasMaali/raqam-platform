@@ -7,6 +7,7 @@ use App\Filament\Forms\OrganizationSelect;
 use App\Filament\Resources\Organizations\Pages\ManageOrganizations;
 use App\Models\Organization;
 use App\Support\ArabicNormalizer;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
@@ -53,12 +54,11 @@ class OrganizationResource extends Resource
     /** @return array<int, string> id => name of all sectors or cities, read once per request for the whole list (QA-5) */
     private static function names(string $table): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('organizations.'.$table)) {
-            $kept->set('organizations.'.$table, DB::table($table)->pluck('name_ar', 'id')->all());
+        if (! RequestMemo::has('organizations.'.$table)) {
+            RequestMemo::put('organizations.'.$table, DB::table($table)->pluck('name_ar', 'id')->all());
         }
 
-        return $kept->get('organizations.'.$table);
+        return RequestMemo::get('organizations.'.$table);
     }
 
     public static function table(Table $table): Table

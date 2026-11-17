@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Navigation\MenuStore;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
@@ -101,16 +102,15 @@ class MenuEditor extends Page
      */
     private static function choices(string $table): array
     {
-        $kept = request()->attributes;
-        if (! $kept->has('menu_editor.'.$table)) {
-            $kept->set('menu_editor.'.$table, match ($table) {
+        if (! RequestMemo::has('menu_editor.'.$table)) {
+            RequestMemo::put('menu_editor.'.$table, match ($table) {
                 'pages' => DB::table('pages')->orderBy('title')->pluck('title', 'id')->all(),
                 'categories' => DB::table('categories')->orderBy('sort_order')->pluck('name_ar', 'id')->all(),
                 'sections' => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all(),
             });
         }
 
-        return $kept->get('menu_editor.'.$table);
+        return RequestMemo::get('menu_editor.'.$table);
     }
 
     private static function itemFields(bool $withChildren, bool $header = false): array

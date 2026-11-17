@@ -2,6 +2,7 @@
 
 namespace App\Filament\Forms;
 
+use App\Support\RequestMemo;
 use Closure;
 use Filament\Schemas\Components\Utilities\Get;
 
@@ -32,12 +33,11 @@ final class ListLabels
      */
     private static function read(string $kind, array $ids, Closure $read): array
     {
-        $kept = request()->attributes;
-        $known = $kept->get('list_labels.'.$kind, []);
+        $known = RequestMemo::get('list_labels.'.$kind, []);
         $missing = array_values(array_diff(array_unique(array_map('intval', $ids)), array_keys($known)));
         if ($missing !== []) {
             $known = array_replace($known, array_fill_keys($missing, null), $read($missing));
-            $kept->set('list_labels.'.$kind, $known);
+            RequestMemo::put('list_labels.'.$kind, $known);
         }
 
         return array_filter($known, fn ($label) => $label !== null);
