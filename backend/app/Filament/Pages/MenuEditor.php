@@ -82,7 +82,7 @@ class MenuEditor extends Page
         $tabs = [];
         foreach ($store->menus() as $key => $name) {
             $tabs[] = Tab::make($name)->schema([
-                Repeater::make($key)->label($name)->hiddenLabel()->schema(self::itemFields(withChildren: true))
+                Repeater::make($key)->label($name)->hiddenLabel()->schema(self::itemFields(withChildren: true, header: $key === 'header'))
                     ->reorderableWithDragAndDrop()->collapsible()->collapsed()->cloneable()
                     ->itemLabel(fn (array $state) => $state['label_ar'] ?? null)
                     ->addActionLabel('إضافة رابط')->defaultItems(0)->maxItems(MenuStore::MAX_ITEMS),
@@ -93,7 +93,7 @@ class MenuEditor extends Page
     }
 
     /** @return list<Component> */
-    private static function itemFields(bool $withChildren): array
+    private static function itemFields(bool $withChildren, bool $header = false): array
     {
         $fields = [
             TextInput::make('id')->hidden()->dehydratedWhenHidden(),
@@ -111,7 +111,7 @@ class MenuEditor extends Page
                 ->options(fn () => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all())
                 ->visible(fn (Get $get) => $get('type') === 'section')->required(fn (Get $get) => $get('type') === 'section'),
             TextInput::make('url')->label('العنوان')->maxLength(500)->extraInputAttributes(['dir' => 'ltr'])
-                ->helperText('/about لصفحة من الموقع، أو https://... لموقع آخر.')
+                ->helperText('/about لصفحة من الموقع، أو https://... لموقع آخر.'.($header ? ' الرئيسية (/) ثابتة في رأس الموقع، فلا تُضاف هنا.' : ''))
                 ->visible(fn (Get $get) => $get('type') === 'url')->required(fn (Get $get) => $get('type') === 'url'),
             Toggle::make('opens_new_tab')->label('يفتح في نافذة جديدة'),
             Toggle::make('is_active')->label('ظاهر')->default(true),

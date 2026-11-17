@@ -11,6 +11,10 @@ const onPhones = 3;
 /**
  * The small currency board beside the lead story on the home page, drawn by the directory's rules: the page's own
  * background, hairline rules, a blue heading and tabular figures. Never a dark block on a light page.
+ *
+ * Its columns have fixed widths (in rem, not in ch, which follows the font): the page is first drawn in the fallback
+ * font when the site's font comes late, and a table laid out by its content would move every cell when the font
+ * replaces it, its digits being narrower.
  */
 export function RatesBoard({ data, headingLevel = 2 }: { data: { rates: BoardRate[]; meta: RatesMeta } | null; headingLevel?: 2 | 3 }) {
   if (!data || data.rates.length === 0) return null;
@@ -29,7 +33,7 @@ export function RatesBoard({ data, headingLevel = 2 }: { data: { rates: BoardRat
           </p>
         )}
       </div>
-      <table className="mt-2 w-full text-small">
+      <table className="mt-2 w-full table-fixed text-small">
         <caption className="sr-only">
           أسعار العملات مقابل الشيكل{meta.rate_date ? `، ${formatDay(meta.rate_date)}` : ""}
         </caption>
@@ -38,13 +42,13 @@ export function RatesBoard({ data, headingLevel = 2 }: { data: { rates: BoardRat
             <th scope="col" className="py-2 text-start font-medium">
               العملة
             </th>
-            <th scope="col" className="py-2 text-end font-medium">
+            <th scope="col" className="w-16 py-2 text-end font-medium">
               شراء
             </th>
-            <th scope="col" className="py-2 text-end font-medium">
+            <th scope="col" className="w-16 py-2 text-end font-medium">
               بيع
             </th>
-            <th scope="col" className="py-2 text-end font-medium">
+            <th scope="col" className="w-24 py-2 text-end font-medium">
               التغيّر
             </th>
           </tr>

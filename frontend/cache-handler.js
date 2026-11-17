@@ -12,7 +12,17 @@
  *   does: the next visit renders it again.
  * - A restart starts empty: pages are rendered again on their next visit. One server (DEPLOY: a second instance would
  *   need a shared store, e.g. Redis).
+ * - Every page announces the site's font (the root layout's) in its Link header, so the browser asks for it before it
+ *   reads the page. A page Next.js first draws for a prefetch of its link comes without that header, and was then
+ *   served without it to every visitor until it was drawn again: the header is added to it here, from the font
+ *   manifest the build writes.
  */
+
+// A CommonJS module: Next.js's server loads this file as it is (next.config.ts, cacheHandler).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { readFileSync } = require("node:fs");
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { join } = require("node:path");
 
 const maxBytes = (Number(process.env.PAGE_CACHE_MAX_MB) || 256) * 1024 * 1024;
 const debug = process.env.PAGE_CACHE_DEBUG === "1";
@@ -23,6 +33,28 @@ let used = 0;
 
 /** @type {Map<string, { stale?: number, expired?: number }>} */
 const tags = new Map();
+
+/** The Link entry Next.js writes for the site's font (app-render's preloadFont), or null when the build has none. */
+const fontPreload = (() => {
+  try {
+    const manifest = JSON.parse(readFileSync(join(__dirname, ".next/server/next-font-manifest.json"), "utf8"));
+    // The root layout's font is the one every page lists (a page of the lab lists its own as well).
+    const lists = /** @type {string[][]} */ (Object.values(manifest.app ?? {}));
+    const shared = (lists[0] ?? []).filter((file) => file.endsWith(".woff2") && lists.every((list) => list.includes(file)));
+    return shared.length === 1 ? `</_next/${shared[0]}>; rel=preload; as="font"; crossorigin=""; type="font/woff2"` : null;
+  } catch {
+    return null;
+  }
+})();
+
+/** A drawn page without the font's preload gets it (a prefetch's drawing has none). */
+function withFont(/** @type {any} */ data) {
+  if (!fontPreload || data?.kind !== "APP_PAGE" || !data.html) return data;
+  const link = String(data.headers?.link ?? "");
+  if (link.includes('as="font"')) return data;
+
+  return { ...data, headers: { ...data.headers, link: link ? `${fontPreload}, ${link}` : fontPreload } };
+}
 
 const length = (/** @type {any} */ data) => (data == null ? 0 : typeof data === "string" || Buffer.isBuffer(data) ? data.length : 0);
 
@@ -84,8 +116,9 @@ module.exports = class MemoryCacheHandler {
     return { lastModified: entry.lastModified, value, cacheControl: entry.cacheControl };
   }
 
-  /** @param {string} key @param {any} data @param {any} ctx */
-  async set(key, data, ctx) {
+  /** @param {string} key @param {any} incoming @param {any} ctx */
+  async set(key, incoming, ctx) {
+    const data = withFont(incoming);
     forget(key);
     const size = sizeOf(key, data);
     if (debug) console.log(`[page cache] set ${data?.kind} ${key} ${size} bytes, revalidate ${ctx?.cacheControl?.revalidate}`);

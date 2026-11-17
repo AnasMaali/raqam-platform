@@ -20,6 +20,8 @@ final class MenuStore
 
     public const TYPES = ['page', 'category', 'section', 'url'];
 
+    public const HOME_IN_HEADER = 'الرئيسية ثابتة في رأس الموقع (الشعار ورابط «الرئيسية»)، فلا يظهر فيه رابط إلى /. احذف هذا الرابط من القائمة الرئيسية.';
+
     private const TARGET_COLUMN = ['page' => 'page_id', 'category' => 'category_id', 'section' => 'section_id', 'url' => 'url'];
 
     /** @return array<string, string> key => Arabic name */
@@ -70,7 +72,7 @@ final class MenuStore
     {
         $menuId = $this->menuId($key);
         $tree = $this->normalise($tree);
-        $this->validate($tree);
+        $this->validate($tree, $key);
 
         $before = $this->describe($this->load($key));
 
@@ -166,7 +168,7 @@ final class MenuStore
     }
 
     /** @throws ValidationException */
-    private function validate(array $tree): void
+    private function validate(array $tree, string $key): void
     {
         $flat = [];
         foreach ($tree as $i => $item) {
@@ -208,6 +210,16 @@ final class MenuStore
             }
 
             // Only the chosen destination is kept: a leftover value in another field is not an error, it is ignored.
+        }
+
+        // The site's header has its own link to the home page (the logo and «الرئيسية») and leaves out an item of the
+        // header that points there: refused here, so the editor never keeps a link the site does not show.
+        if ($key === 'header') {
+            foreach ($tree as $i => $item) {
+                if ($item['type'] === 'url' && $item['url'] === '/') {
+                    $errors["{$i}.url"] = [self::HOME_IN_HEADER];
+                }
+            }
         }
 
         if ($errors !== []) {

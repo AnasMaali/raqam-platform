@@ -54,6 +54,12 @@ export const ownPages = new Set(["currencies", "weather", "services", "contact",
 export const ownPaths = new Set(["/newsletter/unsubscribe"]);
 
 /**
+ * The not-found page's own route: reached only through the check's rewrite, with its 404. A visit to its address is a
+ * 404 too: like any address of two parts the check does not know.
+ */
+export const notFoundPage = "/errors/not-found";
+
+/**
  * The site's own files at the root (Next.js's metadata routes and the like). Any other one-part address with an
  * extension would reach the panel pages' route and answer 200 with a page: it is a 404 here.
  */
@@ -426,7 +432,7 @@ async function missing(request: NextRequest) {
   return notFound(request);
 }
 
-/** The site's own not-found page, with its frame, answering 404. */
+/** The site's own not-found page, with its frame and the font's Link header, answering 404 (app/errors/not-found/page.tsx). */
 function notFound(request: NextRequest) {
-  return NextResponse.rewrite(new URL("/_not-found", request.url));
+  return NextResponse.rewrite(new URL(notFoundPage, request.url), { status: 404 });
 }

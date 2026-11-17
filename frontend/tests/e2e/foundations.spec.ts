@@ -6,9 +6,14 @@ import { expectNoSidewaysScroll, labUrl, smallTargets } from "./helpers";
 
 /* The components page of the development lab, with every component in every state. */
 
+// The lab is served by the development server (playwright.config.ts), which renders every visit unoptimised: when the
+// whole suite loads the machine, a visit takes many times longer than on the built site (twice past the defaults, in
+// runs that took half as long again as usual). What these tests check does not depend on it.
+const labLoad = { timeout: 60_000 };
+
 test.beforeEach(async ({ page }) => {
-  await page.goto(labUrl("/lab/foundations"));
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.goto(labUrl("/lab/foundations"), labLoad);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible({ timeout: 20_000 });
 });
 
 test("every component is on the page, without sideways scrolling, light and dark", async ({ page }) => {

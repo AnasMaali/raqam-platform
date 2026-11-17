@@ -133,4 +133,22 @@ test.describe("the platform's webhook", () => {
       await signed(request, { type: "post", id: 900302, change: "updated", paths: [] });
     }
   });
+
+  test("a page first drawn for a prefetch still announces the font when it is then visited", async ({ page, request }) => {
+    // The currency pages made anew, then drawn only by the prefetches of the list's links (Partial Prefetching): what
+    // is kept for each must still carry the font's preload, as when a visit draws it first.
+    expect((await signed(request, { type: "currencies", change: "rates_published", paths: ["/currencies"] })).status()).toBe(200);
+    const prefetched: string[] = [];
+    page.on("request", (r) => {
+      if (r.headers()["next-router-segment-prefetch"] && /\/currencies\/[a-z]{3}$/.test(new URL(r.url()).pathname)) prefetched.push(new URL(r.url()).pathname);
+    });
+    await page.goto("/currencies");
+    await expect.poll(() => prefetched.length, { message: "the list's links are prefetched" }).toBeGreaterThan(0);
+    await page.waitForLoadState("networkidle");
+    for (const path of [...new Set(prefetched)]) {
+      const answer = await request.get(path);
+      expect(answer.status(), path).toBe(200);
+      expect(answer.headers().link ?? "", path).toMatch(/<\/_next\/static\/media\/[^>]+\.woff2>; rel=preload; as="font"/);
+    }
+  });
 });
