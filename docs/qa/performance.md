@@ -41,7 +41,7 @@ the number.
 ### What was found and fixed
 
 A query per item (N+1) in these lists, each first caught by a growth test that failed, then fixed, then the fix broken
-on purpose to see the test fail again (51 such breaks, all caught):
+on purpose to see the test fail again (54 such breaks, all caught):
 
 | Where | Before | After |
 |---|---:|---:|
@@ -65,8 +65,10 @@ on purpose to see the test fail again (51 such breaks, all caught):
 | Panel: a playlist being edited, a post's gallery and guests (a label per item) | 38 | 18 |
 | Panel: e-mail templates (22 inserts each time the list opened) | 34 | 13 |
 
-Values read once for a whole answer are kept on the request (`request()->attributes`), never in a static property or
-on a long-lived object, so they end with the request even on a server that keeps the application between requests.
+Values read once for a whole answer are kept on the request (`App\Support\RequestMemo`, one key in
+`request()->attributes`), never in a static property or on a long-lived object, so they end with the request even on a
+server that keeps the application between requests. A queue worker runs all its jobs on one request object:
+`Queue::before` empties the memo before each job (and only the memo), so no job sees what an earlier one read.
 (A test's application keeps its controllers from one request to the next: the growth tests forget them before each
 count, as a new request on the server would.)
 
