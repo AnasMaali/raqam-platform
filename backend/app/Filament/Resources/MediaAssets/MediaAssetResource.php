@@ -123,6 +123,8 @@ class MediaAssetResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // The thumbnails of the page in one query, not one per picture (QA-5).
+            ->modifyQueryUsing(fn (Builder $query) => $query->with('variants'))
             ->defaultSort('created_at', 'desc')
             ->contentGrid(['default' => 2, 'md' => 3, 'xl' => 5])
             ->columns([

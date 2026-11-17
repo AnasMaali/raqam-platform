@@ -99,7 +99,7 @@ class CityResource extends Resource
                         Notification::make()->success()->title('حُذفت المدينة.')->send();
                     }),
                 Action::make('fetch')->label('جلب الطقس')->icon(Heroicon::OutlinedArrowPath)->color('gray')
-                    ->visible(fn () => WeatherSources::ready())
+                    ->visible(fn () => self::ready())
                     ->action(function (WeatherLocation $r) {
                         FetchCityWeather::dispatch($r->city_id);
                         Notification::make()->success()->title('أُرسل الطلب.')->body('يظهر الطقس خلال دقيقة؛ حدّث الصفحة.')->send();
@@ -114,7 +114,7 @@ class CityResource extends Resource
                     }),
                 self::sourceAction(),
                 Action::make('fetchAll')->label('جلب الطقس الآن')->icon(Heroicon::OutlinedArrowPath)->color('gray')
-                    ->visible(fn () => WeatherSources::ready())
+                    ->visible(fn () => self::ready())
                     ->requiresConfirmation()->modalDescription('يُطلب طقس كل المدن الظاهرة من OpenWeather في الخلفية (طلبان لكل مدينة)، ويظهر خلال دقيقة.')
                     // In the background: a slow or silent source must not hold the page (twelve cities, two calls each).
                     ->action(function () {
@@ -138,6 +138,7 @@ class CityResource extends Resource
             ])
             ->action(function (array $data) {
                 DataProviders::switchTo('weather', (string) $data['provider']);
+                request()->attributes->remove('cities.ready');   // the buttons drawn again now follow the new source
                 WeatherBoard::changed();
                 Notification::make()->success()->title('حُفظ مصدر الطقس.')->send();
             });
@@ -178,10 +179,26 @@ class CityResource extends Resource
             .($health && $health->consecutive_failures > 0 ? ' · فشل متتالٍ: '.$health->consecutive_failures : '');
     }
 
+    /** Whether the weather source can fetch, asked once per request (each row's buttons ask it; QA-5). */
+    private static function ready(): bool
+    {
+        $kept = request()->attributes;
+        if (! $kept->has('cities.ready')) {
+            $kept->set('cities.ready', WeatherSources::ready());
+        }
+
+        return $kept->get('cities.ready');
+    }
+
     private static function latest(WeatherLocation $r): ?string
     {
-        $o = DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
-            ->where('city_id', $r->city_id)->orderByDesc('observed_at')->first(['temperature_c', 'description_ar', 'observed_at']);
+        // The newest reading of every city in one query, read once per request (QA-5): DISTINCT ON keeps each city's first row, the newest.
+        $kept = request()->attributes;
+        if (! $kept->has('cities.latest')) {
+            $kept->set('cities.latest', DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
+                ->orderBy('city_id')->orderByDesc('observed_at')->selectRaw('DISTINCT ON (city_id) city_id, temperature_c, description_ar, observed_at')->get()->keyBy('city_id'));
+        }
+        $o = $kept->get('cities.latest')->get($r->city_id);
 
         return $o === null ? null : rtrim(rtrim($o->temperature_c, '0'), '.').'° '.$o->description_ar.' ('.Carbon::parse($o->observed_at)->timezone('Asia/Hebron')->format('H:i').')';
     }

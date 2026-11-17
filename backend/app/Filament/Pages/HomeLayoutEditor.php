@@ -76,16 +76,16 @@ class HomeLayoutEditor extends Page
                     TextInput::make('id')->hidden()->dehydratedWhenHidden(),
                     Select::make('block_type')->label('النوع')->native(false)->required()->live()->options(HomeLayout::TYPES),
                     Select::make('category_id')->label('التصنيف')->native(false)->searchable()
-                        ->options(fn () => DB::table('categories')->orderBy('sort_order')->orderBy('name_ar')->pluck('name_ar', 'id')->all())
+                        ->options(fn () => self::choices('category'))
                         ->visible(fn (Get $get) => $get('block_type') === 'category')->required(fn (Get $get) => $get('block_type') === 'category'),
                     Select::make('section_id')->label('القسم الخاص')->native(false)
-                        ->options(fn () => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all())
+                        ->options(fn () => self::choices('section'))
                         ->visible(fn (Get $get) => $get('block_type') === 'section')->required(fn (Get $get) => $get('block_type') === 'section'),
                     Select::make('playlist_id')->label('قائمة التشغيل')->native(false)->searchable()
-                        ->options(fn () => DB::table('playlists')->orderBy('sort_order')->orderBy('name_ar')->pluck('name_ar', 'id')->all())
+                        ->options(fn () => self::choices('playlist'))
                         ->visible(fn (Get $get) => $get('block_type') === 'playlist')->required(fn (Get $get) => $get('block_type') === 'playlist'),
                     Select::make('placement_code')->label('مكان الإعلان')->native(false)
-                        ->options(fn () => DB::table('ad_placements')->whereIn('code', HomeLayout::AD_SLOTS)->pluck('name_ar', 'code')->all())
+                        ->options(fn () => self::choices('ad'))
                         ->visible(fn (Get $get) => $get('block_type') === 'ad')->required(fn (Get $get) => $get('block_type') === 'ad'),
                     TextInput::make('title_ar')->label('العنوان الظاهر')->maxLength(80)->placeholder('اسم البلوك نفسه'),
                     TextInput::make('item_limit')->label('عدد العناصر')->integer()->minValue(1)->maxValue(24)
@@ -100,15 +100,36 @@ class HomeLayoutEditor extends Page
         ]);
     }
 
+    /**
+     * What a block can point at, by kind: read once per request, not for every block (each block's pickers and its
+     * label ask; QA-5), and kept on the request, so a change shows in the next one.
+     *
+     * @return array<int|string, string>
+     */
+    private static function choices(string $kind): array
+    {
+        $kept = request()->attributes;
+        if (! $kept->has('home_layout.'.$kind)) {
+            $kept->set('home_layout.'.$kind, match ($kind) {
+                'category' => DB::table('categories')->orderBy('sort_order')->orderBy('name_ar')->pluck('name_ar', 'id')->all(),
+                'section' => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all(),
+                'playlist' => DB::table('playlists')->orderBy('sort_order')->orderBy('name_ar')->pluck('name_ar', 'id')->all(),
+                'ad' => DB::table('ad_placements')->whereIn('code', HomeLayout::AD_SLOTS)->pluck('name_ar', 'code')->all(),
+            });
+        }
+
+        return $kept->get('home_layout.'.$kind);
+    }
+
     /** "قسم تصنيف: اقتصاد (مخفي)" — what a collapsed block says about itself. */
     private static function label(array $state): string
     {
         $type = HomeLayout::TYPES[$state['block_type'] ?? ''] ?? 'بلوك جديد';
         $target = match ($state['block_type'] ?? null) {
-            'category' => DB::table('categories')->where('id', (int) ($state['category_id'] ?? 0))->value('name_ar'),
-            'section' => DB::table('sections')->where('id', (int) ($state['section_id'] ?? 0))->value('name_ar'),
-            'playlist' => DB::table('playlists')->where('id', (int) ($state['playlist_id'] ?? 0))->value('name_ar'),
-            'ad' => DB::table('ad_placements')->where('code', (string) ($state['placement_code'] ?? ''))->value('name_ar'),
+            'category' => self::choices('category')[(int) ($state['category_id'] ?? 0)] ?? null,
+            'section' => self::choices('section')[(int) ($state['section_id'] ?? 0)] ?? null,
+            'playlist' => self::choices('playlist')[(int) ($state['playlist_id'] ?? 0)] ?? null,
+            'ad' => self::choices('ad')[(string) ($state['placement_code'] ?? '')] ?? null,
             default => null,
         };
         $title = trim((string) ($state['title_ar'] ?? ''));

@@ -64,14 +64,14 @@ class PostResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn (Builder $query) => $query->with(['cover', 'category']))
+            ->modifyQueryUsing(fn (Builder $query) => $query->with(['cover.variants', 'category']))
             ->defaultSort('updated_at', 'desc')
             ->columns([
                 ImageColumn::make('cover')->label('')->state(fn (Post $record) => MediaThumb::url($record->cover))->imageHeight('2.5rem')
                     ->extraImgAttributes(['alt' => '', 'loading' => 'lazy', 'style' => 'object-fit:cover;border-radius:.25rem']),
                 TextColumn::make('title')->label('العنوان')->wrap()->weight('medium')->limit(90)
                     ->searchable(query: fn (Builder $query, string $search) => $query->whereRaw('search_text ILIKE \'%\' || normalize_ar(?) || \'%\'', [$search])),
-                TextColumn::make('kind_code')->label('النوع')->badge()->formatStateUsing(fn (string $state) => PostKind::options()[$state] ?? $state),
+                TextColumn::make('kind_code')->label('النوع')->badge()->formatStateUsing(fn (string $state) => PostKind::names()[$state] ?? $state),
                 TextColumn::make('category.name_ar')->label('التصنيف')->placeholder('—')->toggleable(),
                 TextColumn::make('status')->label('الحالة')->badge()
                     ->color(fn (string $state) => match ($state) {
@@ -85,7 +85,7 @@ class PostResource extends Resource
             ])
             ->filters([
                 SelectFilter::make('status')->label('الحالة')->options(Post::STATUSES),
-                SelectFilter::make('kind_code')->label('النوع')->options(fn () => PostKind::options()),
+                SelectFilter::make('kind_code')->label('النوع')->options(fn () => PostKind::names()),
                 SelectFilter::make('category_id')->label('التصنيف')->options(fn () => Category::query()->orderBy('sort_order')->pluck('name_ar', 'id')->all()),
                 TernaryFilter::make('is_featured')->label('مميز'),
                 Filter::make('breaking')->label('عاجل الآن')->toggle()->query(fn (Builder $query) => $query->where('breaking_until', '>', now())),

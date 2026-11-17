@@ -93,6 +93,26 @@ class MenuEditor extends Page
     }
 
     /** @return list<Component> */
+    /**
+     * The pages, categories or sections an item can point at: read once per request, not for every item of every menu
+     * (QA-5), and kept on the request, so a change shows in the next one.
+     *
+     * @return array<int, string>
+     */
+    private static function choices(string $table): array
+    {
+        $kept = request()->attributes;
+        if (! $kept->has('menu_editor.'.$table)) {
+            $kept->set('menu_editor.'.$table, match ($table) {
+                'pages' => DB::table('pages')->orderBy('title')->pluck('title', 'id')->all(),
+                'categories' => DB::table('categories')->orderBy('sort_order')->pluck('name_ar', 'id')->all(),
+                'sections' => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all(),
+            });
+        }
+
+        return $kept->get('menu_editor.'.$table);
+    }
+
     private static function itemFields(bool $withChildren, bool $header = false): array
     {
         $fields = [
@@ -102,13 +122,13 @@ class MenuEditor extends Page
                 'page' => 'صفحة', 'category' => 'تصنيف', 'section' => 'قسم خاص', 'url' => 'عنوان آخر',
             ]),
             Select::make('page_id')->label('الصفحة')->native(false)->searchable()
-                ->options(fn () => DB::table('pages')->orderBy('title')->pluck('title', 'id')->all())
+                ->options(fn () => self::choices('pages'))
                 ->visible(fn (Get $get) => $get('type') === 'page')->required(fn (Get $get) => $get('type') === 'page'),
             Select::make('category_id')->label('التصنيف')->native(false)->searchable()
-                ->options(fn () => DB::table('categories')->orderBy('sort_order')->pluck('name_ar', 'id')->all())
+                ->options(fn () => self::choices('categories'))
                 ->visible(fn (Get $get) => $get('type') === 'category')->required(fn (Get $get) => $get('type') === 'category'),
             Select::make('section_id')->label('القسم')->native(false)
-                ->options(fn () => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all())
+                ->options(fn () => self::choices('sections'))
                 ->visible(fn (Get $get) => $get('type') === 'section')->required(fn (Get $get) => $get('type') === 'section'),
             TextInput::make('url')->label('العنوان')->maxLength(500)->extraInputAttributes(['dir' => 'ltr'])
                 ->helperText('/about لصفحة من الموقع، أو https://... لموقع آخر.'.($header ? ' الرئيسية (/) ثابتة في رأس الموقع، فلا تُضاف هنا.' : ''))

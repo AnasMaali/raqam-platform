@@ -8,6 +8,7 @@ use App\Models\Post;
 use App\Models\Service;
 use App\Settings\FeatureFlags;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -29,9 +30,10 @@ final class ServiceBoard
         return $this->remember('groups', function () {
             $services = $this->visible()->orderBy('sort_order')->orderBy('id')->get();
             $this->presenter->preload($services->pluck('cover_media_id'));
+            $shared = $this->shared();
 
             return DB::table('service_groups')->orderBy('sort_order')->orderBy('id')->get()
-                ->map(fn ($g) => ['id' => (int) $g->id, 'name' => $g->name_ar, 'services' => $services->where('group_id', $g->id)->map(fn (Service $s) => $this->card($s))->values()->all()])
+                ->map(fn ($g) => ['id' => (int) $g->id, 'name' => $g->name_ar, 'services' => $services->where('group_id', $g->id)->map(fn (Service $s) => $this->card($s, $shared))->values()->all()])
                 ->filter(fn ($g) => $g['services'] !== [])->values()->all();
         });
     }
@@ -57,8 +59,9 @@ final class ServiceBoard
                 return null;
             }
             $meta = $s->seo_meta_id ? DB::table('seo_meta')->where('id', $s->seo_meta_id)->first() : null;
+            $shared = $this->shared();
 
-            return $this->card($s) + [
+            return $this->card($s, $shared) + [
                 'description_html' => $s->description,
                 'deliverables' => $s->deliverables(),
                 'faqs' => DB::table('faqs')->where('service_id', $s->id)->where('is_published', true)->orderBy('sort_order')->get(['question', 'answer'])->map(fn ($f) => (array) $f)->all(),
@@ -87,7 +90,12 @@ final class ServiceBoard
         if ($s->price_mode === 'on_request') {
             return ['mode' => 'on_request', 'amount' => null, 'currency' => null, 'symbol' => null, 'note' => null, 'text' => Service::MODES['on_request'], 'offer' => null];
         }
-        $currency = DB::table('currencies')->where('code', $s->currency_code)->first(['symbol', 'minor_units']);
+        // Every currency once per request (a list of services asks for each), kept on the request; QA-5.
+        $kept = request()->attributes;
+        if (! $kept->has('services.currencies')) {
+            $kept->set('services.currencies', DB::table('currencies')->get(['code', 'symbol', 'minor_units'])->keyBy(fn ($c) => trim($c->code)));
+        }
+        $currency = $kept->get('services.currencies')->get(trim((string) $s->currency_code));
         $decimals = (int) ($currency->minor_units ?? 2);
         $offer = $s->sale_price_amount !== null && $s->sale_ends_at !== null && $s->sale_ends_at > $now;
         $minor = $offer ? $s->sale_price_amount : $s->price_amount;
@@ -131,14 +139,26 @@ final class ServiceBoard
     }
 
     /** @return array<string, mixed> */
-    private function card(Service $s): array
+    /**
+     * What every card of one answer shares, read once for it (QA-5): the booking switch and the contact settings (the
+     * currencies: price() reads them once per request). Read again for each answer, never kept: a change shows in the next.
+     *
+     * @return array{booking: bool, contact: Collection}
+     */
+    private function shared(): array
+    {
+        return ['booking' => self::bookingOn(), 'contact' => ServiceContact::settings()];
+    }
+
+    /** @param  array{booking: bool, contact: Collection}  $shared */
+    private function card(Service $s, array $shared): array
     {
         return [
             'id' => $s->id, 'slug' => $s->slug, 'path' => '/services/'.$s->slug, 'group_id' => $s->group_id,
             'name' => $s->name_ar, 'summary' => $s->summary, 'cover' => $this->presenter->media($s->cover_media_id),
             'price' => self::price($s),
-            'contact' => ServiceContact::links($s->name_ar),
-            'booking' => self::bookingOn() ? ['enabled' => true, 'path' => '/services/'.$s->slug.'/book'] : ['enabled' => false, 'path' => null],
+            'contact' => ServiceContact::links($s->name_ar, $shared['contact']),
+            'booking' => $shared['booking'] ? ['enabled' => true, 'path' => '/services/'.$s->slug.'/book'] : ['enabled' => false, 'path' => null],
         ];
     }
 

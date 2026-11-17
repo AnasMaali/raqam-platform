@@ -9,6 +9,7 @@ use App\Models\Video;
 use App\Video\VideoView;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /** Videos, playlists and the data for Google's video results (decisions 8.9, 8.10, 8.13). Only what a visitor may see. */
@@ -41,6 +42,7 @@ class VideoApiController extends ApiController
         }
 
         $p = $videos->orderByDesc('videos.id')->paginate(self::PER_PAGE, page: $this->page($request));
+        $this->view->prime($p->items());
 
         return $this->pageOf($p, collect($p->items())->map(fn (Video $v) => $this->view->payload($v))->all(), array_filter(['section' => $q['section'] ?? null, 'playlist' => $q['playlist'] ?? null]));
     }
@@ -55,9 +57,8 @@ class VideoApiController extends ApiController
     public function playlists(Request $request): JsonResponse
     {
         $p = DB::table('playlists')->where('is_visible', true)->orderBy('sort_order')->orderBy('id')->paginate(self::PER_PAGE, page: $this->page($request));
-        $this->presenter->preload(collect($p->items())->pluck('cover_media_id'));
 
-        return $this->pageOf($p, collect($p->items())->map(fn ($row) => $this->playlist($row))->all());
+        return $this->pageOf($p, $this->playlistList(collect($p->items())));
     }
 
     public function playlistShow(string $slug): JsonResponse
@@ -70,26 +71,43 @@ class VideoApiController extends ApiController
         $videos = Video::query()->public()->with(self::WITH)
             ->join('playlist_videos', 'playlist_videos.video_id', '=', 'videos.id')->where('playlist_videos.playlist_id', $row->id)
             ->orderBy('playlist_videos.sort_order')->select('videos.*')->limit(self::PLAYLIST_LIMIT)->get();
+        $this->view->prime($videos);
 
-        return response()->json(['data' => $this->playlist($row) + ['videos' => $videos->map(fn (Video $v) => $this->view->payload($v))->all()]]);
+        return response()->json(['data' => $this->playlistList(collect([$row]))[0] + ['videos' => $videos->map(fn (Video $v) => $this->view->payload($v))->all()]]);
     }
 
-    /** @return array<string, mixed> */
-    private function playlist(object $row): array
+    /**
+     * Playlists with their section, season, number of videos and search-engine facts, in a few queries whatever their
+     * number (QA-5).
+     *
+     * @param  Collection<int, object>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function playlistList(Collection $rows): array
     {
-        $section = $row->section_id ? DB::table('sections')->where('id', $row->section_id)->first() : null;
-        $count = Video::query()->public()->inPlaylist((int) $row->id)->count();
-        $season = DB::table('podcast_seasons')->where('playlist_id', $row->id)->first();
-        $seo = $row->seo_meta_id ? DB::table('seo_meta')->where('id', $row->seo_meta_id)->first() : null;
+        if ($rows->isEmpty()) {
+            return [];
+        }
+        $this->presenter->preload($rows->pluck('cover_media_id'));
+        $sections = DB::table('sections')->whereIn('id', $rows->pluck('section_id')->filter())->get()->keyBy('id');
+        $counts = DB::table('playlist_videos')->whereIn('playlist_id', $rows->pluck('id'))->whereIn('video_id', Video::query()->public()->select('videos.id'))
+            ->groupBy('playlist_id')->selectRaw('playlist_id, count(*) AS n')->pluck('n', 'playlist_id');
+        $seasons = DB::table('podcast_seasons')->whereIn('playlist_id', $rows->pluck('id'))->orderBy('id')->get()->unique('playlist_id')->keyBy('playlist_id');
+        $seo = DB::table('seo_meta')->whereIn('id', $rows->pluck('seo_meta_id')->filter())->get()->keyBy('id');
 
-        return [
-            'id' => (int) $row->id, 'name' => $row->name_ar, 'slug' => $row->slug, 'description' => $row->description,
-            'cover' => $this->presenter->media($row->cover_media_id),
-            'section' => $section ? ['id' => (int) $section->id, 'name' => $section->name_ar, 'slug' => $section->slug] : null,
-            'season_number' => $season ? (int) $season->season_number : null,
-            'videos_count' => $count,
-            'seo' => $this->presenter->seo($seo, $row->name_ar, $row->description, $row->cover_media_id),
-        ];
+        return $rows->values()->map(function ($row) use ($sections, $counts, $seasons, $seo) {
+            $section = $sections->get($row->section_id);
+            $season = $seasons->get($row->id);
+
+            return [
+                'id' => (int) $row->id, 'name' => $row->name_ar, 'slug' => $row->slug, 'description' => $row->description,
+                'cover' => $this->presenter->media($row->cover_media_id),
+                'section' => $section ? ['id' => (int) $section->id, 'name' => $section->name_ar, 'slug' => $section->slug] : null,
+                'season_number' => $season ? (int) $season->season_number : null,
+                'videos_count' => (int) ($counts[$row->id] ?? 0),
+                'seo' => $this->presenter->seo($row->seo_meta_id ? $seo->get($row->seo_meta_id) : null, $row->name_ar, $row->description, $row->cover_media_id),
+            ];
+        })->all();
     }
 
     /**
@@ -100,6 +118,7 @@ class VideoApiController extends ApiController
     {
         $entries = [];
         $videos = Video::query()->public()->with(self::WITH)->orderBy('videos.id')->limit(self::SITEMAP_LIMIT)->get()->keyBy('id');
+        $this->view->prime($videos);
 
         foreach ($videos as $video) {
             $entries[] = ['page_path' => '/video/'.$video->id, 'video' => $this->sitemapVideo($video)];

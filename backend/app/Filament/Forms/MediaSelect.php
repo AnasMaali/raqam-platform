@@ -4,15 +4,18 @@ namespace App\Filament\Forms;
 
 use App\Models\MediaAsset;
 use Filament\Forms\Components\Select;
+use Filament\Schemas\Components\Utilities\Get;
 
 /** A picker for one public image of the media library, with search (decision 9.1). */
 final class MediaSelect
 {
-    public static function make(string $name): Select
+    /** $siblings: inside a repeater, the path to its list ("../../gallery"): the names of all its pictures in one query (QA-5). */
+    public static function make(string $name, ?string $siblings = null): Select
     {
         return Select::make($name)->searchable()->native(false)
             ->getSearchResultsUsing(fn (string $search) => MediaAsset::query()->publicImages()->search($search)->latest()->limit(30)->pluck('original_name', 'id')->all())
-            ->getOptionLabelUsing(fn ($value) => self::isId($value) ? MediaAsset::query()->find((int) $value)?->original_name : null)
+            ->getOptionLabelUsing(fn ($value, Get $get) => ListLabels::of('media', $value, $get, $name, $siblings,
+                fn (array $ids) => MediaAsset::query()->whereKey($ids)->pluck('original_name', 'id')->all()))
             ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail) {
                 // Whatever the form sent, only a live public picture of the library is accepted.
                 if ($value !== null && $value !== '' && (! self::isId($value) || ! MediaAsset::query()->publicImages()->whereKey((int) $value)->exists())) {

@@ -31,6 +31,20 @@ final class Presenter
         return $video !== null && $this->videos->playable($video) ? $this->videos->payload($video) : null;
     }
 
+    /**
+     * Read once for all the lists of one answer (QA-5: the home page has a dozen): kept on the request, so it ends with
+     * it, even where the presenter lives longer (a test's application keeps its controllers from one request to the next).
+     */
+    private function forThisRequest(string $key, \Closure $read): mixed
+    {
+        $kept = request()->attributes;
+        if (! $kept->has('presenter.'.$key)) {
+            $kept->set('presenter.'.$key, $read());
+        }
+
+        return $kept->get('presenter.'.$key);
+    }
+
     /** Loads pictures in two queries so a list of twelve does not ask twelve times. */
     public function preload(iterable $ids): void
     {
@@ -83,14 +97,15 @@ final class Presenter
     public function summaries(Collection $posts): array
     {
         $this->preload($posts->pluck('cover_media_id'));
-        $kinds = DB::table('post_kinds')->get(['code', 'name_ar', 'schema_org_type'])->keyBy('code');
-        $categories = DB::table('categories')->whereIn('id', $posts->pluck('category_id')->filter())->get()->keyBy('id');
+        $kinds = $this->forThisRequest('kinds', fn () => DB::table('post_kinds')->get(['code', 'name_ar', 'schema_org_type'])->keyBy('code'));
+        $categoryIds = $posts->pluck('category_id')->filter()->unique()->values();
+        $categories = $categoryIds->isEmpty() ? collect() : DB::table('categories')->whereIn('id', $categoryIds)->get()->keyBy('id');
         $authors = DB::table('post_authors')->join('authors', 'authors.id', '=', 'post_authors.author_id')->whereNull('authors.deleted_at')
             ->whereIn('post_id', $posts->pluck('id'))->orderBy('post_authors.sort_order')->get(['post_id', 'authors.id', 'authors.name', 'authors.slug'])->groupBy('post_id');
         $sponsors = $this->organizations($posts->pluck('sponsor_organization_id'));
         $facts = $this->listFacts($posts);
         // 22.12: the number of readings only when the admin shows it; otherwise the field is not sent at all.
-        $views = ViewCounts::shown() ? ViewCounts::totals($posts->pluck('id')) : null;
+        $views = $this->forThisRequest('views_shown', fn () => ViewCounts::shown()) ? ViewCounts::totals($posts->pluck('id')) : null;
 
         return $posts->map(function (Post $p) use ($kinds, $categories, $authors, $sponsors, $views, $facts) {
             $c = $categories->get($p->category_id);
@@ -281,19 +296,39 @@ final class Presenter
             ->where('post_id', $post->id)->whereNull('guests.deleted_at')->orderBy('post_guests.sort_order')
             ->get(['guests.id as gid', 'guest_roles.code', 'guest_roles.name_ar']);
 
-        return $rows->map(fn ($r) => ['role' => ['code' => $r->code, 'name' => $r->name_ar], 'guest' => $this->guest((int) $r->gid)])->all();
+        $guests = $this->guestsById($rows->pluck('gid'));
+
+        return $rows->map(fn ($r) => ['role' => ['code' => $r->code, 'name' => $r->name_ar], 'guest' => $guests[(int) $r->gid]])->all();
     }
 
     public function guest(int $id): array
     {
-        $g = DB::table('guests')->where('id', $id)->first();
-        $o = $g->organization_id ? DB::table('organizations')->where('id', $g->organization_id)->first() : null;
-        $links = DB::table('guest_links')->where('guest_id', $id)->pluck('url', 'platform_code')->all();
+        return $this->guestsById([$id])[$id];
+    }
 
-        return [
-            'id' => $id, 'name' => $g->name, 'slug' => $g->slug, 'job_title' => $g->job_title, 'bio' => $g->bio,
-            'photo' => $this->media($g->photo_media_id), 'organization' => $o ? $this->organization($o) : null, 'links' => (object) $links,
-        ];
+    /**
+     * Several guests with their companies, links and photos, in a few queries whatever their number (QA-5).
+     *
+     * @param  iterable<int|string>  $ids
+     * @return array<int, array<string, mixed>> id => guest
+     */
+    public function guestsById(iterable $ids): array
+    {
+        $ids = collect($ids)->map(fn ($i) => (int) $i)->unique()->values();
+        if ($ids->isEmpty()) {
+            return [];
+        }
+        $rows = DB::table('guests')->whereIn('id', $ids)->get()->keyBy('id');
+        $companies = $this->organizations($rows->pluck('organization_id'));
+        $links = DB::table('guest_links')->whereIn('guest_id', $ids)->get(['guest_id', 'url', 'platform_code'])->groupBy('guest_id');
+        $this->preload($rows->pluck('photo_media_id'));
+
+        // In the order asked for (a list's own order), not the database's.
+        return $ids->filter(fn (int $id) => $rows->has($id))->mapWithKeys(fn (int $id) => [$id => ($g = $rows[$id]) ? [
+            'id' => (int) $id, 'name' => $g->name, 'slug' => $g->slug, 'job_title' => $g->job_title, 'bio' => $g->bio,
+            'photo' => $this->media($g->photo_media_id), 'organization' => $companies[$g->organization_id] ?? null,
+            'links' => (object) ($links->get($id) ?? collect())->pluck('url', 'platform_code')->all(),
+        ] : []])->all();
     }
 
     /**
@@ -313,12 +348,25 @@ final class Presenter
 
     public function author(object $a): array
     {
-        $links = DB::table('author_links')->where('author_id', $a->id)->pluck('url', 'platform_code')->all();
+        return $this->authors(collect([$a]))[0];
+    }
 
-        return [
+    /**
+     * Writers with their links and photos, in a few queries whatever their number (QA-5).
+     *
+     * @param  Collection<int, object>  $rows  rows of authors
+     * @return list<array<string, mixed>>
+     */
+    public function authors(Collection $rows): array
+    {
+        $links = $rows->isEmpty() ? collect() : DB::table('author_links')->whereIn('author_id', $rows->pluck('id'))->get(['author_id', 'url', 'platform_code'])->groupBy('author_id');
+        $this->preload($rows->pluck('photo_media_id'));
+
+        return $rows->values()->map(fn ($a) => [
             'id' => (int) $a->id, 'name' => $a->name, 'slug' => $a->slug, 'job_title' => $a->job_title, 'bio' => $a->bio,
-            'photo' => $this->media($a->photo_media_id), 'team_order' => $a->team_sort_order === null ? null : (int) $a->team_sort_order, 'links' => (object) $links,
-        ];
+            'photo' => $this->media($a->photo_media_id), 'team_order' => $a->team_sort_order === null ? null : (int) $a->team_sort_order,
+            'links' => (object) ($links->get($a->id) ?? collect())->pluck('url', 'platform_code')->all(),
+        ])->all();
     }
 
     /**
@@ -329,9 +377,8 @@ final class Presenter
      */
     public function cards(Collection $cards): array
     {
-        $summaries = $this->summaries($cards);
-
-        return $cards->values()->map(fn (Post $card, int $i) => $summaries[$i] + ['awareness' => $this->details($card)])->all();
+        // The list's facts of a card are its awareness details (listFacts reads them for all the cards at once).
+        return array_map(fn (array $summary) => $summary + ['awareness' => $summary['facts'] === null ? null : ['kind' => 'awareness'] + $summary['facts']], $this->summaries($cards));
     }
 
     /** The published awareness cards a post points at, in order (decision 7.12). @return list<array<string, mixed>> */
@@ -344,7 +391,7 @@ final class Presenter
             ->where('posts.kind_code', 'awareness')->orderBy('post_related.sort_order')->pluck('posts.id');
         $cards = Post::query()->live()->whereIn('id', $ids)->get()->sortBy(fn ($c) => $ids->search($c->id))->values();
 
-        return $this->cards($cards->filter(fn (Post $c) => $this->details($c) !== null));
+        return array_values(array_filter($this->cards($cards), fn (array $card) => $card['awareness'] !== null));
     }
 
     /**
@@ -354,18 +401,37 @@ final class Presenter
      */
     public function character(object $c, bool $withCount = true): array
     {
-        $poses = DB::table('character_poses')->join('pose_types', 'pose_types.code', '=', 'character_poses.pose_type_code')->where('character_poses.character_id', $c->id)
-            ->orderBy('pose_types.sort_order')->get(['character_poses.id', 'character_poses.pose_type_code', 'pose_types.name_ar', 'character_poses.static_media_id', 'character_poses.rive_state']);
-        $this->preload($poses->pluck('static_media_id')->push($c->rive_media_id, $c->seo_meta_id ? DB::table('seo_meta')->where('id', $c->seo_meta_id)->value('share_media_id') : null));
-        $seo = $c->seo_meta_id ? DB::table('seo_meta')->where('id', $c->seo_meta_id)->first() : null;
+        return $this->characters(collect([$c]), $withCount)[0];
+    }
 
-        return [
+    /**
+     * Characters with their poses, cards and search-engine facts, in a few queries whatever their number (QA-5).
+     *
+     * @param  Collection<int, object>  $rows  rows of characters
+     * @return list<array<string, mixed>>
+     */
+    public function characters(Collection $rows, bool $withCount = true): array
+    {
+        if ($rows->isEmpty()) {
+            return [];
+        }
+        $ids = $rows->pluck('id');
+        $poses = DB::table('character_poses')->join('pose_types', 'pose_types.code', '=', 'character_poses.pose_type_code')->whereIn('character_poses.character_id', $ids)
+            ->orderBy('pose_types.sort_order')->get(['character_poses.character_id', 'character_poses.id', 'character_poses.pose_type_code', 'pose_types.name_ar', 'character_poses.static_media_id', 'character_poses.rive_state'])
+            ->groupBy('character_id');
+        $seo = DB::table('seo_meta')->whereIn('id', $rows->pluck('seo_meta_id')->filter())->get()->keyBy('id');
+        $this->preload($poses->flatten(1)->pluck('static_media_id')->merge($rows->pluck('rive_media_id'))->merge($seo->pluck('share_media_id')));
+        $counts = $withCount ? DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
+            ->whereIn('character_poses.character_id', $ids)->whereIn('awareness_cards.post_id', Post::query()->live()->where('kind_code', 'awareness')->select('id'))
+            ->groupBy('character_poses.character_id')->selectRaw('character_poses.character_id, count(*) AS n')->pluck('n', 'character_id') : collect();
+
+        return $rows->values()->map(fn ($c) => [
             'id' => (int) $c->id, 'name' => $c->name_ar, 'slug' => $c->slug, 'role' => $c->role_ar, 'description' => $c->description,
             'accent_color' => $c->accent_color, 'rive' => $this->media($c->rive_media_id),
-            'poses' => $poses->map(fn ($p) => ['code' => $p->pose_type_code, 'name' => $p->name_ar, 'image' => $this->media($p->static_media_id), 'rive_state' => $p->rive_state])->all(),
-            'cards_count' => $withCount ? $this->characterCards((int) $c->id)->count() : 0,
-            'seo' => $this->seo($seo, $c->name_ar, $c->description ?: $c->role_ar, null),
-        ];
+            'poses' => ($poses->get($c->id) ?? collect())->map(fn ($p) => ['code' => $p->pose_type_code, 'name' => $p->name_ar, 'image' => $this->media($p->static_media_id), 'rive_state' => $p->rive_state])->values()->all(),
+            'cards_count' => (int) ($counts[$c->id] ?? 0),
+            'seo' => $this->seo($c->seo_meta_id ? $seo->get($c->seo_meta_id) : null, $c->name_ar, $c->description ?: $c->role_ar, null),
+        ])->all();
     }
 
     /** Published cards of one character. */

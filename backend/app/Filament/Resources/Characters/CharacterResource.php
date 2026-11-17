@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Characters;
 
-use App\Awareness\CharacterLibrary;
 use App\Awareness\ContrastCheck;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Forms\MediaSelect;
@@ -93,6 +92,30 @@ class CharacterResource extends Resource
         ]);
     }
 
+    /**
+     * The missing poses and the number of cards of every character, in three queries for the whole list (QA-5), read
+     * once per request (kept on it, so it ends with it).
+     *
+     * @return array{missing: array<int, list<string>>, cards: array<int, int>}
+     */
+    private static function listFacts(): array
+    {
+        $kept = request()->attributes;
+        if (! $kept->has('characters.list')) {
+            $kinds = DB::table('pose_types')->orderBy('sort_order')->pluck('name_ar', 'code');
+            $have = DB::table('character_poses')->get(['character_id', 'pose_type_code'])->groupBy('character_id');
+            $missing = [];
+            foreach (DB::table('characters')->pluck('id') as $id) {
+                $missing[$id] = $kinds->except(($have->get($id) ?? collect())->pluck('pose_type_code')->all())->values()->all();
+            }
+            $cards = DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')
+                ->groupBy('character_poses.character_id')->selectRaw('character_poses.character_id, count(*) AS n')->pluck('n', 'character_id')->map(fn ($n) => (int) $n)->all();
+            $kept->set('characters.list', ['missing' => $missing, 'cards' => $cards]);
+        }
+
+        return $kept->get('characters.list');
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -101,9 +124,9 @@ class CharacterResource extends Resource
                 ColorColumn::make('accent_color')->label(''),
                 TextColumn::make('name_ar')->label('الاسم')->searchable(),
                 TextColumn::make('role_ar')->label('الدور')->limit(50)->wrap(),
-                TextColumn::make('poses')->label('الوضعيات')->state(fn (Character $c) => ($missing = app(CharacterLibrary::class)->missing($c)) === [] ? 'مكتملة (5)' : 'ناقص: '.implode('، ', $missing))
-                    ->color(fn (Character $c) => app(CharacterLibrary::class)->missing($c) === [] ? 'success' : 'warning'),
-                TextColumn::make('cards')->label('البطاقات')->state(fn (Character $c) => DB::table('awareness_cards')->join('character_poses', 'character_poses.id', '=', 'awareness_cards.character_pose_id')->where('character_poses.character_id', $c->id)->count()),
+                TextColumn::make('poses')->label('الوضعيات')->state(fn (Character $c) => ($missing = self::listFacts()['missing'][$c->id] ?? []) === [] ? 'مكتملة (5)' : 'ناقص: '.implode('، ', $missing))
+                    ->color(fn (Character $c) => (self::listFacts()['missing'][$c->id] ?? []) === [] ? 'success' : 'warning'),
+                TextColumn::make('cards')->label('البطاقات')->state(fn (Character $c) => self::listFacts()['cards'][$c->id] ?? 0),
                 IconColumn::make('is_active')->label('ظاهرة')->boolean(),
             ])
             ->filters([TernaryFilter::make('is_active')->label('ظاهرة')])

@@ -14,7 +14,7 @@ class AwarenessApiController extends ApiController
     {
         $rows = DB::table('characters')->where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
 
-        return response()->json(['data' => $rows->map(fn ($c) => $this->presenter->character($c))->all()]);
+        return response()->json(['data' => $this->presenter->characters($rows)]);
     }
 
     public function character(string $slug): JsonResponse
@@ -53,7 +53,7 @@ class AwarenessApiController extends ApiController
 
         return response()->json(['data' => [
             'section' => ['id' => (int) $section->id, 'key' => $section->key, 'name' => $section->name_ar, 'slug' => $section->slug, 'description' => $section->description, 'cover' => $this->presenter->media($section->cover_media_id)],
-            'characters' => $characters->map(fn ($c) => $this->presenter->character($c))->all(),
+            'characters' => $this->presenter->characters($characters),
             'latest' => $this->presenter->cards($latest),
         ]]);
     }

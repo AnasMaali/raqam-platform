@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Panel\SystemFailures;
 use App\Search\SearchSync;
 use App\Support\ProductionChecks;
+use App\Support\QueryTally;
 use App\Support\TrackingHash;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
@@ -46,6 +47,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // migrate:fresh calls db:wipe; ours also drops functions, domains and extensions.
         $this->app->extend(WipeCommand::class, fn ($command, $app) => $app->make(WipeDatabaseCommand::class));
+
+        // The QA environment's query count (QueryReport): one tally per application.
+        $this->app->singleton(QueryTally::class);
 
         // The chatbot's answers (18.13): the free knowledge base in V1; a model can take its place later, same API.
         $this->app->bind(ChatResponder::class, KnowledgeBaseResponder::class);

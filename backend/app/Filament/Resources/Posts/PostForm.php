@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Posts;
 
 use App\Content\Blocks\BlockRegistry;
 use App\Content\Subtypes\SubtypeRegistry;
+use App\Filament\Forms\ListLabels;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Forms\OrganizationSelect;
 use App\Filament\Forms\SeoSection;
@@ -64,7 +65,7 @@ final class PostForm
                     ->helperText('الصور والمعرض والفيديو وبطاقة التوعية و«اقرأ أيضاً» من زر الإضافات في الشريط.'),
             ]),
             Section::make('معرض الصور')->collapsed()->schema([
-                Repeater::make('gallery')->hiddenLabel()->schema([MediaSelect::make('media_id')->hiddenLabel()->required()])
+                Repeater::make('gallery')->hiddenLabel()->schema([MediaSelect::make('media_id', siblings: '../../gallery')->hiddenLabel()->required()])
                     ->reorderable()->defaultItems(0)->maxItems(40)->addActionLabel('إضافة صورة'),
             ]),
             ...self::kindSections(),
@@ -73,8 +74,9 @@ final class PostForm
                     ->schema([
                         Select::make('guest_id')->label('الضيف')->native(false)->searchable()->required()
                             ->getSearchResultsUsing(fn (string $search) => DB::table('guests')->whereNull('deleted_at')->whereRaw('search_name ILIKE \'%\' || normalize_ar(?) || \'%\'', [$search])->limit(30)->pluck('name', 'id')->all())
-                            ->getOptionLabelUsing(fn ($value) => ctype_digit((string) $value) ? DB::table('guests')->where('id', (int) $value)->value('name') : null),
-                        Select::make('role_code')->label('دوره')->native(false)->options(fn () => GuestRole::options())->required()->default('guest'),
+                            ->getOptionLabelUsing(fn ($value, Get $get) => ListLabels::of('guests', $value, $get, 'guest_id', '../../guests',
+                                fn (array $ids) => DB::table('guests')->whereIn('id', $ids)->pluck('name', 'id')->all())),
+                        Select::make('role_code')->label('دوره')->native(false)->options(fn () => GuestRole::names())->required()->default('guest'),
                     ])->columns(2),
             ]),
             Section::make('بطاقات توعية مرتبطة')->collapsed()->visible(fn (?Post $record) => $record?->kind_code !== 'awareness')->schema([

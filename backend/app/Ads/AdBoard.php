@@ -82,10 +82,12 @@ final class AdBoard
             ->groupBy('placement_code');
         $creatives = DB::table('ad_creatives')->whereIn('campaign_id', $live->flatten()->pluck('id')->unique()->all() ?: [0])->get()
             ->groupBy('campaign_id')->map(fn ($rows) => $rows->pluck('media_id', 'device')->map(fn ($id) => (int) $id));
-        $this->presenter->preload($creatives->flatten()->all());
+        $placements = AdPlacements::all();
+        // The campaigns' pictures and the house banners, all in one go (QA-5).
+        $this->presenter->preload($creatives->flatten()->merge($placements->pluck('houseAd')->filter()->flatMap(fn (HouseAd $h) => [$h->desktop_media_id, $h->mobile_media_id]))->all());
 
         $slots = [];
-        foreach (AdPlacements::all() as $placement) {
+        foreach ($placements as $placement) {
             $on = AdPlacements::isOn($placement, $flags);
             $ads = [];
             foreach ($on ? $live->get($placement->code, collect()) : [] as $row) {

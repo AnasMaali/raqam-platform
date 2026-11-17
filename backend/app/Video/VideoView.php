@@ -15,7 +15,28 @@ use Illuminate\Support\Facades\DB;
  */
 final class VideoView
 {
+    /** @var array<int, list<array{start: int, time: string, title: string}>> video id => its chapters, read once */
+    private array $chapters = [];
+
     public function __construct(private MediaStorage $storage) {}
+
+    /**
+     * Reads the chapters of all these videos in one query, so a list of them does not ask once per video (QA-5).
+     *
+     * @param  iterable<Video>  $videos
+     */
+    public function prime(iterable $videos): void
+    {
+        $ids = collect($videos)->map(fn (Video $v) => (int) $v->id)->unique()->reject(fn (int $id) => array_key_exists($id, $this->chapters))->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
+        $rows = DB::table('video_chapters')->whereIn('video_id', $ids)->orderBy('starts_at_seconds')->get()->groupBy('video_id');
+        foreach ($ids as $id) {
+            $this->chapters[$id] = $rows->get($id, collect())
+                ->map(fn ($c) => ['start' => (int) $c->starts_at_seconds, 'time' => ChapterTime::format((int) $c->starts_at_seconds), 'title' => $c->title])->values()->all();
+        }
+    }
 
     /** Can a visitor play it? A private or removed YouTube video shows nothing rather than a broken box. */
     public function playable(Video $video): bool
@@ -25,7 +46,10 @@ final class VideoView
 
     public function thumbnail(Video $video): ?string
     {
-        if ($video->poster_media_id !== null && ($poster = MediaAsset::query()->publicImages()->find($video->poster_media_id))) {
+        // The poster the list already loaded (with('poster')), held to the same rule as the query: a public image.
+        $poster = $video->poster_media_id === null ? null
+            : ($video->relationLoaded('poster') ? $video->poster : MediaAsset::query()->publicImages()->find($video->poster_media_id));
+        if ($poster !== null && $poster->visibility === 'public' && str_starts_with((string) $poster->mime_type, 'image/')) {
             return $this->storage->url($poster);
         }
 
@@ -78,8 +102,9 @@ final class VideoView
     /** @return list<array{start: int, time: string, title: string}> */
     public function chapters(Video $video): array
     {
-        return DB::table('video_chapters')->where('video_id', $video->id)->orderBy('starts_at_seconds')->get()
-            ->map(fn ($c) => ['start' => (int) $c->starts_at_seconds, 'time' => ChapterTime::format((int) $c->starts_at_seconds), 'title' => $c->title])->all();
+        $this->prime([$video]);
+
+        return $this->chapters[(int) $video->id];
     }
 
     /**

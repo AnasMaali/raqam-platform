@@ -61,9 +61,6 @@ class CurrencyResource extends Resource
 
     protected static ?string $slug = 'currencies';
 
-    /** @var array<string, object>|null the live board, read once per request */
-    private static ?array $live = null;
-
     public static function canCreate(): bool
     {
         return false;   // "add currency" below chooses from what the source publishes
@@ -101,7 +98,7 @@ class CurrencyResource extends Resource
                     ->requiresConfirmation()->modalDescription('يرجع السعر الآن إلى السعر الرسمي مع نسبة الشراء والبيع.')
                     ->action(function (RateBoardCurrency $r) {
                         app(RateOverrides::class)->end($r->currency_code);
-                        self::$live = null;
+                        self::forgetBoard();
                         Notification::make()->success()->title('رجع السعر الرسمي.')->send();
                     }),
                 DeleteAction::make()->label('إزالة')->modalHeading('إزالة العملة من اللوحة')
@@ -128,7 +125,7 @@ class CurrencyResource extends Resource
                         'sell_spread_bp' => CurrencyCatalog::basisPoints((string) $data['sell_percent']),
                     ]);
                 });
-                self::$live = null;
+                self::forgetBoard();
                 Notification::make()->success()->title('حُفظت العملة.')->send();
             });
     }
@@ -175,7 +172,7 @@ class CurrencyResource extends Resource
                     Notification::make()->danger()->title('لم يُحفظ السعر اليدوي')->body($e->getMessage())->send();
                     $action->halt();
                 }
-                self::$live = null;
+                self::forgetBoard();
                 Notification::make()->success()->title('حُفظ السعر اليدوي.')->send();
             });
     }
@@ -205,7 +202,7 @@ class CurrencyResource extends Resource
                     Notification::make()->danger()->title('لم تُضف العملة')->body($e->getMessage())->send();
                     $action->halt();
                 }
-                self::$live = null;
+                self::forgetBoard();
                 Notification::make()->success()->title('أُضيفت العملة.')->body('يظهر سعرها بعد أول جلب ينشر فيه المصدر سعرها.')->send();
             });
     }
@@ -252,11 +249,22 @@ class CurrencyResource extends Resource
             .($health && $health->consecutive_failures > 0 ? ' · فشل متتالٍ: '.$health->consecutive_failures : '');
     }
 
+    /** After a change: the table drawn again in the same request reads the board and the overrides afresh. */
+    private static function forgetBoard(): void
+    {
+        request()->attributes->remove('currencies.live');
+        request()->attributes->remove('currencies.overrides');
+    }
+
     private static function live(RateBoardCurrency $r): ?object
     {
-        self::$live ??= DB::table('rate_board')->get()->keyBy(fn ($row) => trim($row->currency_code))->all();
+        // The whole board in one query, read once per request (kept on it, so the next one reads it fresh).
+        $kept = request()->attributes;
+        if (! $kept->has('currencies.live')) {
+            $kept->set('currencies.live', DB::table('rate_board')->get()->keyBy(fn ($row) => trim($row->currency_code))->all());
+        }
 
-        return self::$live[$r->currency_code] ?? null;
+        return $kept->get('currencies.live')[$r->currency_code] ?? null;
     }
 
     private static function shown(RateBoardCurrency $r, string $column): ?string
@@ -266,8 +274,13 @@ class CurrencyResource extends Resource
 
     private static function override(RateBoardCurrency $r): ?string
     {
-        $o = DB::table('rate_overrides')->where('currency_code', $r->currency_code)
-            ->whereRaw('valid_from <= now() AND (valid_until IS NULL OR valid_until > now())')->first();
+        // The overrides in force of the whole board, in one query (QA-5), read once per request (kept on it).
+        $kept = request()->attributes;
+        if (! $kept->has('currencies.overrides')) {
+            $kept->set('currencies.overrides', DB::table('rate_overrides')->whereRaw('valid_from <= now() AND (valid_until IS NULL OR valid_until > now())')
+                ->get()->keyBy(fn ($o) => trim($o->currency_code)));
+        }
+        $o = $kept->get('currencies.overrides')->get(trim($r->currency_code));
 
         return $o === null ? null : ($o->valid_until ? 'حتى '.Carbon::parse($o->valid_until)->timezone('Asia/Hebron')->format('Y-m-d H:i') : 'حتى الإلغاء');
     }

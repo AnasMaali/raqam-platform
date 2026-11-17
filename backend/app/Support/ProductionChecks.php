@@ -96,6 +96,10 @@ final class ProductionChecks
             $failures[] = 'INDEXNOW_KEY must be 8 to 128 letters, digits or dashes.';
         }
 
+        if (config('raqam.qa.query_report') || filled(config('raqam.qa.query_log'))) {
+            $failures[] = 'QUERY_REPORT and QUERY_REPORT_LOG are for the QA environment only and must not be set.';
+        }
+
         if (filled(config('raqam.turnstile.verify_url'))) {
             $failures[] = 'TURNSTILE_VERIFY_URL is for browser tests only and must not be set.';
         }

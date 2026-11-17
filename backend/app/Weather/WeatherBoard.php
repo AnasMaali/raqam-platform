@@ -28,7 +28,15 @@ final class WeatherBoard
     /** @return list<array<string, mixed>> every visible city with its weather now, small enough for a header widget */
     public function widget(): array
     {
-        return $this->remember('widget', fn () => $this->cityRows()->map(fn ($c) => $this->city($c) + ['now' => $this->now((int) $c->id, short: true)])->values()->all());
+        return $this->remember('widget', function () {
+            $cities = $this->cityRows();
+            // The newest reading of every city in one query (QA-5): DISTINCT ON keeps the first row of each city, the newest.
+            $latest = DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
+                ->whereIn('city_id', $cities->pluck('id'))->orderBy('city_id')->orderByDesc('observed_at')
+                ->selectRaw('DISTINCT ON (city_id) *')->get()->keyBy('city_id');
+
+            return $cities->map(fn ($c) => $this->city($c) + ['now' => $this->now((int) $c->id, short: true, reading: $latest->get($c->id) ?? false)])->values()->all();
+        });
     }
 
     /** @return array<string, mixed>|null */
@@ -74,15 +82,15 @@ final class WeatherBoard
     }
 
     /** @return array<string, mixed>|null */
-    private function now(int $cityId, bool $short = false): ?array
+    /** $reading: the city's newest reading when the caller read it already (false: it has none), null to read it here. */
+    private function now(int $cityId, bool $short = false, object|false|null $reading = null): ?array
     {
-        $o = DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
+        $o = $reading ?? DB::table('weather_observations')->join('weather_conditions', 'weather_conditions.code', '=', 'weather_observations.condition_code')
             ->where('city_id', $cityId)->orderByDesc('observed_at')->first();
-        if ($o === null) {
+        if (! $o) {
             return null;
         }
 
-        $today = DB::table('weather_forecasts')->where('city_id', $cityId)->whereRaw("forecast_date = (now() AT TIME ZONE 'Asia/Hebron')::date")->first();
         $temperature = (float) $o->temperature_c;
         $now = [
             'temperature' => $temperature,
@@ -94,6 +102,8 @@ final class WeatherBoard
         if ($short) {
             return $now;
         }
+
+        $today = DB::table('weather_forecasts')->where('city_id', $cityId)->whereRaw("forecast_date = (now() AT TIME ZONE 'Asia/Hebron')::date")->first();
 
         return $now + [
             'feels_like' => $o->feels_like_c === null ? null : (float) $o->feels_like_c,

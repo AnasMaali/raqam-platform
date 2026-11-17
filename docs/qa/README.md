@@ -149,3 +149,12 @@ After any QA run, the teardown reads what the servers wrote while it ran. It fai
 - an `ERROR` line of the API.
 
 `--no-deps` runs one part again on the map already made.
+
+## Performance (QA 5)
+
+The database queries of every API endpoint and panel screen against their budgets, the heaviest queries with their
+plans, and the load measured with k6: [performance.md](performance.md).
+
+```sh
+cd e2e && npx playwright test -c playwright.qa.config.ts --project=query-budget
+```

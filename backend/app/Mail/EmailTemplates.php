@@ -16,10 +16,13 @@ final class EmailTemplates
     /** @return array{added: int, updated: int} rows made, and unedited rows brought up to the catalogue's text */
     public static function install(): array
     {
-        $added = 0;
-        foreach (array_keys(EmailCatalog::templates()) as $key) {
-            $added += self::ensure($key) ? 1 : 0;
-        }
+        // Only the rows still missing are written, in one statement (QA-5): the list screen runs this each time it opens.
+        $missing = array_values(array_diff(array_keys(EmailCatalog::templates()), DB::table('email_templates')->pluck('key')->all()));
+        $added = $missing === [] ? 0 : DB::table('email_templates')->insertOrIgnore(array_map(function (string $key) {
+            $t = EmailCatalog::get($key);
+
+            return ['key' => $key, 'name_ar' => $t['name'], 'audience' => $t['audience'], 'subject' => $t['subject'], 'body_html' => $t['body'], 'is_active' => $t['active'] ?? true];
+        }, $missing));
 
         $updated = 0;
         foreach (DB::table('email_templates')->get(['key', 'subject', 'body_html', 'is_active']) as $row) {

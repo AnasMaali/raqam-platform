@@ -20,4 +20,19 @@ class GuestRole extends Model
     {
         return self::query()->orderBy('code')->pluck('name_ar', 'code')->all();
     }
+
+    /**
+     * The same, read once per request (QA-5): each guest of an item being edited asks it. Kept on the request.
+     *
+     * @return array<string, string>
+     */
+    public static function names(): array
+    {
+        $kept = request()->attributes;
+        if (! $kept->has('guest_roles.names')) {
+            $kept->set('guest_roles.names', self::options());
+        }
+
+        return $kept->get('guest_roles.names');
+    }
 }

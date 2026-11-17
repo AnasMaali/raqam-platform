@@ -38,6 +38,7 @@ use App\Console\StatsPruneCommand;
 use App\Console\WatchSignInFailuresCommand;
 use App\Console\WeatherFetchCommand;
 use App\Console\WeeklyDigestCommand;
+use App\Http\Middleware\QueryReport;
 use App\Http\Middleware\RejectMalformedText;
 use App\Http\Middleware\RequireFeature;
 use App\Http\Middleware\SecurityHeaders;
@@ -65,6 +66,8 @@ return Application::configure(basePath: dirname(__DIR__))
         PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, InstallPermissionsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+        // The QA environment's query count (off unless QUERY_REPORT is set; production refuses it). First, so it counts all.
+        $middleware->prepend(QueryReport::class);
         // Text that is not UTF-8 is refused before anything reads it (phase 10b security review).
         $middleware->api(prepend: [RejectMalformedText::class]);
         $middleware->alias(['feature' => RequireFeature::class]);
