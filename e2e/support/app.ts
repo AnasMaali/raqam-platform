@@ -254,7 +254,9 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
     const url = `http://127.0.0.1:${port}`;
     for (let attempt = 0; ; attempt++) {
         try {
-            if ((await fetch(`${url}/up`)).ok) break;
+            // A read of the API: the application boots and reaches its database. Not /up, which also wants a scheduler
+            // and a queue worker, and alerts the admins about them (docs/qa/resilience.md).
+            if ((await fetch(`${url}/api/v1/site`)).ok) break;
         } catch {
             // not listening yet
         }
