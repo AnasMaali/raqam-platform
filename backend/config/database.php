@@ -166,6 +166,9 @@ return [
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
             'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+            // Seconds (QA-6): without them a Redis that does not answer holds every request for PHP's default 60 s.
+            'timeout' => (float) env('REDIS_TIMEOUT', 1.0),
+            'read_timeout' => (float) env('REDIS_READ_TIMEOUT', 2.0),
         ],
 
         'cache' => [
@@ -179,6 +182,9 @@ return [
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
             'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+            // Seconds (QA-6): without them a Redis that does not answer holds every request for PHP's default 60 s.
+            'timeout' => (float) env('REDIS_TIMEOUT', 1.0),
+            'read_timeout' => (float) env('REDIS_READ_TIMEOUT', 2.0),
         ],
 
         // Sessions get their own database so `cache:clear` never logs anyone out.
@@ -193,6 +199,9 @@ return [
             'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
             'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+            // Seconds (QA-6): without them a Redis that does not answer holds every request for PHP's default 60 s.
+            'timeout' => (float) env('REDIS_TIMEOUT', 1.0),
+            'read_timeout' => (float) env('REDIS_READ_TIMEOUT', 2.0),
         ],
 
     ],

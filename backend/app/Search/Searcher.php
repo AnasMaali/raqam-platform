@@ -2,6 +2,7 @@
 
 namespace App\Search;
 
+use App\Panel\SystemWatch;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -34,6 +35,8 @@ class Searcher
             } catch (SearchUnavailable $e) {
                 Cache::put(self::DOWN_KEY, true, (int) config('raqam.search.down_seconds'));
                 Log::warning('Search engine unavailable; searching the database for '.config('raqam.search.down_seconds').'s. '.$e->getMessage());
+                // The admins are told once an hour (QA-6), after the answer: the visitor does not wait for it.
+                defer(fn () => SystemWatch::searchDown())->always();
             }
         }
 

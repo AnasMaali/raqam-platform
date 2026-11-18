@@ -17,6 +17,7 @@ use App\Listeners\NotifySiteOfPostChange;
 use App\Livewire\AdminBell;
 use App\Models\User;
 use App\Panel\SystemFailures;
+use App\Panel\SystemWatch;
 use App\Search\SearchSync;
 use App\Support\ProductionChecks;
 use App\Support\QueryTally;
@@ -147,6 +148,8 @@ class AppServiceProvider extends ServiceProvider
 
         // A job that gave up or a scheduled task that failed reaches the admins (20.4).
         Queue::failing(fn (JobFailed $event) => SystemFailures::job($event));
+        // The worker looks at the scheduler between jobs (QA-6); the scheduler looks at the queue (system:watch).
+        Queue::looping(fn () => SystemWatch::lookFromWorker());
         Event::listen(ScheduledTaskFailed::class, fn (ScheduledTaskFailed $event) => SystemFailures::taskFailed($event));
         Event::listen(ScheduledTaskFinished::class, fn (ScheduledTaskFinished $event) => SystemFailures::taskFinished($event));
 

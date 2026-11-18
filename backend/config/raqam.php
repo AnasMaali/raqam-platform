@@ -199,6 +199,12 @@ return [
         'failed_signins_per_hour' => 20,
         // The disk the check looks at; the storage folder by default (tests point it elsewhere).
         'disk_path' => env('ALERTS_DISK_PATH'),
+        // The watch on the platform's own parts (QA-6, docs/qa/resilience.md): a queued job still waiting after
+        // `queue_late_minutes` means no worker takes the jobs; a scheduler that has not run for `scheduler_late_minutes`
+        // has stopped. The queue worker looks at the scheduler every `scheduler_check_seconds`.
+        'queue_late_minutes' => 10,
+        'scheduler_late_minutes' => 5,
+        'scheduler_check_seconds' => 300,
     ],
 
     /*
