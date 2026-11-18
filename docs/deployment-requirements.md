@@ -91,3 +91,83 @@ security policy"). It is written when the site is built, so the build must see t
 - **Watch the reports after each deploy**: lines starting with `[csp]` in the website's log name the directive, the
   blocked address and the page (no query, no visitor data). A new kind of line after a deploy is a page that needs a
   source added to the policy, or something the policy is right to block.
+
+## Watching the platform from outside: `/up`
+
+`GET /up` answers 200 when every part works and 503 when one does not, with which one:
+`{"status":"failing","checks":{"database":true,"redis":true,"scheduler":false,"queue":true}}`
+(`App\Panel\SystemWatch`, docs/qa/resilience.md). Nothing else is in it: no error, no address, no number.
+
+- **A monitor outside the server** (Uptime Kuma, decision 26) asks `/up` every minute and alerts on anything but 200.
+  It is the one watcher that still sees a server where the scheduler and the queue worker have both stopped, or where
+  PHP itself does not answer. `/up` also raises the admins' alert for what it finds.
+- **The scheduler** runs `php artisan schedule:run` every minute; its `system:watch` task beats, and looks at the
+  queue. `/up` counts the scheduler as stopped five minutes after the last beat.
+- **At least one queue worker** (`php artisan queue:work`, kept running by the container's restart policy). A job still
+  waiting after 10 minutes counts as a stopped queue.
+- **Timeouts** (`.env`, defaults in the code): `REDIS_TIMEOUT` 1 s and `REDIS_READ_TIMEOUT` 2 s, `MAIL_TIMEOUT` 10 s.
+  Without them a Redis or a mail server that does not answer holds each request for PHP's 60 s. The website gives up
+  on the API after 5 s.
+
+## Backups and restoring
+
+Decision 24.18:
+- every day, an encrypted copy of the database and the media goes to Cloudflare R2;
+- kept: the last 7 days, 4 weeks and 6 months;
+- a restore is tried every month.
+
+Measured on the QA environment (44 MB, 2000 posts): the dump took 0.7 s (1.9 MB) and the restore 7.2 s.
+
+### Each backup
+
+1. `pg_dump -Fc -d raqam -f raqam-<date>.dump`, and at once, with nothing written in between, the facts of the same
+   database: `scripts/check-restore.sh --facts raqam > raqam-<date>.facts`. The facts file holds the schema's checksum,
+   every table's row count and checksum, and every sequence. It holds counts and checksums only, no data.
+2. Encrypt the dump (never upload it in clear), write its SHA-256 beside it, and upload the dump, its checksum and the
+   facts to the private R2 bucket. Keep the key outside the server and outside R2.
+3. The media: the R2 media bucket (`MEDIA_DISK=r2`) with object versioning on, or the media disk's folder copied with
+   the same keep rules.
+
+Not in the backup, on purpose:
+- **Redis.** Caches and sessions. The visit counters wait there at most an hour; `appendonly yes` keeps them over a
+  restart.
+- **Meilisearch.** Its indexes are made again from the database.
+- **The `.env` files.** Kept in the password manager, never with the backups.
+
+### Restoring
+
+Into a **new** database, never over the one in use, so a bad copy changes nothing:
+
+1. **Stop the writers.** `php artisan down` on the API, then stop the scheduler and the queue workers. The website goes
+   on serving the pages in its cache.
+2. **Fetch and open the copy.** Download the dump, its checksum and its facts; check the SHA-256; decrypt.
+3. **Restore it.**
+   ```sh
+   createdb raqam_restore
+   pg_restore -j 4 --exit-on-error --no-owner -d raqam_restore raqam-<date>.dump
+   ```
+   Any error stops the restore: drop `raqam_restore` and look at the error before trying again.
+4. **Check it** (each must end with exit 0):
+   ```sh
+   scripts/check-restore.sh --against raqam-<date>.facts raqam_restore      # the same schema, rows and sequences
+   psql -X -v ON_ERROR_STOP=1 -d raqam_restore -f scripts/restore-probes.sql   # the rules hold (rolled back)
+   python3 ../database/tests/normalizer_parity.py raqam_restore
+   ```
+5. **Switch.** With nothing connected:
+   ```sql
+   ALTER DATABASE raqam RENAME TO raqam_before_<date>;
+   ALTER DATABASE raqam_restore RENAME TO raqam;
+   ```
+   The settings stay as they are.
+6. **Bring the rest in line with the restored data.**
+   - `php artisan raqam:install` (safe to repeat).
+   - `php artisan search:reindex`.
+   - `php artisan cache:clear`: the cache database only, so the boards cached before the restore are not served.
+   - Restore the media of the same day.
+7. **Start again.** Start the queue workers and the scheduler, then `php artisan up`.
+   - Press «تحديث الموقع الآن» on the panel's home, so the website draws its pages from the restored data.
+   - `/up` must answer 200.
+8. **Keep the old database.** Keep `raqam_before_<date>` until the restored site has been checked, then drop it.
+
+**The monthly drill:** steps 2 to 4 into a scratch database on the server (or on staging). Write down the time and
+the size, then drop the scratch database. A drill never renames anything.

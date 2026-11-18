@@ -40,7 +40,8 @@ shell or `frontend/.env.local`. Build it again after a change to `frontend/`.
 hand. The script never drops or empties anything itself.
 
 Outside services are off in the QA settings: no YouTube, OpenWeather, Brevo, IndexNow or Turnstile key, and mail goes
-to the log. The Bank of Israel needs no key, so the currency fetch reaches the real bank when it runs.
+to the log. The Bank of Israel needs no key, so the currency fetch reaches the real bank when it runs, unless it is
+pointed at the local stand-in (`e2e/qa/stand-in.mjs`, [resilience.md](resilience.md)).
 
 ## What the demo writes
 
@@ -157,4 +158,15 @@ plans, and the load measured with k6: [performance.md](performance.md).
 
 ```sh
 cd e2e && npx playwright test -c playwright.qa.config.ts --project=query-budget
+```
+
+## Failures, the scheduler, backups (QA 6)
+
+Each part of the platform and each outside service stopped in turn, one whole day of the scheduler, and a backup
+restored and checked: [resilience.md](resilience.md).
+
+```sh
+cd e2e && node qa/stand-in.mjs 8790                                     # the outside services, on the machine
+cd backend && env <stand-in settings> APP_ENV=qa php scripts/qa-schedule-day.php
+PGHOST=127.0.0.1 PGUSER=raqam scripts/check-restore.sh raqam_qa <restored copy>
 ```
