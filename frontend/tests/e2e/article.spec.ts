@@ -109,6 +109,18 @@ test.describe("the check before the page", () => {
     for (const path of ["/og/default.png", "/brand/logo-512.png", "/icon.svg"]) expect((await request.get(path)).status(), path).toBe(200);
   });
 
+  test("a platform that does not answer: the visitor is told so within seconds, and search engines keep away", async ({ request }) => {
+    const started = Date.now();
+    const response = await request.get(`/news/900504/x-${Date.now()}`, { maxRedirects: 0, timeout: 60_000 });
+    const html = await response.text();
+
+    expect(Date.now() - started).toBeLessThan(15_000);
+    expect(response.status()).toBe(200);
+    expect(html).toContain("تعذّر تحميل المادة الآن");
+    expect(html).toMatch(/<meta name="robots" content="noindex/);
+    expect(response.headers()["cache-control"]).toContain("no-store");
+  });
+
   test("a platform error is not kept: the next visit asks again", async ({ request }) => {
     const slug = `x-${Date.now()}`;
     for (let visit = 0; visit < 2; visit++) await request.get(`/news/900503/${slug}`, { maxRedirects: 0 });

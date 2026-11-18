@@ -12,6 +12,17 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * How long the site waits for the platform (QA-6). A platform that accepts the request and never answers (a stuck
+ * server) would otherwise hold the visitor for the framework's own limit and end in a bare server error; after this the
+ * request fails like any other platform error and the page says so. The API answers in well under a second (the search waits as long).
+ */
+export const API_TIMEOUT_MS = 5000;
+
+export function apiTimeout(): AbortSignal {
+  return AbortSignal.timeout(API_TIMEOUT_MS);
+}
+
 /** GET a JSON document from the platform API, sending the site token from this server only. */
 export async function apiGet<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { apiBaseUrl, siteToken } = serverEnv();
@@ -21,7 +32,7 @@ export async function apiGet<T>(path: string, init: RequestInit = {}): Promise<T
     headers.set("X-Raqam-Site-Token", siteToken);
   }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers, redirect: "manual" });
+  const response = await fetch(`${apiBaseUrl}${path}`, { signal: apiTimeout(), ...init, headers, redirect: "manual" });
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw new ApiError(
@@ -48,7 +59,7 @@ export async function apiPost(path: string, body: unknown, visitor: Visitor): Pr
   headers.set("X-Raqam-Visitor-Ip", visitor.ip);
   headers.set("X-Raqam-Visitor-Ua", visitor.userAgent.slice(0, 512));
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { method: "POST", headers, body: JSON.stringify(body), redirect: "manual", cache: "no-store" });
+  const response = await fetch(`${apiBaseUrl}${path}`, { method: "POST", headers, body: JSON.stringify(body), redirect: "manual", cache: "no-store", signal: apiTimeout() });
 
   return { status: response.status, body: await response.json().catch(() => null) };
 }
