@@ -16,7 +16,9 @@
 #   scripts/qa.sh serve                    the API and the panel on 127.0.0.1:8100, media from the QA storage
 #   scripts/qa.sh worker                   the queue (the webhooks to the site, the search index, picture sizes)
 #   scripts/qa.sh site build               build the website against the QA API, in a copy of frontend/ of its own
-#   scripts/qa.sh site start               the website on 127.0.0.1:3300 (where the QA webhooks go)
+#   scripts/qa.sh site start               the website on 127.0.0.1:3300 (where the QA webhooks go);
+#                                          RAQAM_QA_PAGE_CACHE_MB=0.0001 starts it with no room for pages (each visit
+#                                          draws the page: the load test's "without the cache", docs/qa/performance.md)
 set -euo pipefail
 
 BACKEND="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -122,7 +124,9 @@ serve() {
   echo "API and panel on http://127.0.0.1:$PORT (the panel's address is ADMIN_PATH in backend/.env.qa)."
   cd "$QA_HOME/public"
   # Several workers: the browser checks load pages side by side, and one PHP process answers one request at a time.
-  APP_ENV=qa PHP_CLI_SERVER_WORKERS="${RAQAM_QA_WORKERS:-4}" exec php -d variables_order=EGPCS -d memory_limit=512M -d upload_max_filesize=40M -d post_max_size=48M \
+  # Every answer gives its number of queries (QUERY_REPORT, docs/qa/performance.md); RAQAM_QA_QUERY_LOG names a file
+  # for each query and its time as well.
+  APP_ENV=qa QUERY_REPORT=true QUERY_REPORT_LOG="${RAQAM_QA_QUERY_LOG:-}" PHP_CLI_SERVER_WORKERS="${RAQAM_QA_WORKERS:-4}" exec php -d variables_order=EGPCS -d memory_limit=512M -d upload_max_filesize=40M -d post_max_size=48M \
     -S "127.0.0.1:$PORT" "$BACKEND/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
 }
 
@@ -137,7 +141,8 @@ site() {
   local source="$BACKEND/../frontend" copy="$QA_HOME/site" site_port="${SITE##*:}"
   local settings=(PATH="$PATH" HOME="$HOME" NODE_ENV=production NEXT_TELEMETRY_DISABLED=1
     API_BASE_URL="http://127.0.0.1:$PORT/api/v1" API_SITE_TOKEN="$(qa_value API_SITE_TOKEN)" SITE_URL="$SITE"
-    SITE_WEBHOOK_SECRET="$(qa_value SITE_WEBHOOK_SECRET)" MEDIA_ORIGINS="http://127.0.0.1:$PORT")
+    SITE_WEBHOOK_SECRET="$(qa_value SITE_WEBHOOK_SECRET)" MEDIA_ORIGINS="http://127.0.0.1:$PORT" TURNSTILE_SITE_KEY=1x00000000000000000000AA
+    PAGE_CACHE_MAX_MB="${RAQAM_QA_PAGE_CACHE_MB:-}")
   case "${1:-}" in
     build)
       mkdir -p "$copy"

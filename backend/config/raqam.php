@@ -47,6 +47,17 @@ return [
     | The website sends this secret in the X-Raqam-Site-Token header and gets a much higher API limit than
     | anonymous clients. Empty means nobody gets it. Compared with hash_equals.
     */
+    /*
+    | The QA environment's measurements (docs/qa/README.md). QUERY_REPORT puts the number of database queries of each
+    | answer in an X-Raqam-Queries header, and lets a request ask to be served without the cache (X-Raqam-Cache: off),
+    | to count what a first visit costs. QUERY_REPORT_LOG also writes every query with its time to that file, for
+    | EXPLAIN. Production refuses to start with either set.
+    */
+    'qa' => [
+        'query_report' => (bool) env('QUERY_REPORT', false),
+        'query_log' => env('QUERY_REPORT_LOG'),
+    ],
+
     'api' => [
         'site_token' => env('API_SITE_TOKEN'),
         'limit' => 120,

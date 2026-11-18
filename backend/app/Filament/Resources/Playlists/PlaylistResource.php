@@ -12,6 +12,7 @@ use App\Filament\Resources\Playlists\Pages\EditPlaylist;
 use App\Filament\Resources\Playlists\Pages\ListPlaylists;
 use App\Models\Playlist;
 use App\Support\ArabicSlug;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -72,10 +73,20 @@ class PlaylistResource extends Resource
             ]),
             Section::make('الفيديوهات (اسحب للترتيب)')->schema([
                 Repeater::make('videos')->label('الفيديوهات')->hiddenLabel()->reorderable()->defaultItems(0)->addActionLabel('إضافة فيديو')->maxItems(500)
-                    ->schema([VideoSelect::make('video_id')->label('الفيديو')->hiddenLabel()->required()]),
+                    ->schema([VideoSelect::make('video_id', siblings: '../../videos')->label('الفيديو')->hiddenLabel()->required()]),
             ]),
             SeoSection::make('اتركها فارغة لاستعمال اسم القائمة ووصفها.'),
         ]);
+    }
+
+    /** @return array<int, int> playlist id => its number of videos, for the whole list in one query, once per request (QA-5) */
+    private static function videoCounts(): array
+    {
+        if (! RequestMemo::has('playlists.counts')) {
+            RequestMemo::put('playlists.counts', DB::table('playlist_videos')->groupBy('playlist_id')->selectRaw('playlist_id, count(*) AS n')->pluck('n', 'playlist_id')->map(fn ($n) => (int) $n)->all());
+        }
+
+        return RequestMemo::get('playlists.counts');
     }
 
     public static function table(Table $table): Table
@@ -85,7 +96,7 @@ class PlaylistResource extends Resource
             ->columns([
                 TextColumn::make('name_ar')->label('الاسم')->searchable(),
                 TextColumn::make('section.name_ar')->label('القسم')->placeholder('—'),
-                TextColumn::make('videos_count')->label('الفيديوهات')->state(fn (Playlist $p) => DB::table('playlist_videos')->where('playlist_id', $p->id)->count()),
+                TextColumn::make('videos_count')->label('الفيديوهات')->state(fn (Playlist $p) => self::videoCounts()[$p->id] ?? 0),
                 IconColumn::make('is_visible')->label('ظاهرة')->boolean(),
             ])
             ->filters([TernaryFilter::make('is_visible')->label('ظاهرة'), SelectFilter::make('section_id')->label('القسم')->options(fn () => DB::table('sections')->orderBy('sort_order')->pluck('name_ar', 'id')->all())])

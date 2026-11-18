@@ -16,7 +16,10 @@ final class MediaThumb
         $storage = app(MediaStorage::class);
 
         if ($asset->isRaster()) {
-            $thumb = $asset->variants()->where('variant', 'thumb')->where('format', 'jpeg')->value('path');
+            // From the variants a list loaded with its rows (with('variants')), or asked for here.
+            $thumb = $asset->relationLoaded('variants')
+                ? $asset->variants->first(fn ($v) => $v->variant === 'thumb' && $v->format === 'jpeg')?->path
+                : $asset->variants()->where('variant', 'thumb')->where('format', 'jpeg')->value('path');
 
             return $storage->url($asset, $thumb ?? $asset->path);
         }

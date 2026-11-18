@@ -7,6 +7,7 @@ use App\Filament\Forms\OrganizationSelect;
 use App\Filament\Resources\Organizations\Pages\ManageOrganizations;
 use App\Models\Organization;
 use App\Support\ArabicNormalizer;
+use App\Support\RequestMemo;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
@@ -50,6 +51,16 @@ class OrganizationResource extends Resource
         return $schema->components(OrganizationSelect::fields())->columns(['default' => 1, 'md' => 2]);
     }
 
+    /** @return array<int, string> id => name of all sectors or cities, read once per request for the whole list (QA-5) */
+    private static function names(string $table): array
+    {
+        if (! RequestMemo::has('organizations.'.$table)) {
+            RequestMemo::put('organizations.'.$table, DB::table($table)->pluck('name_ar', 'id')->all());
+        }
+
+        return RequestMemo::get('organizations.'.$table);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -57,9 +68,9 @@ class OrganizationResource extends Resource
             ->columns([
                 TextColumn::make('name')->label('الجهة')->searchable(query: fn ($query, string $search) => $query->where('search_name', 'like', '%'.addcslashes(ArabicNormalizer::normalize($search), '%_\\').'%'))->sortable(),
                 TextColumn::make('sector_name')->label('القطاع')->placeholder('—')
-                    ->state(fn (Organization $r) => $r->sector_id ? DB::table('sectors')->where('id', $r->sector_id)->value('name_ar') : null),
+                    ->state(fn (Organization $r) => $r->sector_id ? (self::names('sectors')[$r->sector_id] ?? null) : null),
                 TextColumn::make('city_name')->label('المدينة')->placeholder('—')
-                    ->state(fn (Organization $r) => $r->city_id ? DB::table('cities')->where('id', $r->city_id)->value('name_ar') : null),
+                    ->state(fn (Organization $r) => $r->city_id ? (self::names('cities')[$r->city_id] ?? null) : null),
                 TextColumn::make('founded_year')->label('سنة التأسيس')->placeholder('—')->sortable(),
             ])
             ->filters([

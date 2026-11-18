@@ -45,6 +45,8 @@ test('each unsafe setting is refused, and only that one', function (array $spoil
     'Brevo without a list' => [['raqam.newsletter.brevo.key' => 'xkeysib-x', 'raqam.newsletter.brevo.list_id' => null, 'raqam.newsletter.brevo.webhook_token' => str_repeat('t', 32)], 'BREVO_LIST_ID'],
     'Brevo without a webhook token' => [['raqam.newsletter.brevo.key' => 'xkeysib-x', 'raqam.newsletter.brevo.list_id' => '3', 'raqam.newsletter.brevo.webhook_token' => 'short'], 'BREVO_WEBHOOK_TOKEN'],
     'test-only Turnstile stand-in' => [['raqam.turnstile.verify_url' => 'http://127.0.0.1:9'], 'TURNSTILE_VERIFY_URL'],
+    'QA query count' => [['raqam.qa.query_report' => true], 'QUERY_REPORT'],
+    'QA query log' => [['raqam.qa.query_log' => '/tmp/queries.jsonl'], 'QUERY_REPORT_LOG'],
 ]);
 
 test('every problem is listed at once and no value is revealed', function () {

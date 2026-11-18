@@ -40,19 +40,29 @@ final class MediaUsage
     /** @var list<array{table: string, column: string}>|null */
     private static ?array $references = null;
 
+    /** @var array<string, list<string>> table => the columns of its primary key */
+    private array $keys = [];
+
     /** @return list<array{label: string, id: string}> */
     public function of(MediaAsset|int $asset): array
     {
         $id = $asset instanceof MediaAsset ? $asset->id : $asset;
-        $usages = [];
+        $found = [];
 
         foreach ($this->references() as ['table' => $table, 'column' => $column]) {
             $key = "{$table}.{$column}";
-            $rows = DB::table($table)->where($column, $id)->limit(20)->get();
-
-            foreach ($rows as $row) {
-                $usages[] = ['label' => self::LABELS[$key] ?? $key, 'id' => $this->identify($table, (array) $row)];
+            foreach (DB::table($table)->where($column, $id)->limit(20)->get() as $row) {
+                $found[] = [self::LABELS[$key] ?? $key, $table, (array) $row];
             }
+        }
+
+        // The titles of the posts the rows belong to, in one query for all of them (QA-5).
+        $postIds = array_filter(array_map(fn ($f) => $f[1] === 'posts' ? null : ($f[2]['post_id'] ?? null), $found));
+        $titles = $postIds === [] ? [] : DB::table('posts')->whereIn('id', array_unique($postIds))->pluck('title', 'id')->all();
+
+        $usages = [];
+        foreach ($found as [$label, $table, $row]) {
+            $usages[] = ['label' => $label, 'id' => $this->identify($table, $row, $titles)];
         }
 
         foreach (DB::table('settings')->where('value_type', 'media')->where('value', (string) $id)->pluck('key') as $key) {
@@ -78,18 +88,20 @@ final class MediaUsage
      * The item a referencing row belongs to, as an editor knows it: a post by its title (its cover, its gallery, a
      * picture in its text), anything else by its number ("رقم 5").
      */
-    private function identify(string $table, array $row): string
+    /** @param  array<int, string>  $titles  post id => title, of the posts the rows belong to */
+    private function identify(string $table, array $row, array $titles): string
     {
-        $postId = $table === 'posts' ? ($row['id'] ?? null) : ($row['post_id'] ?? null);
-        if ($postId !== null && ($title = DB::table('posts')->where('id', $postId)->value('title')) !== null) {
+        $title = $table === 'posts' ? ($row['title'] ?? null) : (isset($row['post_id']) ? ($titles[$row['post_id']] ?? null) : null);
+        if ($title !== null) {
             return "«{$title}»";
         }
-        $keys = DB::select(<<<'SQL'
+        // The primary key's columns, read once per table.
+        $this->keys[$table] ??= array_column(DB::select(<<<'SQL'
             SELECT a.attname FROM pg_index i
             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey)
             WHERE i.indrelid = ?::regclass AND i.indisprimary
-            SQL, [$table]);
+            SQL, [$table]), 'attname');
 
-        return 'رقم '.collect($keys)->map(fn ($k) => $row[$k->attname] ?? '?')->implode('/');
+        return 'رقم '.collect($this->keys[$table])->map(fn ($k) => $row[$k] ?? '?')->implode('/');
     }
 }

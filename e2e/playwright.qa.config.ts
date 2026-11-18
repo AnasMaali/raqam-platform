@@ -30,6 +30,8 @@ export default defineConfig({
     projects: [
         { name: 'computer', testMatch: /panel-crawl/, use: computer },
         { name: 'phone-360', testMatch: /panel-crawl/, use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true } },
+        // The database queries of every API endpoint and panel screen, against their budgets (docs/qa/performance.md).
+        { name: 'query-budget', testMatch: /query-budget\.spec/, use: computer },
         { name: 'site-map', testMatch: /site-map/, use: site },
         { name: 'site-checks', testMatch: /site-checks/, dependencies: ['site-map'], use: site },
         { name: 'site-browser', testMatch: /site-pages/, dependencies: ['site-map'], use: site },

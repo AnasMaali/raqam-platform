@@ -19,6 +19,8 @@ use App\Models\User;
 use App\Panel\SystemFailures;
 use App\Search\SearchSync;
 use App\Support\ProductionChecks;
+use App\Support\QueryTally;
+use App\Support\RequestMemo;
 use App\Support\TrackingHash;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
@@ -47,6 +49,9 @@ class AppServiceProvider extends ServiceProvider
         // migrate:fresh calls db:wipe; ours also drops functions, domains and extensions.
         $this->app->extend(WipeCommand::class, fn ($command, $app) => $app->make(WipeDatabaseCommand::class));
 
+        // The QA environment's query count (QueryReport): one tally per application.
+        $this->app->singleton(QueryTally::class);
+
         // The chatbot's answers (18.13): the free knowledge base in V1; a model can take its place later, same API.
         $this->app->bind(ChatResponder::class, KnowledgeBaseResponder::class);
     }
@@ -68,6 +73,10 @@ class AppServiceProvider extends ServiceProvider
     {
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
+
+        // A queue worker runs every job on one request object: what an earlier job kept for "this request" must not
+        // reach the next (RequestMemo; QA-5).
+        Queue::before(fn () => RequestMemo::flush());
 
         if ($this->app->isProduction()) {
             self::pinUrls();

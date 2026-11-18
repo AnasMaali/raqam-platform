@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { panel, panelRoutes, psql, screenName } from './qa-env';
+import { panel, screenName, screens } from './qa-env';
 
 /*
  * Every screen of the panel on the QA database (raqam_qa, raqam:demo with 2000 posts), on a computer and on a 360 px
@@ -8,38 +8,6 @@ import { panel, panelRoutes, psql, screenName } from './qa-env';
  * screen sideways (RTL). Every list, create, edit and view screen and every settings page is opened, from the panel's
  * own route list; an edit or view screen opens a real record (the post editor one of every kind).
  */
-
-/** Routes that are not screens: the sign-in steps and the session's JSON answer. */
-const NOT_SCREENS = new Set(['/login', '/login/code', '/session/status']);
-
-/** The table of a resource whose name is not its address. */
-const TABLES: Record<string, string> = { 'audit-logs': 'audit_log', synonyms: 'synonym_groups' };
-
-/** The first row of a table by its primary key (a template's is its `key`), as the panel's address names it. */
-function firstKey(table: string): string {
-    const column = psql(`SELECT a.attname FROM pg_index i JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY (i.indkey) WHERE i.indrelid = '${table}'::regclass AND i.indisprimary`);
-    return psql(`SELECT ${column} FROM ${table} ORDER BY ${column} LIMIT 1`);
-}
-
-/** The screens to open: each route, with a record of its own for `{record}` (one post of each kind). */
-function screens(): string[] {
-    const out: string[] = [];
-    for (const route of panelRoutes()) {
-        if (NOT_SCREENS.has(route)) continue;
-        if (!route.includes('{')) {
-            out.push(route);
-            continue;
-        }
-        const resource = route.split('/')[1];
-        const ids =
-            resource === 'posts'
-                ? psql("SELECT DISTINCT ON (kind_code) id FROM posts WHERE deleted_at IS NULL ORDER BY kind_code, id").split('\n')
-                : [firstKey(TABLES[resource] ?? resource.replaceAll('-', '_'))];
-        for (const id of ids.filter(Boolean)) out.push(route.replace('{record}', id));
-        if (ids.filter(Boolean).length === 0) out.push(`${route} (no record)`);
-    }
-    return out;
-}
 
 /** Words written in Latin letters on purpose: what is called that way in Arabic too, and names of other things. */
 const LATIN_ON_PURPOSE = new Set(

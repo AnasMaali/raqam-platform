@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -15,10 +16,16 @@ final class ServiceContact
     /** The settings the buttons are made of: a change to any of them changes every service page and the advertise page. */
     public const SETTINGS = ['contact.whatsapp', 'contact.whatsapp_message', 'contact.phone', 'contact.email', 'contact.email_subject'];
 
-    /** @return array{whatsapp: ?string, phone: ?string, email: ?string} */
-    public static function links(string $topic): array
+    /** The contact settings, key => value: read once for a list of services and given to links(). */
+    public static function settings(): Collection
     {
-        $s = DB::table('settings')->whereIn('key', self::SETTINGS)->pluck('value', 'key');
+        return DB::table('settings')->whereIn('key', self::SETTINGS)->pluck('value', 'key');
+    }
+
+    /** @return array{whatsapp: ?string, phone: ?string, email: ?string} */
+    public static function links(string $topic, ?Collection $settings = null): array
+    {
+        $s = $settings ?? self::settings();
         $whatsapp = $s['contact.whatsapp'] ?? null;
         $phone = $s['contact.phone'] ?? null;
         $email = $s['contact.email'] ?? null;
