@@ -61,9 +61,13 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         apiPrefix: 'api/v1',
         commands: __DIR__.'/../routes/console.php',
-        // `/up` for a monitor outside the server: every part of the platform, not only that PHP answers (QA-6). Outside
-        // the web group: it has no session, which lives in Redis, one of the parts it looks at.
-        then: fn () => Route::get('/up', HealthController::class),
+        // `/up` for the monitor outside the server (its token only): every part of the platform (QA-6). `/livez` for the
+        // container's health check: PHP answers, nothing more. Both outside the web group: no session, which lives in
+        // Redis, one of the parts `/up` looks at.
+        then: function () {
+            Route::get('/up', HealthController::class);
+            Route::get('/livez', [HealthController::class, 'live']);
+        },
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,
         SearchSetupCommand::class, SearchReindexCommand::class, SearchSyncDueCommand::class, SearchCreateKeyCommand::class, InstallSynonymsCommand::class, SearchEvaluateCommand::class,
@@ -73,6 +77,8 @@ return Application::configure(basePath: dirname(__DIR__))
         PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, InstallPermissionsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(SecurityHeaders::class);
+        // `php artisan down` must not make the container look dead: it would be restarted in the middle of the work.
+        $middleware->preventRequestsDuringMaintenance(except: ['livez']);
         // Redis not answering: the API's reads go on from the database, the rest answers 503 (QA-6).
         $middleware->prepend(RedisOutage::class);
         // The QA environment's query count (off unless QUERY_REPORT is set; production refuses it). First, so it counts all.

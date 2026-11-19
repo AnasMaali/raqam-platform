@@ -29,7 +29,17 @@ beforeEach(function () {
     config(['mail.default' => 'array']);
     $this->admin = staffAdmin('admin@raqam.example');
     Cache::forget(SystemWatch::BEAT);
+    config(['raqam.health.token' => MONITOR_TOKEN]);
 });
+
+/** The outside monitor's token (HEALTH_TOKEN); `/up` is a 404 for anyone without it (HealthEndpointsTest). */
+const MONITOR_TOKEN = 'a-monitor-token-of-at-least-thirty-two-chars';
+
+/** @return array<string, string> */
+function monitorHeader(): array
+{
+    return ['X-Health-Token' => MONITOR_TOKEN];
+}
 
 /** A queue of this test only, in the test database of Redis, as production keeps its jobs. */
 function watchedQueue(): string
@@ -58,7 +68,7 @@ test('the scheduler beats every minute, and /up is happy while it does', functio
     $this->artisan('system:watch')->assertSuccessful();
 
     expect(Cache::get(SystemWatch::BEAT))->toBe(now()->getTimestamp());
-    $this->getJson('/up')->assertOk()->assertExactJson(['status' => 'ok', 'checks' => ['database' => true, 'redis' => true, 'scheduler' => true, 'queue' => true]]);
+    $this->getJson('/up', monitorHeader())->assertOk()->assertExactJson(['status' => 'ok', 'checks' => ['database' => true, 'redis' => true, 'scheduler' => true, 'queue' => true]]);
     expect(downAlerts('scheduler'))->toHaveCount(0);
 });
 
@@ -67,8 +77,8 @@ test('a scheduler that stopped is a 503 of /up and one alert, e-mailed right awa
     SystemWatch::beat();
     $this->travel(6)->minutes();
 
-    $this->getJson('/up')->assertStatus(503)->assertJsonPath('status', 'failing')->assertJsonPath('checks.scheduler', false)->assertJsonPath('checks.queue', true);
-    $this->getJson('/up')->assertStatus(503);
+    $this->getJson('/up', monitorHeader())->assertStatus(503)->assertJsonPath('status', 'failing')->assertJsonPath('checks.scheduler', false)->assertJsonPath('checks.queue', true);
+    $this->getJson('/up', monitorHeader())->assertStatus(503);
 
     $alerts = downAlerts('scheduler');
     expect($alerts)->toHaveCount(1)->and($alerts[0]->title)->toBe('المهام المجدولة متوقفة منذ 6 دقيقة')
@@ -76,11 +86,11 @@ test('a scheduler that stopped is a 503 of /up and one alert, e-mailed right awa
 
     // Running again: the next beat makes everything right.
     $this->artisan('system:watch')->assertSuccessful();
-    $this->getJson('/up')->assertOk();
+    $this->getJson('/up', monitorHeader())->assertOk();
 });
 
 test('a scheduler that never ran is noticed too', function () {
-    $this->getJson('/up')->assertStatus(503)->assertJsonPath('checks.scheduler', false);
+    $this->getJson('/up', monitorHeader())->assertStatus(503)->assertJsonPath('checks.scheduler', false);
 
     expect(downAlerts('scheduler')->pluck('title')->all())->toBe(['المهام المجدولة لا تعمل']);
 });
@@ -137,13 +147,13 @@ test('a job still waiting after ten minutes means nobody takes the jobs: the sch
         SystemWatch::beat();
         $this->artisan('system:watch')->assertSuccessful();
         expect(downAlerts('queue'))->toHaveCount(0);
-        $this->getJson('/up')->assertOk();
+        $this->getJson('/up', monitorHeader())->assertOk();
 
         $this->travel(1)->minutes();
         SystemWatch::beat();
         $this->artisan('system:watch')->assertSuccessful();
         expect(downAlerts('queue'))->toHaveCount(1);   // the scheduler's watch, before anyone asks /up
-        $this->getJson('/up')->assertStatus(503)->assertJsonPath('checks.queue', false)->assertJsonPath('checks.scheduler', true);
+        $this->getJson('/up', monitorHeader())->assertStatus(503)->assertJsonPath('checks.queue', false)->assertJsonPath('checks.scheduler', true);
 
         $alerts = downAlerts('queue');
         expect($alerts)->toHaveCount(1)->and($alerts[0]->title)->toBe('الطابور متوقف: مهمة تنتظر منذ 10 دقيقة')
@@ -153,7 +163,7 @@ test('a job still waiting after ten minutes means nobody takes the jobs: the sch
 
         // A worker takes the job: everything is right again.
         Queue::pop($queue)->delete();
-        $this->getJson('/up')->assertOk();
+        $this->getJson('/up', monitorHeader())->assertOk();
     } finally {
         forgetWatchedQueue($queue);
     }
@@ -164,7 +174,7 @@ test('a job still waiting after ten minutes means nobody takes the jobs: the sch
 test('/up says nothing more than which part works, keeps no session and is never cached', function () {
     SystemWatch::beat();
 
-    $response = $this->get('/up')->assertOk()->assertHeader('Cache-Control', 'no-store, private');
+    $response = $this->get('/up', monitorHeader())->assertOk()->assertHeader('Cache-Control', 'no-store, private');
 
     expect($response->headers->getCookies())->toBe([])
         ->and(array_keys($response->json('checks')))->toBe(['database', 'redis', 'scheduler', 'queue']);
@@ -178,7 +188,7 @@ test('without Redis, /up says Redis, and the beat and the jobs are not known', f
         Facade::clearResolvedInstance($name);
     }
 
-    $this->getJson('/up')->assertStatus(503)->assertExactJson(['status' => 'failing', 'checks' => ['database' => true, 'redis' => false, 'scheduler' => false, 'queue' => false]]);
+    $this->getJson('/up', monitorHeader())->assertStatus(503)->assertExactJson(['status' => 'failing', 'checks' => ['database' => true, 'redis' => false, 'scheduler' => false, 'queue' => false]]);
 
     expect(downAlerts('redis'))->toHaveCount(1)->and(downAlerts('scheduler'))->toHaveCount(0)->and(downAlerts('queue'))->toHaveCount(0);
 });

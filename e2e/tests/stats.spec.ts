@@ -50,7 +50,7 @@ test('the site reports visits; robots, strangers and other sites are not counted
 
 test('a page on another site cannot report visits from a visitor\'s browser (no CORS)', async ({ page, app }) => {
     // localhost and 127.0.0.1 are two origins: the page is on one, the API on the other.
-    await page.goto(app.url.replace('127.0.0.1', 'localhost') + '/up');
+    await page.goto(app.url.replace('127.0.0.1', 'localhost') + '/livez');
     const outcome = await page.evaluate(async (url) => {
         try {
             await fetch(`${url}/api/v1/stats/hits`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Raqam-Site-Token': 'e2e-site-token' }, body: '{"type":"view","path":"/"}' });

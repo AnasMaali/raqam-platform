@@ -20,7 +20,7 @@ class RedisOutage
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->is('up') || ! SystemWatch::usesRedis() || SystemWatch::redisUp()) {
+        if ($request->is('up', 'livez') || ! SystemWatch::usesRedis() || SystemWatch::redisUp()) {
             return $next($request);
         }
 

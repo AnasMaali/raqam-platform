@@ -81,8 +81,11 @@ once, never queued: the queue may be the part that stopped (the template `admin_
 - the scheduler (`system:watch`, every minute) beats and watches the queue;
 - the queue worker, between its jobs, watches the beat;
 - `/up` watches all four and says which one fails (database, redis, scheduler, queue; `true` or `false`, nothing else).
-  It is for a monitor outside the server (Uptime Kuma, decision 26). It is also the only watcher left when the
-  scheduler and the worker have both stopped, and it raises the alerts too.
+  It is for a monitor outside the server (Uptime Kuma, decision 26), which sends its token (`HEALTH_TOKEN`, header
+  `X-Health-Token`); anyone else gets a 404. It is also the only watcher left when the scheduler and the worker have
+  both stopped, and it raises the alerts too.
+- `/livez` is for the container's health check: PHP answers, nothing else is asked, so a stopped worker or Redis never
+  gets the web server restarted (docs/deployment-requirements.md).
 
 A watcher found one fault of its own during this work: work deferred after the answer (`defer()`) is skipped when the
 answer is an error (400 or more), unless it is marked `always()`. The alert of a 503 never went out; the tests ran

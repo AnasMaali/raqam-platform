@@ -92,15 +92,59 @@ security policy"). It is written when the site is built, so the build must see t
   blocked address and the page (no query, no visitor data). A new kind of line after a deploy is a page that needs a
   source added to the policy, or something the policy is right to block.
 
-## Watching the platform from outside: `/up`
+## Watching the platform: `/up` and `/livez`
 
-`GET /up` answers 200 when every part works and 503 when one does not, with which one:
-`{"status":"failing","checks":{"database":true,"redis":true,"scheduler":false,"queue":true}}`
-(`App\Panel\SystemWatch`, docs/qa/resilience.md). Nothing else is in it: no error, no address, no number.
+Two addresses, for two different watchers (`App\Http\Controllers\HealthController`):
 
-- **A monitor outside the server** (Uptime Kuma, decision 26) asks `/up` every minute and alerts on anything but 200.
-  It is the one watcher that still sees a server where the scheduler and the queue worker have both stopped, or where
-  PHP itself does not answer. `/up` also raises the admins' alert for what it finds.
+| | `/up` | `/livez` |
+|---|---|---|
+| For | the monitor outside the server (Uptime Kuma, decision 26) | the container's own health check (Docker) |
+| Looks at | the database, Redis, the scheduler, the queue | nothing: PHP answers |
+| Answers | 200, or 503 with which part fails | 200 `ok`, also during `php artisan down` |
+| Who may ask | only with the token | anyone (it says nothing) |
+
+### `/up`: the monitor outside, with its token
+
+- **The token:** `HEALTH_TOKEN` in `.env`, at least 32 random characters (`openssl rand -hex 32`). Production refuses to
+  start without it, or with a shorter one.
+- **The monitor sends it** in the `X-Health-Token` header (Uptime Kuma: "Headers", as JSON). Never in the address:
+  addresses end up in logs. The value is compared in constant time (`hash_equals`).
+- **Without the header, or with a wrong value,** `/up` is the 404 of any page that does not exist. Nothing is looked
+  at and no alert is raised, so `/up` cannot be used from outside to send the admins mail or to learn what is down.
+  An empty `HEALTH_TOKEN` (outside production) means `/up` answers nobody.
+- **The answer** is 200 when every part works and 503 when one does not, with which one:
+  `{"status":"failing","checks":{"database":true,"redis":true,"scheduler":false,"queue":true}}`
+  (`App\Panel\SystemWatch`, docs/qa/resilience.md). Nothing else is in it: no error, no address, no number.
+- **The monitor asks every minute** and alerts on anything but 200. It is the one watcher that still sees a server
+  where the scheduler and the queue worker have both stopped, or where PHP itself does not answer. `/up` also raises
+  the admins' alert for what it finds.
+
+### `/livez`: the container's health check
+
+- **What it is:** PHP answers. No database, no Redis, no scheduler, no worker, no session; it answers during
+  maintenance (`php artisan down`) too.
+- **Why it is apart from `/up`:** a container that fails its health check is marked unhealthy, and whatever reads
+  that (a restarter, a proxy, a deploy that waits for it) restarts it or stops sending it visitors. With `/up` there, a stopped queue worker or a Redis that does not answer would restart the web server, which is not
+  what is broken, and would cut every visitor off for nothing. Those are for the monitor and the admins, not for a
+  restart.
+- **Only the web container** has it. The queue worker and the scheduler serve no HTTP: they are kept running by
+  their restart policy, and `/up` sees them.
+
+```yaml
+# docker compose, the web service only (the port is the one the server inside the container listens on)
+healthcheck:
+  test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:8080/livez"]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+  start_period: 30s
+```
+
+An image without curl can ask PHP itself:
+`["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/livez') === 'ok' ? 0 : 1);"]`.
+
+### What must run beside the web server
+
 - **The scheduler** runs `php artisan schedule:run` every minute; its `system:watch` task beats, and looks at the
   queue. `/up` counts the scheduler as stopped five minutes after the last beat.
 - **At least one queue worker** (`php artisan queue:work`, kept running by the container's restart policy). A job still
@@ -166,7 +210,7 @@ Into a **new** database, never over the one in use, so a bad copy changes nothin
    - Restore the media of the same day.
 7. **Start again.** Start the queue workers and the scheduler, then `php artisan up`.
    - Press «تحديث الموقع الآن» on the panel's home, so the website draws its pages from the restored data.
-   - `/up` must answer 200.
+   - `/up` must answer 200 (with the monitor's token).
 8. **Keep the old database.** Keep `raqam_before_<date>` until the restored site has been checked, then drop it.
 
 **The monthly drill:** steps 2 to 4 into a scratch database on the server (or on staging). Write down the time and

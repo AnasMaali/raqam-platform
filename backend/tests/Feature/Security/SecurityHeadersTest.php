@@ -67,7 +67,7 @@ test('in production every address the back end writes starts with APP_URL over h
     config(['app.url' => 'https://api.raqam.example']);
     AppServiceProvider::pinUrls();
 
-    $this->withHeaders(['Host' => 'evil.example'])->get('/up');
+    $this->withHeaders(['Host' => 'evil.example'])->get('/livez');
     expect(route('ads.click', ['campaign' => 1, 'placement' => 'top_banner', 'signature' => str_repeat('a', 32)]))->toStartWith('https://api.raqam.example/api/v1/ads/click/')
         ->and(url('/x'))->toBe('https://api.raqam.example/x');
 });

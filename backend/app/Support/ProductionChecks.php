@@ -110,7 +110,7 @@ final class ProductionChecks
         }
 
         // Secrets that guard the forms, the sign-in codes and the visitor HMACs must not be guessable (security review).
-        foreach (['API_SITE_TOKEN' => 'raqam.api.site_token', 'ADMIN_CODE_KEY' => 'raqam.auth.code_key', 'TRACKING_HASH_KEY' => 'raqam.tracking_key'] as $name => $setting) {
+        foreach (['API_SITE_TOKEN' => 'raqam.api.site_token', 'ADMIN_CODE_KEY' => 'raqam.auth.code_key', 'TRACKING_HASH_KEY' => 'raqam.tracking_key', 'HEALTH_TOKEN' => 'raqam.health.token'] as $name => $setting) {
             if (filled(config($setting)) && strlen((string) config($setting)) < 32) {
                 $failures[] = "{$name} must be at least 32 characters.";
             }
@@ -126,6 +126,8 @@ final class ProductionChecks
             // A token solved on another site that uses the same widget key would pass without our hostnames (review F1).
             'TURNSTILE_HOSTNAMES' => 'raqam.turnstile.hostnames',
             'API_SITE_TOKEN' => 'raqam.api.site_token',
+            // Without it nobody outside can read `/up`: the platform would stop unseen.
+            'HEALTH_TOKEN' => 'raqam.health.token',
         ] as $name => $setting) {
             if (blank(config($setting))) {
                 $failures[] = "{$name} is not set.";

@@ -276,6 +276,7 @@ function productionConfig(array $overrides = []): void
         'raqam.turnstile.hostnames' => 'raqam.example',
         'raqam.turnstile.verify_url' => null,
         'raqam.api.site_token' => 'a-site-token-of-at-least-thirty-two-chars',
+        'raqam.health.token' => 'a-health-token-of-at-least-thirty-two-chars',
         'raqam.site_url' => 'https://raqam.example',
         'raqam.newsletter.brevo.key' => null,
         'raqam.newsletter.brevo.api_base' => null,

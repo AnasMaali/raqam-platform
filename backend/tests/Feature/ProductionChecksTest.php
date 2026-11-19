@@ -39,6 +39,7 @@ test('each unsafe setting is refused, and only that one', function (array $spoil
     'no ADMIN_PATH' => [['raqam.admin_path' => null], 'ADMIN_PATH'],
     'no TURNSTILE_SECRET_KEY' => [['raqam.turnstile.secret' => null], 'TURNSTILE_SECRET_KEY'],
     'no API_SITE_TOKEN' => [['raqam.api.site_token' => ''], 'API_SITE_TOKEN'],
+    'no HEALTH_TOKEN' => [['raqam.health.token' => null], 'HEALTH_TOKEN'],
     'no SITE_URL' => [['raqam.site_url' => null], 'SITE_URL'],
     'SITE_URL over http' => [['raqam.site_url' => 'http://raqam.example'], 'SITE_URL'],
     'test-only Brevo stand-in' => [['raqam.newsletter.brevo.api_base' => 'http://127.0.0.1:9'], 'BREVO_API_BASE'],
@@ -112,7 +113,7 @@ test('production refuses any password hashing but Argon2id (24.6)', function () 
 test('production refuses short secrets and a back-end address that is not https (security review)', function (string $setting, string $name) {
     productionConfig([$setting => 'short-but-not-empty']);
     expect(ProductionChecks::failures())->toContain("{$name} must be at least 32 characters.");
-})->with([['raqam.api.site_token', 'API_SITE_TOKEN'], ['raqam.auth.code_key', 'ADMIN_CODE_KEY'], ['raqam.tracking_key', 'TRACKING_HASH_KEY']]);
+})->with([['raqam.api.site_token', 'API_SITE_TOKEN'], ['raqam.auth.code_key', 'ADMIN_CODE_KEY'], ['raqam.tracking_key', 'TRACKING_HASH_KEY'], ['raqam.health.token', 'HEALTH_TOKEN']]);
 
 test('production refuses an APP_URL that is not https', function () {
     productionConfig(['app.url' => 'http://api.raqam.example']);

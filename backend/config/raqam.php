@@ -40,6 +40,14 @@ return [
     'tracking_key' => env('TRACKING_HASH_KEY'),
 
     /*
+    | `/up` answers only the monitor outside the server, which sends this in the X-Health-Token header (at least 32
+    | characters, required in production). Empty = `/up` answers nobody. `/livez` needs nothing.
+    */
+    'health' => [
+        'token' => env('HEALTH_TOKEN'),
+    ],
+
+    /*
     | The website is told when content changes (decision 21.16). Both must be set, or nothing is sent.
     | The secret signs every request; the site checks it.
     */
