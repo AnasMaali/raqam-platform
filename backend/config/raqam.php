@@ -299,12 +299,16 @@ return [
 
     /*
     | How long visitors' own words are kept (decision 2026-10-24), deleted every night by retention:prune: chatbot
-    | conversations from the day they began, contact messages from the day they arrived.
+    | conversations from the day they began, contact messages from the day they arrived. The platform's own records too
+    | (decision QA-7): weather readings from the hour they were read (only today's are shown), an admin's
+    | notifications from when they were read (unread ones are never deleted).
     */
     'retention' => [
         'chat_conversations_days' => 180,
         'contact_messages_days' => 365,
         'forged_payment_events_days' => 90,
+        'weather_observations_days' => 30,
+        'read_admin_notifications_days' => 90,
     ],
 
     /*

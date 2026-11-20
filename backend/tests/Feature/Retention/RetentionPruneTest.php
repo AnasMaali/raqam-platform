@@ -63,7 +63,8 @@ test('the periods come from the configuration', function () {
 });
 
 test('the defaults are 180 days for conversations, 365 for contact messages and 90 for forged payment notifications', function () {
-    expect(config('raqam.retention'))->toBe(['chat_conversations_days' => 180, 'contact_messages_days' => 365, 'forged_payment_events_days' => 90]);
+    expect(config('raqam.retention'))->toBe(['chat_conversations_days' => 180, 'contact_messages_days' => 365, 'forged_payment_events_days' => 90,
+        'weather_observations_days' => 30, 'read_admin_notifications_days' => 90]);
 });
 
 test('retention:prune runs every night', function () {
@@ -89,4 +90,35 @@ test('spent and expired e-mail codes go after a day, and notifications with a fo
     $this->artisan('retention:prune')->assertSuccessful();
     expect(DB::table('verification_codes')->orderBy('id')->pluck('id')->all())->toBe([$expiredLately, $fresh])
         ->and(DB::table('payment_events')->orderBy('id')->pluck('id')->all())->toBe([$forgedNew, $realOld]);
+});
+
+// ---- the platform's own records (decision QA-7) -----------------------------------------------------------------
+
+test('weather readings go after 30 days; younger ones stay, today\'s with them', function () {
+    $city = (int) DB::table('cities')->where('slug', 'نابلس')->value('id');
+    $reading = fn (int $daysAgo, int $minutes = 0) => DB::table('weather_observations')->insertGetId(['city_id' => $city, 'provider_code' => 'openweathermap',
+        'observed_at' => DB::raw("now() - make_interval(days => {$daysAgo}, mins => {$minutes})"), 'temperature_c' => 20, 'condition_code' => 800, 'is_day' => true]);
+    $old = $reading(31);
+    $edge = $reading(29);
+    $today = $reading(0, 5);
+
+    $this->artisan('retention:prune')->assertSuccessful();
+
+    expect(DB::table('weather_observations')->orderBy('id')->pluck('id')->all())->toBe([$edge, $today])
+        ->and($old)->toBeLessThan($edge);
+});
+
+test('an admin\'s notifications go 90 days after they were read; unread ones are never deleted, however old', function () {
+    $admin = staffAdmin('admin@raqam.example');
+    $note = fn (?int $readDaysAgo, int $madeDaysAgo) => DB::table('admin_notifications')->insertGetId(['user_id' => $admin, 'category' => 'messages',
+        'title' => 'تنبيه', 'created_at' => DB::raw("now() - make_interval(days => {$madeDaysAgo})"),
+        'read_at' => $readDaysAgo === null ? null : DB::raw("now() - make_interval(days => {$readDaysAgo})")]);
+    $readLongAgo = $note(91, 200);
+    $readRecently = $note(89, 200);
+    $unreadOld = $note(null, 400);
+
+    $this->artisan('retention:prune')->assertSuccessful();
+
+    expect(DB::table('admin_notifications')->orderBy('id')->pluck('id')->all())->toBe([$readRecently, $unreadOld])
+        ->and($readLongAgo)->toBeLessThan($readRecently);
 });

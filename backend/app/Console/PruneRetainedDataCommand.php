@@ -14,7 +14,7 @@ class PruneRetainedDataCommand extends Command
 {
     protected $signature = 'retention:prune';
 
-    protected $description = 'Delete chatbot conversations, contact messages, spent e-mail codes and forged payment notifications past their retention';
+    protected $description = 'Delete chatbot conversations, contact messages, spent e-mail codes, forged payment notifications, old weather readings and long-read admin notifications past their retention';
 
     public function handle(): int
     {
@@ -31,7 +31,15 @@ class PruneRetainedDataCommand extends Command
         $forgedDays = (int) config('raqam.retention.forged_payment_events_days');
         $forged = DB::table('payment_events')->where('signature_valid', false)->where('received_at', '<', DB::raw("now() - make_interval(days => {$forgedDays})"))->delete();
 
+        // The platform's own records (decision QA-7): weather readings once old (only today's are shown), and an admin's
+        // notifications some time after they were read; an unread one stays until it is read.
+        $weatherDays = (int) config('raqam.retention.weather_observations_days');
+        $readDays = (int) config('raqam.retention.read_admin_notifications_days');
+        $readings = DB::table('weather_observations')->where('observed_at', '<', DB::raw("now() - make_interval(days => {$weatherDays})"))->delete();
+        $notifications = DB::table('admin_notifications')->whereNotNull('read_at')->where('read_at', '<', DB::raw("now() - make_interval(days => {$readDays})"))->delete();
+
         $this->info("Deleted {$conversations} chatbot conversations (older than {$chatDays} days) and {$messages} contact messages (older than {$contactDays} days).");
+        $this->info("Deleted {$readings} weather readings (older than {$weatherDays} days) and {$notifications} admin notifications (read more than {$readDays} days ago).");
         $this->info("Deleted {$codes} spent or expired e-mail codes and {$forged} payment notifications with a forged signature.");
 
         return self::SUCCESS;

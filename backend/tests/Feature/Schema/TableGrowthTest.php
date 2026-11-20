@@ -30,6 +30,8 @@ const CLEANED_TABLES = [
     'posts' => ['posts:purge-trashed', 'app/Console/PurgeTrashedPostsCommand.php', 'in the bin for 90 days'],
     'failed_jobs' => ['queue:prune-failed', null, 'Laravel\'s own, by age'],
     'post_revisions' => [null, 'app/Content/PostSaver.php', 'the last MAX_REVISIONS (100) of each post'],
+    'weather_observations' => ['retention:prune', 'app/Console/PruneRetainedDataCommand.php', 'after 30 days: only today\'s are shown (decision QA-7)'],
+    'admin_notifications' => ['retention:prune', 'app/Console/PruneRetainedDataCommand.php', '90 days after they were read; unread ones never (decision QA-7)'],
 ];
 
 /** table => why every row is kept */
@@ -45,8 +47,6 @@ const KEPT_TABLES = [
     'traffic_sources_daily' => 'one row a day per source',
     'video_plays_daily' => 'one row a day per video played',
     'exchange_rates' => 'one rate a working day per currency: the history and the change are read from it',
-    'weather_observations' => 'about sixty readings a day (12 cities); only today\'s are read: how long to keep them is the owner\'s decision (QA-7)',
-    'admin_notifications' => 'a few a day at most (one per admin per alert per hour): how long to keep read ones is the owner\'s decision (QA-7)',
     'payment_events' => 'the bank\'s messages of real payments stay with the payment (forged ones go after 90 days, retention:prune)',
     'payments' => 'money records',
     'refunds' => 'money records',
@@ -110,9 +110,14 @@ test('every cleaning is scheduled, and the file named does it', function () {
         }
         if ($file !== null) {
             $source = file_get_contents(base_path($file));
-            $named = in_array($table, ['audit_log_changes', 'bot_messages'], true)
-                ? ($table === 'audit_log_changes' ? 'audit_log' : 'bot_conversations')   // cascades with its parent row
-                : ($table === 'posts' ? 'onlyTrashed' : ($table === 'post_revisions' ? 'MAX_REVISIONS' : $table));
+            // The query on the table itself (a name in a config key or a comment does not count).
+            $named = match ($table) {
+                'audit_log_changes' => "table('audit_log')",          // cascades with its parent row
+                'bot_messages' => "table('bot_conversations')",       // the same
+                'posts' => 'onlyTrashed',
+                'post_revisions' => 'MAX_REVISIONS',
+                default => "table('{$table}')",
+            };
             expect(str_contains($source, $named))->toBeTrue("{$table}: {$file} does not clean it ({$how})");
         }
     }
