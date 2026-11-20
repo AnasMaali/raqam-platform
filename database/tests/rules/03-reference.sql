@@ -55,7 +55,7 @@ SELECT pg_temp.expect_fail('settings: an integer setting refuses text',
 SELECT pg_temp.expect_fail('settings: a boolean setting refuses yes',
   $$INSERT INTO settings (key, value, value_type) VALUES ('rthree.r03_bool', 'yes', 'boolean')$$, 'settings_check1');
 SELECT pg_temp.expect_fail('settings: a url setting refuses another scheme',
-  $$INSERT INTO settings (key, value, value_type) VALUES ('rthree.r03_url', 'ftp://r03.example.com', 'url')$$, 'settings_check2');
+  $$INSERT INTO settings (key, value, value_type) VALUES ('rthree.r03_url', 'ftp://r03.example.com', 'url')$$, 'url_text_check');
 SELECT pg_temp.expect_fail('settings: a time setting refuses 24:00',
   $$INSERT INTO settings (key, value, value_type) VALUES ('rthree.r03_time', '24:00', 'time')$$, 'settings_check3');
 SELECT pg_temp.expect_fail('settings: a media setting refuses a non-number',
@@ -71,3 +71,7 @@ SELECT pg_temp.expect_fail('feature_flags: a key with digits is refused',
   $$INSERT INTO feature_flags (key, description_ar) VALUES ('r03_flag', 'r03')$$, 'feature_flags_key_check');
 SELECT pg_temp.expect_fail('feature_flags: a flag cannot depend on itself',
   $$INSERT INTO feature_flags (key, description_ar, depends_on) VALUES ('rthree_self', 'r03', 'rthree_self')$$, 'feature_flags_check');
+
+-- ---------------------------------------------------------------- the url setting reads as url_text
+SELECT pg_temp.expect_fail('settings: a url setting with a space is refused (url_text)',
+  $$INSERT INTO settings (key, value, value_type) VALUES ('rthree.r03_url_space', 'https:// not a url', 'url')$$, 'url_text_check');

@@ -197,6 +197,7 @@ CREATE TABLE admin_notifications (                        -- 20.10 bell icon
   created_at   timestamptz  NOT NULL DEFAULT now()
 );
 CREATE INDEX admin_notifications_unread_idx ON admin_notifications (user_id, created_at DESC) WHERE read_at IS NULL;
+CREATE INDEX admin_notifications_user_id_idx ON admin_notifications (user_id);   -- the foreign key's (a whole index)
 CREATE INDEX admin_notifications_dedupe_idx ON admin_notifications (dedupe_key, created_at DESC);
 
 CREATE TABLE contact_messages (                           -- 20.13

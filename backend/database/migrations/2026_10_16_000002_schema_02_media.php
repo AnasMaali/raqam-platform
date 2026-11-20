@@ -34,7 +34,7 @@ CREATE TABLE media_assets (
   checksum_sha256   sha256_hex   NOT NULL,
   width             integer      CHECK (width  > 0),
   height            integer      CHECK (height > 0),
-  duration_seconds  numeric(7,2) CHECK (duration_seconds > 0),
+  duration_seconds  numeric(7,2) CHECK (duration_seconds > 0 AND duration_seconds < 'Infinity'),   -- not NaN
   alt_text          varchar(250),
   caption           varchar(500),
   credit            varchar(200),

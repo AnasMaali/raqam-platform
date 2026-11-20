@@ -36,10 +36,11 @@ SELECT pg_temp.expect_fail('search_stats_daily: more zero-result searches than s
 SELECT pg_temp.expect_fail('search_stats_daily: negative zero-result searches refused',
   $$UPDATE search_stats_daily SET zero_result_searches = -1
     WHERE term_id = (SELECT id FROM search_terms WHERE normalized_term = 'r10 بحث')$$, 'search_stats_daily_zero_result_searches_check');
--- searches < 0 forces zero_result_searches < 0 too (zero <= searches); the searches rule is the one named first.
-SELECT pg_temp.expect_fail('search_stats_daily: negative searches refused',
+-- searches < 0 forces zero_result_searches < 0 too (zero <= searches): "zero_result_searches >= 0" refuses it, so the
+-- table needs no rule of its own on searches (dropped, QA-7).
+SELECT pg_temp.expect_fail('search_stats_daily: negative searches refused (through zero_result_searches >= 0)',
   $$UPDATE search_stats_daily SET searches = -1, zero_result_searches = -1
-    WHERE term_id = (SELECT id FROM search_terms WHERE normalized_term = 'r10 بحث')$$, 'search_stats_daily_searches_check');
+    WHERE term_id = (SELECT id FROM search_terms WHERE normalized_term = 'r10 بحث')$$, 'search_stats_daily_zero_result_searches_check');
 
 -- ---------------------------------------------------------------- post views
 INSERT INTO posts (kind_code, title, slug) VALUES ('news', 'r10 مسودة', 'r10-post');
@@ -51,9 +52,10 @@ SELECT pg_temp.expect_fail('post_views_daily: negative views refused',
 INSERT INTO site_stats_daily (stat_date, page_views, unique_visitors) VALUES ('1910-10-01', 10, 4);
 SELECT pg_temp.expect_fail('site_stats_daily: negative unique visitors refused',
   $$UPDATE site_stats_daily SET unique_visitors = -1 WHERE stat_date = '1910-10-01'$$, 'site_stats_daily_unique_visitors_check');
--- page_views < 0 forces unique_visitors < 0 too (visitors <= views); the page-views rule is the one named first.
-SELECT pg_temp.expect_fail('site_stats_daily: negative page views refused',
-  $$UPDATE site_stats_daily SET page_views = -1, unique_visitors = -1 WHERE stat_date = '1910-10-01'$$, 'site_stats_daily_page_views_check');
+-- page_views < 0 forces unique_visitors < 0 too (visitors <= views): "unique_visitors >= 0" refuses it, so the table
+-- needs no rule of its own on page_views (dropped, QA-7).
+SELECT pg_temp.expect_fail('site_stats_daily: negative page views refused (through unique_visitors >= 0)',
+  $$UPDATE site_stats_daily SET page_views = -1, unique_visitors = -1 WHERE stat_date = '1910-10-01'$$, 'site_stats_daily_unique_visitors_check');
 
 -- ---------------------------------------------------------------- traffic, devices, events
 SELECT pg_temp.expect_fail('traffic_sources_daily: negative visits refused',

@@ -386,6 +386,11 @@ INSERT INTO post_views_daily SELECT id, d, v FROM posts, (VALUES (current_date -
 REFRESH MATERIALIZED VIEW CONCURRENTLY post_view_totals;
 SELECT pg_temp.expect_eq('analytics: total views from materialized view',
   (SELECT total_views::text FROM post_view_totals t JOIN posts p ON p.id = t.post_id WHERE p.slug = 'ارتفاع-الدولار'), '100');
+-- Only the view's owner may refresh it: the application's role runs this function instead (production-roles.sql).
+SELECT pg_temp.expect_eq('analytics: the refresh function runs as its owner, with a fixed search path, not for PUBLIC',
+  (SELECT format('%s/%s/%s', p.prosecdef::text, p.proconfig::text, has_function_privilege('public', p.oid, 'EXECUTE')::text)
+   FROM pg_proc p WHERE p.oid = 'refresh_post_view_totals()'::regprocedure), 'true/{"search_path=pg_catalog, public"}/false');
+SELECT refresh_post_view_totals();
 SELECT pg_temp.expect_fail('analytics: unique visitors > page views',
   $$INSERT INTO site_stats_daily VALUES (current_date, 10, 11)$$, 'site_stats_daily_check');
 

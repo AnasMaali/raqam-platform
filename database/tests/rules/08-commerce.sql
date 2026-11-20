@@ -164,3 +164,9 @@ SELECT pg_temp.expect_fail('invoice_lines: line number must be positive',
 SELECT pg_temp.expect_fail('invoice_lines: quantity must be above zero',
   $$INSERT INTO invoice_lines (invoice_id, line_no, description, quantity, unit_amount)
     SELECT i.id, 2, 'r08 line', 0, 12345 FROM invoices i JOIN payments p ON p.id = i.payment_id WHERE p.gateway_order_id = 'R08-ORD-1'$$, 'invoice_lines_quantity_check');
+
+-- ---------------------------------------------------------------- finite numbers (NaN)
+-- NaN counts as larger than any number, so "> 0" alone let a NaN quantity through, and the invoice's total with it.
+SELECT pg_temp.expect_fail('invoice_lines: a NaN quantity is refused',
+  $$INSERT INTO invoice_lines (invoice_id, line_no, description, quantity, unit_amount)
+    SELECT i.id, 2, 'r08 nan', 'NaN', 1000 FROM invoices i JOIN payments p ON p.id = i.payment_id WHERE p.gateway_order_id = 'R08-ORD-1'$$, 'invoice_lines_quantity_check');

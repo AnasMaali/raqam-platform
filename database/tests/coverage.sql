@@ -32,8 +32,8 @@ INSERT INTO rule_stand_ins VALUES
    'value::email_address: a bad e-mail fails the cast, refused by the domain, before the CHECK is false'),
   ('settings_check6', 'phone_e164_check',
    'value::phone_e164: a bad phone fails the cast, refused by the domain, before the CHECK is false'),
-  ('rate_overrides_sell_rate_check', 'rate_overrides_check',
-   'sell_rate > 0 follows from buy_rate > 0 and sell_rate >= buy_rate, which PostgreSQL checks first (by name)');
+  ('settings_check2', 'url_text_check',
+   'value::url_text: a bad address fails the cast, refused by the domain, before the CHECK is false');
 
 INSERT INTO test_results (label, ok, detail)
 SELECT format('coverage: %s %s (%s) has a test that breaks it', i.kind, i.name, i.owner), false, 'no test broke it'

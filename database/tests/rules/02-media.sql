@@ -78,3 +78,9 @@ SELECT pg_temp.expect_fail('media_variants: a zero height is refused',
 SELECT pg_temp.expect_fail('media_variants: an empty file is refused',
   $$INSERT INTO media_variants (media_id, variant, format, width, height, path, size_bytes)
     SELECT id, 'sm', 'webp', 400, 225, 'r02/base-sm.webp', 0 FROM media_assets WHERE path = 'r02/base.png'$$, 'media_variants_size_bytes_check');
+
+-- ---------------------------------------------------------------- finite numbers (NaN)
+-- NaN counts as larger than any number, so "> 0" alone let a NaN duration through (a Rive file: no other duration rule).
+SELECT pg_temp.expect_fail('media_assets: a NaN duration is refused',
+  $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds)
+    VALUES ('r02/nan.riv', 'nan.riv', 'application/x-rive', 1000, encode(sha256('r02-nan'), 'hex'), 'NaN')$$, 'media_assets_duration_seconds_check');
