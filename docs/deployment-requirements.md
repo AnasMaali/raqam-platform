@@ -153,6 +153,83 @@ An image without curl can ask PHP itself:
   Without them a Redis or a mail server that does not answer holds each request for PHP's 60 s. The website gives up
   on the API after 5 s.
 
+## The database roles
+
+The platform signs in to PostgreSQL with a role that can only read and write rows. A second role owns the schema and
+is used by the deploy alone. A bug or a stolen password in the application can then change data, but it cannot drop
+or alter a table, switch a trigger off, or change the audit log.
+
+| Role | Signs in from | Can |
+|---|---|---|
+| `raqam_owner` | the deploy only (`php artisan raqam:install`, which migrates) | everything on the schema it owns |
+| `raqam_app` | the web server, the queue worker, the scheduler (`DB_USERNAME` in `.env`) | rows only (below) |
+
+`raqam_app`:
+- **Rows only.** It can SELECT, INSERT, UPDATE and DELETE on the tables. It has no TRUNCATE, REFERENCES or TRIGGER, no
+  CREATE on the schema or the database, and owns nothing. So it cannot DROP or ALTER anything, cannot switch a trigger
+  off, and cannot replace a function.
+- **No right on any sequence.** Every id is an identity column, and an identity column needs none.
+- **Written once:**
+  - the audit log and its changes: rows are added, never updated. They are deleted only by `audit:prune`, and the
+    database itself refuses any row younger than two years;
+  - an invoice and its lines: no update or delete, except attaching the PDF once (the `pdf_media_id` column);
+  - a booking's status history: added, never changed.
+- **Read only:** the views and the materialized view. Laravel's `migrations` list belongs to the deploy.
+
+Make the roles once, as a superuser:
+
+```sql
+CREATE ROLE raqam_owner LOGIN PASSWORD '<from the password manager>';
+CREATE ROLE raqam_app   LOGIN PASSWORD '<another one>';
+CREATE DATABASE raqam OWNER raqam_owner TEMPLATE template0 ENCODING 'UTF8';
+```
+
+Then, after every deploy's migrations, as `raqam_owner` (it is idempotent, and covers the tables a new migration made):
+
+```sh
+psql -v ON_ERROR_STOP=1 -v owner=raqam_owner -v app=raqam_app -v db=raqam -d raqam -f database/roles/production-roles.sql
+```
+
+`database/roles/check-roles.sh` tests all of this on a database of its own (CI's Database workflow runs it):
+- it builds the schema as the owner and applies the grants;
+- it then tries, as the application, everything the application must not do (DROP, ALTER, TRUNCATE, CREATE, DISABLE
+  TRIGGER, GRANT, changing the audit log or an invoice) and everything it must do (a booking through its history,
+  payment, refund, numbered invoice and PDF, the audit prune, the synonym lock, the view totals).
+
+It was also run against a copy of the QA data, with the API and every scheduled command signed in as `raqam_app`:
+- all 52 API endpoints answered;
+- every command ran, `stats:flush` included, apart from the two outside fetches pointed at a closed port.
+
+**The view totals.** In PostgreSQL 16 only a materialized view's owner can refresh it. So the schema has
+`refresh_post_view_totals()`:
+- it is owned by `raqam_owner` and runs as it (`SECURITY DEFINER`, with `search_path = pg_catalog, public`);
+- it does only `REFRESH MATERIALIZED VIEW CONCURRENTLY public.post_view_totals`;
+- PUBLIC may not run it, and `production-roles.sql` lets `raqam_app` run it.
+
+`stats:flush` calls the function. `raqam_app` still cannot refresh the view itself, drop it, or replace the
+function, and the check tests all three.
+
+## PostgreSQL with ICU, and Arabic names in order
+
+The names and titles that lists are ordered by carry ICU's Arabic collation on the column itself (`COLLATE
+"ar-x-icu"`): authors, guests, organizations, users, cities, tags, services, pages, categories, playlists and ad
+places. So «إبراهيم» comes before «أحمد», whatever locale the database was made with. Slugs, codes and e-mails
+keep the database's own order.
+
+- **ICU is required.** The PostgreSQL server must be built with ICU. The official `postgres:16` image is.
+  `SELECT collname FROM pg_collation WHERE collname = 'ar-x-icu'` must return a row, or the migrations fail.
+- **After an upgrade of the system's ICU library** (a new image or OS release), the order may change slightly:
+  1. PostgreSQL warns that the collation's version does not match.
+  2. Rebuild the indexes on those columns, then record the new version:
+     ```sql
+     REINDEX TABLE authors; REINDEX TABLE guests; REINDEX TABLE organizations; REINDEX TABLE users;
+     REINDEX TABLE cities; REINDEX TABLE tags; REINDEX TABLE services; REINDEX TABLE pages;
+     REINDEX TABLE categories; REINDEX TABLE playlists; REINDEX TABLE ad_placements;
+     ALTER COLLATION "ar-x-icu" REFRESH VERSION;
+     ```
+  3. `SELECT collname FROM pg_collation WHERE collversion <> pg_collation_actual_version(oid)` shows any collation
+     still out of step.
+
 ## Backups and restoring
 
 Decision 24.18:

@@ -63,7 +63,8 @@ test('a setting value matches its type', function (string $type, string $value, 
 })->with([
     'integer' => ['integer', '12a', 'settings_check'],
     'boolean' => ['boolean', 'yes', 'settings_check1'],
-    'url' => ['url', 'ftp://raqam.ps', 'settings_check2'],
+    'url' => ['url', 'ftp://raqam.ps', 'url_text_check'],   // read as url_text (QA-7), like the e-mail and phone types
+    'url with a space' => ['url', 'https:// not a url', 'url_text_check'],
     'time' => ['time', '24:00', 'settings_check3'],
     'media' => ['media', 'cover.jpg', 'settings_check4'],
     'email (email_address domain)' => ['email', 'raqam.ps', 'email_address_check'],

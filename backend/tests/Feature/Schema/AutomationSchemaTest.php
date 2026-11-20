@@ -37,14 +37,16 @@ test('every table with updated_at has the trigger', function () {
     expect($missing)->toBeEmpty();
 });
 
-test('every foreign key has an index that starts with its columns', function () {
+// A whole index, not a partial one: deleting or re-keying a parent row looks up every child row, including the ones a
+// partial index leaves out (soft-deleted, unpublished, read), and that look-up would read the whole table.
+test('every foreign key has a whole, valid index that starts with its columns', function () {
     $unindexed = DB::select(<<<'SQL'
         SELECT c.conrelid::regclass::text AS tbl, c.conname
         FROM pg_constraint c
         WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace
           AND NOT EXISTS (
             SELECT 1 FROM pg_index i
-            WHERE i.indrelid = c.conrelid
+            WHERE i.indrelid = c.conrelid AND i.indpred IS NULL AND i.indisvalid
               AND (i.indkey::int2[])[0:cardinality(c.conkey) - 1] @> c.conkey
               AND (i.indkey::int2[])[0:cardinality(c.conkey) - 1] <@ c.conkey)
         SQL);

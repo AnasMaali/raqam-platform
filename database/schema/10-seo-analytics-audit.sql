@@ -37,7 +37,7 @@ CREATE TABLE search_terms (                               -- normalised once (10
 CREATE TABLE search_stats_daily (                         -- 10.14
   term_id               bigint  NOT NULL REFERENCES search_terms (id) ON DELETE CASCADE,
   stat_date             date    NOT NULL,
-  searches              integer NOT NULL DEFAULT 0 CHECK (searches >= 0),
+  searches              integer NOT NULL DEFAULT 0,   -- >= 0 follows from the two rules on zero_result_searches
   zero_result_searches  integer NOT NULL DEFAULT 0 CHECK (zero_result_searches >= 0),
   PRIMARY KEY (term_id, stat_date),
   CHECK (zero_result_searches <= searches)
@@ -58,7 +58,7 @@ CREATE INDEX post_views_daily_date_idx ON post_views_daily (stat_date, views DES
 
 CREATE TABLE site_stats_daily (
   stat_date        date   PRIMARY KEY,
-  page_views       bigint NOT NULL DEFAULT 0 CHECK (page_views >= 0),
+  page_views       bigint NOT NULL DEFAULT 0,   -- >= 0 follows from the two rules on unique_visitors
   unique_visitors  bigint NOT NULL DEFAULT 0 CHECK (unique_visitors >= 0),   -- 22.2 daily-rotating hash
   CHECK (unique_visitors <= page_views)
 );
@@ -124,6 +124,14 @@ SELECT post_id, sum(views)::bigint AS total_views
 FROM post_views_daily
 GROUP BY post_id;
 CREATE UNIQUE INDEX post_view_totals_pk ON post_view_totals (post_id);
+-- Only a materialized view's owner may refresh it. The application's role runs this function, owned by the schema's
+-- owner, which does exactly that (stats:flush); database/roles/production-roles.sql lets only the application run it.
+CREATE FUNCTION refresh_post_view_totals() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW CONCURRENTLY public.post_view_totals;
+END $$;
+REVOKE EXECUTE ON FUNCTION refresh_post_view_totals() FROM PUBLIC;
 
 -- ---------------------------------------------------------------------
 --  Audit log (22.14 – 22.17): append-only

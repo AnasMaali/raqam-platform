@@ -49,8 +49,9 @@ final class StatsFlusher
             }
         });
 
-        // The totals shown with a post (when the admin shows them, 22.12) follow the daily rows.
-        DB::statement('REFRESH MATERIALIZED VIEW CONCURRENTLY post_view_totals');
+        // The totals shown with a post (when the admin shows them, 22.12) follow the daily rows. Only the view's owner may
+        // refresh it, so the application's role asks the owner's function, which does just that (CONCURRENTLY).
+        DB::statement('SELECT refresh_post_view_totals()');
         Cache::forever(self::VERSION, (int) Cache::get(self::VERSION, 0) + 1);
 
         return $written;

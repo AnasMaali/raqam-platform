@@ -53,9 +53,9 @@ BEGIN
     JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum
     WHERE c.contype = 'f'
       AND c.connamespace = 'public'::regnamespace
-      AND NOT EXISTS (
+      AND NOT EXISTS (                -- a whole index: a partial one does not serve the key's own look-ups
         SELECT 1 FROM pg_index i
-        WHERE i.indrelid = c.conrelid
+        WHERE i.indrelid = c.conrelid AND i.indpred IS NULL
           AND (i.indkey::int2[])[0:cardinality(c.conkey) - 1] @> c.conkey
           AND (i.indkey::int2[])[0:cardinality(c.conkey) - 1] <@ c.conkey)
     GROUP BY c.conrelid, c.conname

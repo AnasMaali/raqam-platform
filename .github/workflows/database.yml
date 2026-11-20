@@ -84,3 +84,9 @@ jobs:
       - name: Build schema and run all database tests
         timeout-minutes: 8
         run: ./database/run_tests.sh
+
+      # The application's least-privilege role (docs/deployment-requirements.md, "The database roles"): the CI's
+      # PostgreSQL user is a superuser, so the roles and their database are made here and dropped with the machine.
+      - name: Database roles
+        timeout-minutes: 5
+        run: ./database/roles/check-roles.sh

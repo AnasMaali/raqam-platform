@@ -26,11 +26,19 @@ run createdb "$DB"
 echo "==> Applying schema"
 run psql -v ON_ERROR_STOP=1 -q -d "$DB" -f "$HERE/raqam_schema.sql"
 
-echo "==> Constraint & trigger tests"
-OUT="$(run psql -v ON_ERROR_STOP=1 -d "$DB" -f "$HERE/tests/schema_tests.sql")"
+echo "==> Constraint & trigger tests, then their coverage"
+# One session: the helpers and the results table of schema_tests.sql serve every file, and coverage.sql, last, fails
+# for any CHECK, domain, EXCLUDE or trigger function no test broke.
+shopt -s nullglob
+FILES=(-f "$HERE/tests/schema_tests.sql")
+for f in "$HERE"/tests/rules/*.sql; do FILES+=(-f "$f"); done
+FILES+=(-f "$HERE/tests/coverage.sql")
+OUT="$(run psql -X -v ON_ERROR_STOP=1 -d "$DB" "${FILES[@]}")"
 echo "$OUT" | grep -E "PASS|FAIL" || true
 SUMMARY="$(echo "$OUT" | grep -E '^ +[0-9]+ \| +[0-9]+$' | tail -1)"
 FAILED="$(echo "$SUMMARY" | awk -F'|' '{gsub(/ /,"",$2); print $2}')"
+echo "rules: kind | rules | broken by a test | through a stand-in"
+echo "$OUT" | grep -E '^ (check|domain|exclude|trigger) +\|' || true
 echo "passed/failed: $SUMMARY"
 [[ "$FAILED" == "0" ]] || { echo "::error::schema tests failed"; exit 1; }
 
