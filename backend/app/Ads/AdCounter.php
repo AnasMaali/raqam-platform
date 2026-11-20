@@ -2,6 +2,7 @@
 
 namespace App\Ads;
 
+use App\Panel\SystemWatch;
 use App\Support\BotAgent;
 use App\Support\TrackingHash;
 use Illuminate\Support\Facades\Cache;
@@ -52,7 +53,9 @@ final class AdCounter
 
     public function click(int $campaign, string $placement, ?string $visitorIp, ?string $agent): bool
     {
-        if (BotAgent::isBot($agent) || ! $this->board->isLive($campaign, $placement)) {
+        // Without Redis the gap between clicks cannot be kept (RedisOutage): the visitor still reaches the advertiser,
+        // the click is not counted, rather than counted again and again.
+        if (BotAgent::isBot($agent) || ! $this->board->isLive($campaign, $placement) || (SystemWatch::usesRedis() && ! SystemWatch::redisUp())) {
             return false;
         }
         $visitor = TrackingHash::visitor($visitorIp);

@@ -83,6 +83,8 @@ function crumbsOf(post: PostDetail, sections: Section[] | null): Crumb[] {
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { answer } = await load(params);
+  // The page that says the platform did not answer is not the article: search engines leave it (QA-6).
+  if (answer.status === "unavailable") return { robots: { index: false, follow: false } };
   if (answer.status !== "ok") return {};
   const { post } = answer;
   const title = post.seo.title || post.title;

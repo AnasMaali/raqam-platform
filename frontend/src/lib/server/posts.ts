@@ -4,7 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import type { PostDetail } from "@/lib/types";
 
-import { apiGet } from "./api";
+import { apiGet, apiTimeout } from "./api";
 import { tags } from "./cache-tags";
 import { serverEnv } from "./env";
 
@@ -26,7 +26,7 @@ export async function getPost(id: number, slug: string): Promise<PostAnswer> {
   const { apiBaseUrl, siteToken } = serverEnv();
   const headers = new Headers({ Accept: "application/json" });
   if (siteToken) headers.set("X-Raqam-Site-Token", siteToken);
-  const response = await fetch(`${apiBaseUrl}/posts/${id}/${encodeURIComponent(slug)}`, { headers, redirect: "manual" });
+  const response = await fetch(`${apiBaseUrl}/posts/${id}/${encodeURIComponent(slug)}`, { headers, redirect: "manual", signal: apiTimeout() });
 
   if (response.status === 200) return { status: "ok", post: ((await response.json()) as { data: PostDetail }).data };
   if (response.status === 301) {

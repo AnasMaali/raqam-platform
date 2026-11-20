@@ -103,6 +103,14 @@ final class EmailCatalog
                 'body' => '<p>المساحة الحرة على السيرفر {المساحة} ({النسبة} من المجموع).</p><p>احذف ملفات لا حاجة لها أو وسّع القرص قبل أن تتوقف الكتابة.</p>',
                 'vars' => ['المساحة' => 'text', 'النسبة' => 'text'],
             ],
+            // A part of the platform itself stopped (QA-6): Redis, the queue, the scheduler, the search engine. Sent
+            // right away, not queued: the queue may be what stopped.
+            'admin_service_down' => [
+                'name' => 'تنبيه: جزء من المنصة متوقف', 'audience' => 'admin', 'sender' => 'no_reply', 'direct' => true,
+                'subject' => 'تنبيه: {الخدمة}',
+                'body' => '<p>{الخدمة} (لوحظ في {الوقت} بتوقيت القدس).</p><p>{الأثر}</p><p>{الحل}</p>',
+                'vars' => ['الخدمة' => 'text', 'الوقت' => 'text', 'الأثر' => 'text', 'الحل' => 'text'],
+            ],
             'admin_failed_signins' => [
                 'name' => 'تنبيه: محاولات دخول فاشلة كثيرة', 'audience' => 'admin', 'sender' => 'no_reply',
                 'subject' => 'تنبيه: {العدد} محاولة دخول فاشلة إلى اللوحة',

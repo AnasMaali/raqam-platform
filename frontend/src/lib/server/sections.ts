@@ -4,6 +4,7 @@ import { cacheLife, cacheTag } from "next/cache";
 
 import type { Picture, Post } from "@/lib/types";
 
+import { apiTimeout } from "./api";
 import { tags } from "./cache-tags";
 import { serverEnv } from "./env";
 
@@ -33,7 +34,7 @@ async function get<T>(path: string): Promise<T | null> {
   const { apiBaseUrl, siteToken } = serverEnv();
   const headers = new Headers({ Accept: "application/json" });
   if (siteToken) headers.set("X-Raqam-Site-Token", siteToken);
-  const response = await fetch(`${apiBaseUrl}${path}`, { headers, redirect: "manual" });
+  const response = await fetch(`${apiBaseUrl}${path}`, { headers, redirect: "manual", signal: apiTimeout() });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`The API answered ${response.status} for ${path}`);
 

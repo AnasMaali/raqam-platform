@@ -60,6 +60,8 @@ const routes = {
 // one (both name the address in X-Raqam-Path), 410 for the removed id below, 503 for the failing one, 404 otherwise.
 const removedPost = 900410;
 const failingPost = 900503;
+// A platform that accepts the request and never answers (a stuck server): the site must give up on its own.
+const hangingPost = 900504;
 // Any slug is this post's current one, so a test can ask for a page address no earlier test has asked for.
 const anySlugPost = 900200;
 // A post an editor renames: its slug is the one a test sets (PUT /__fixtures/renamed {"slug": …}), "عنوان-أول" before.
@@ -474,6 +476,7 @@ createServer(async (request, response) => {
     return json(202, { data: { received: true } });
   }
   const single = /^\/api\/v1\/posts\/(\d+)(?:\/([^/]+))?$/.exec(url.pathname);
+  if (single && Number(single[1]) === hangingPost) return void setTimeout(() => response.destroy(), 120_000);
   if (single) {
     // The site's check (HEAD), counted by address, so the tests can see it is kept and not repeated.
     if (request.method === "HEAD") {

@@ -9,7 +9,8 @@ under the private `ADMIN_PATH`, every page behind the sign-in) by its screens, a
 | GET | `preview/{post}` | Preview of a draft for its editor (21.8) | signed, expiring link; per-visitor limit; noindex, no-store |
 | GET | `private-media/{path}` | A private file (booking attachments, invoices) | signed link, 10 minutes; sandboxed, no-store |
 | PUT | `private-media/{path}` | Laravel's upload receiver of the local private disk (registered with `serve`) | refused without a signed upload link; the application never makes one |
-| GET | `up` | Health check for the server's monitor | none needed; says only "up" |
+| GET | `up` | Every part of the platform (database, Redis, scheduler, queue), for the monitor outside the server | `X-Health-Token` header = `HEALTH_TOKEN`, else a plain 404; true/false per part only |
+| GET | `livez` | PHP answers, for the container's health check (also during maintenance) | none needed; says only "ok", looks at nothing |
 | GET | `livewire/livewire.js` | The panel's Livewire script | public file |
 | GET | `livewire/livewire.min.js.map` | Its source map | public file |
 | GET | `livewire/preview-file/{filename}` | Preview of a file chosen in a panel form | Livewire's signed URL |

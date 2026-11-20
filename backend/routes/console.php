@@ -37,6 +37,8 @@ Schedule::command('emails:prune')->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('retention:prune')->dailyAt('02:40')->withoutOverlapping();
 Schedule::command('ads:ending-alerts')->hourly()->withoutOverlapping();
 Schedule::command('system:check-disk')->hourly()->withoutOverlapping();
+// The platform's own parts (QA-6): the scheduler beats every minute and looks at the queue (docs/qa/resilience.md).
+Schedule::command('system:watch')->everyMinute()->withoutOverlapping();
 // Many failed sign-ins to the panel (24.15), looked at every quarter hour; the alert itself comes at most once an hour.
 Schedule::command('auth:watch-failures')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('admin:weekly-digest')->timezone('Asia/Hebron')->weeklyOn(6, '09:00')->withoutOverlapping();

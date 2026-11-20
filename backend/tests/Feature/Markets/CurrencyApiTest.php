@@ -12,10 +12,19 @@ use Illuminate\Support\Facades\Http;
 
 uses(RefreshDatabase::class);
 
+/**
+ * The day of a publication, counted back from today: the history keeps the last 30 days by the database's clock, so
+ * fixed dates fell out of it a month after they were written.
+ */
+function boiDay(int $daysAgo): string
+{
+    return now('Asia/Hebron')->subDays($daysAgo)->toDateString();
+}
+
 beforeEach(function () {
-    fakeBoi(boiBody(['USD' => '3.000', 'JOD' => '4.3', 'EUR' => '3.4', 'GBP' => '4.1', 'EGP' => '0.056'], '2026-10-19T12:40:00Z'));
+    fakeBoi(boiBody(['USD' => '3.000', 'JOD' => '4.3', 'EUR' => '3.4', 'GBP' => '4.1', 'EGP' => '0.056'], boiDay(2).'T12:40:00Z'));
     app(RateFetcher::class)->run();
-    fakeBoi(boiBody(['USD' => '3.030', 'JOD' => '4.25', 'EUR' => '3.4', 'GBP' => '4.1', 'EGP' => '0.0571'], '2026-10-20T12:42:27.6546389Z'));
+    fakeBoi(boiBody(['USD' => '3.030', 'JOD' => '4.25', 'EUR' => '3.4', 'GBP' => '4.1', 'EGP' => '0.0571'], boiDay(1).'T12:42:27.6546389Z'));
     app(RateFetcher::class)->run();
     Http::assertSentCount(1);
 });
@@ -28,14 +37,14 @@ test('the board lists the active currencies in order, as decimal strings rounded
 
     expect(array_column($body['data'], 'code'))->toBe(['USD', 'JOD', 'EUR', 'GBP', 'EGP', 'AED', 'SAR'])
         ->and($usd)->toMatchArray(['code' => 'USD', 'path' => '/currencies/usd', 'mid' => '3.030', 'buy' => '3.015', 'sell' => '3.045', 'previous' => '3.000',
-            'change_pct' => '1.00', 'direction' => 'up', 'is_manual' => false, 'is_pegged' => false, 'rate_date' => '2026-10-20',
-            'published_at' => '2026-10-20T12:42:27Z'])
+            'change_pct' => '1.00', 'direction' => 'up', 'is_manual' => false, 'is_pegged' => false, 'rate_date' => boiDay(1),
+            'published_at' => boiDay(1).'T12:42:27Z'])
         ->and($body['data'][1]['direction'])->toBe('down')
         ->and($body['data'][2]['direction'])->toBe('same')
         ->and($body['data'][4])->toMatchArray(['code' => 'EGP', 'mid' => '0.0571', 'decimals' => 4])
         ->and($body['data'][5])->toMatchArray(['code' => 'AED', 'is_pegged' => true, 'mid' => '0.825'])
-        ->and($body['meta'])->toMatchArray(['rate_date' => '2026-10-20', 'source' => 'bank_of_israel',
-            'note' => 'الأسعار استرشادية — حسب السعر التمثيلي لبنك إسرائيل', 'published_at' => '2026-10-20T12:42:27Z'])
+        ->and($body['meta'])->toMatchArray(['rate_date' => boiDay(1), 'source' => 'bank_of_israel',
+            'note' => 'الأسعار استرشادية — حسب السعر التمثيلي لبنك إسرائيل', 'published_at' => boiDay(1).'T12:42:27Z'])
         ->and($body['meta']['checked_at'])->not->toBeNull();
     // Strings, never JSON numbers: a float would round the rate on its way.
     expect($res->getContent())->toContain('"mid":"3.030"')->not->toMatch('/"(mid|buy|sell|previous|change_pct)":\d/');
@@ -62,7 +71,7 @@ test('the converter says which rate it uses, and the ticker is short', function 
 test('history has one point per publication day for 30 days, oldest first; unknown or hidden currencies are 404', function () {
     $points = api('/currencies/USD/history')->json('data.points');
 
-    expect($points)->toBe([['date' => '2026-10-19', 'mid' => '3.000'], ['date' => '2026-10-20', 'mid' => '3.030']]);
+    expect($points)->toBe([['date' => boiDay(2), 'mid' => '3.000'], ['date' => boiDay(1), 'mid' => '3.030']]);
     api('/currencies/XYZ/history')->assertNotFound();
     api('/currencies/USD/history?days=3')->assertStatus(422);
     api('/currencies/USD/history?days=999')->assertStatus(422);
