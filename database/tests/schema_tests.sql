@@ -9,19 +9,41 @@
 \o /dev/null
 SET client_min_messages = warning;
 
-CREATE TEMP TABLE test_results (n serial, label text, ok boolean, detail text);
+CREATE TEMP TABLE test_results (n serial, label text, ok boolean, detail text, broke text);
 
-CREATE FUNCTION pg_temp.expect_fail(p_label text, p_sql text) RETURNS void
+-- What refused a statement: the constraint's name (a CHECK, a domain's CHECK, an EXCLUDE, a key) or, for an error raised
+-- by a trigger, its function's name. The coverage at the end counts these, so a test only covers the rule that refused
+-- it, not whatever else happened to fail.
+-- With p_rule, the statement must be refused by that very rule: refused by another one, it fails too, so a test still
+-- passes only while its rule is there (database/tests/coverage.sql).
+CREATE FUNCTION pg_temp.expect_fail(p_label text, p_sql text, p_rule text DEFAULT NULL) RETURNS void
 LANGUAGE plpgsql AS $$
+DECLARE
+  v_constraint text;
+  v_context text;
+  v_broke text;
 BEGIN
   BEGIN
     EXECUTE p_sql;
   EXCEPTION WHEN others THEN
-    INSERT INTO test_results (label, ok, detail) VALUES (p_label, true, SQLERRM);
+    GET STACKED DIAGNOSTICS v_constraint = CONSTRAINT_NAME, v_context = PG_EXCEPTION_CONTEXT;
+    v_broke := coalesce(nullif(v_constraint, ''), (regexp_match(v_context, 'PL/pgSQL function (?:public\.)?(\w+)\('))[1]);
+    INSERT INTO test_results (label, ok, detail, broke)
+    VALUES (p_label, p_rule IS NULL OR v_broke IS NOT DISTINCT FROM p_rule,
+            CASE WHEN p_rule IS NULL OR v_broke IS NOT DISTINCT FROM p_rule THEN SQLERRM
+                 ELSE format('refused by %s, not by %s: %s', coalesce(v_broke, '(no named rule)'), p_rule, SQLERRM) END,
+            v_broke);
     RETURN;
   END;
   INSERT INTO test_results (label, ok, detail) VALUES (p_label, false, 'statement succeeded but should have failed');
 END $$;
+
+-- A trigger that does something (a number, a row, a timestamp) rather than refuse: the effect is the test.
+CREATE FUNCTION pg_temp.expect_trigger(p_function text, p_label text, p_actual text, p_expected text) RETURNS void
+LANGUAGE sql AS $$
+  INSERT INTO test_results (label, ok, detail, broke)
+  VALUES (p_label, p_actual IS NOT DISTINCT FROM p_expected, format('expected %s, got %s', p_expected, p_actual), p_function);
+$$;
 
 CREATE FUNCTION pg_temp.expect_eq(p_label text, p_actual text, p_expected text) RETURNS void
 LANGUAGE sql AS $$
@@ -38,46 +60,46 @@ SELECT u.id, r.id FROM users u, roles r WHERE u.email = 'admin@raqam.ps' AND r.c
 SELECT pg_temp.expect_eq('citext: e-mail lookup is case-insensitive',
   (SELECT name FROM users WHERE email = 'ADMIN@raqam.ps'), 'Admin');
 SELECT pg_temp.expect_fail('roles: customer cannot hold a role',
-  $$INSERT INTO user_roles SELECT u.id, r.id FROM users u, roles r WHERE u.user_type = 'customer' AND r.code = 'admin'$$);
+  $$INSERT INTO user_roles SELECT u.id, r.id FROM users u, roles r WHERE u.user_type = 'customer' AND r.code = 'admin'$$, 'trg_user_roles_staff_only');
 SELECT pg_temp.expect_fail('users: duplicate e-mail with other case',
-  $$INSERT INTO users (user_type, name, email, password_hash) VALUES ('staff', 'X', 'ADMIN@raqam.ps', 'x')$$);
+  $$INSERT INTO users (user_type, name, email, password_hash) VALUES ('staff', 'X', 'ADMIN@raqam.ps', 'x')$$, 'users_email_live_uq');
 SELECT pg_temp.expect_fail('verification: more than 5 attempts',
-  $$INSERT INTO verification_codes (purpose, email, code_hash, attempts, expires_at) VALUES ('admin_login', 'admin@raqam.ps', 'h', 6, now() + interval '10 min')$$);
+  $$INSERT INTO verification_codes (purpose, email, code_hash, attempts, expires_at) VALUES ('admin_login', 'admin@raqam.ps', 'h', 6, now() + interval '10 min')$$, 'verification_codes_attempts_check');
 SELECT pg_temp.expect_fail('login_attempts: failed attempt needs a reason',
-  $$INSERT INTO login_attempts (email, succeeded) VALUES ('admin@raqam.ps', false)$$);
+  $$INSERT INTO login_attempts (email, succeeded) VALUES ('admin@raqam.ps', false)$$, 'login_attempts_check');
 
 -- ---------------------------------------------------------------- domains
 SELECT pg_temp.expect_fail('slug: tashkeel refused',
-  $$INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقْتِصَاد')$$);
+  $$INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقْتِصَاد')$$, 'slug_text_check');
 SELECT pg_temp.expect_fail('slug: spaces refused',
-  $$INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد فلسطين')$$);
+  $$INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد فلسطين')$$, 'slug_text_check');
 SELECT pg_temp.expect_fail('phone: must be E.164',
-  $$INSERT INTO customers (name, email, phone) VALUES ('A', 'a@b.co', '0599123456')$$);
+  $$INSERT INTO customers (name, email, phone) VALUES ('A', 'a@b.co', '0599123456')$$, 'phone_e164_check');
 INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد');
 
 -- ---------------------------------------------------------------- media
 SELECT pg_temp.expect_fail('media: public image without alt text',
   $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, width, height)
-    VALUES ('a/1.jpg', '1.jpg', 'image/jpeg', 1000, repeat('a', 64), 800, 600)$$);
+    VALUES ('a/1.jpg', '1.jpg', 'image/jpeg', 1000, repeat('a', 64), 800, 600)$$, 'media_assets_check3');
 SELECT pg_temp.expect_fail('media: uploaded clip longer than 90 s',
   $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds, width, height)
-    VALUES ('v/1.mp4', '1.mp4', 'video/mp4', 1000, repeat('b', 64), 120, 1920, 1080)$$);
+    VALUES ('v/1.mp4', '1.mp4', 'video/mp4', 1000, repeat('b', 64), 120, 1920, 1080)$$, 'media_assets_check6');
 SELECT pg_temp.expect_fail('media: image over 10 MB',
   $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width, height)
-    VALUES ('a/big.jpg', 'big.jpg', 'image/jpeg', 11 * 1024 * 1024, repeat('c', 64), 'alt', 4000, 3000)$$);
+    VALUES ('a/big.jpg', 'big.jpg', 'image/jpeg', 11 * 1024 * 1024, repeat('c', 64), 'alt', 4000, 3000)$$, 'media_assets_check4');
 INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width, height)
 VALUES ('a/cover.jpg', 'cover.jpg', 'image/jpeg', 200000, repeat('d', 64), 'صورة الغلاف', 1600, 900),
        ('a/pose.png',  'pose.png',  'image/png',  50000,  repeat('e', 64), 'شخصية رقم', 800, 800),
        ('a/pdf.pdf',   'inv.pdf',   'application/pdf', 50000, repeat('f', 64), NULL, NULL, NULL);
 SELECT pg_temp.expect_fail('media: raster image without dimensions',
   $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
-    VALUES ('a/nodim.jpg', 'nodim.jpg', 'image/jpeg', 1000, repeat('7', 64), 'alt')$$);
+    VALUES ('a/nodim.jpg', 'nodim.jpg', 'image/jpeg', 1000, repeat('7', 64), 'alt')$$, 'media_assets_check2');
 SELECT pg_temp.expect_fail('media: video without dimensions',
   $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, duration_seconds)
-    VALUES ('v/nodim.mp4', 'nodim.mp4', 'video/mp4', 1000, repeat('8', 64), 30)$$);
+    VALUES ('v/nodim.mp4', 'nodim.mp4', 'video/mp4', 1000, repeat('8', 64), 30)$$, 'media_assets_check2');
 SELECT pg_temp.expect_fail('media: width without height',
   $$INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text, width)
-    VALUES ('a/half.svg', 'half.svg', 'image/svg+xml', 1000, repeat('9', 64), 'alt', 100)$$);
+    VALUES ('a/half.svg', 'half.svg', 'image/svg+xml', 1000, repeat('9', 64), 'alt', 100)$$, 'media_assets_check1');
 INSERT INTO media_assets (path, original_name, mime_type, size_bytes, checksum_sha256, alt_text)
 VALUES ('a/logo.svg', 'logo.svg', 'image/svg+xml', 3000, repeat('0', 64), 'شعار رقم'),
        ('a/raqam.riv', 'raqam.riv', 'application/x-rive', 90000, repeat('3', 64), NULL);
@@ -89,43 +111,43 @@ INSERT INTO categories (parent_id, name_ar, slug)
 SELECT id, 'بلدية نابلس', 'بلدية-نابلس' FROM categories WHERE slug = 'محلي-نابلس';
 SELECT pg_temp.expect_fail('categories: only one sub-level',
   $$INSERT INTO categories (parent_id, name_ar, slug)
-    SELECT id, 'مستوى ثالث', 'مستوى-ثالث' FROM categories WHERE slug = 'بلدية-نابلس'$$);
+    SELECT id, 'مستوى ثالث', 'مستوى-ثالث' FROM categories WHERE slug = 'بلدية-نابلس'$$, 'trg_categories_one_level');
 
 -- ---------------------------------------------------------------- posts
 INSERT INTO posts (kind_code, title, slug) VALUES ('news', 'مسودة بدون تصنيف', 'مسودة');
 SELECT pg_temp.expect_fail('posts: news cannot leave draft without a category',
   $$INSERT INTO posts (kind_code, title, slug, body, status, published_at, cover_media_id)
-    SELECT 'news', 't', 't', '<p>x</p>', 'published', now(), id FROM media_assets WHERE path = 'a/cover.jpg'$$);
+    SELECT 'news', 't', 't', '<p>x</p>', 'published', now(), id FROM media_assets WHERE path = 'a/cover.jpg'$$, 'trg_posts_kind_rules');
 SELECT pg_temp.expect_fail('posts: cannot publish without main image',
   $$INSERT INTO posts (kind_code, category_id, title, slug, body, status, published_at)
-    SELECT 'news', id, 't', 't', '<p>x</p>', 'published', now() FROM categories WHERE slug = 'فلسطين'$$);
+    SELECT 'news', id, 't', 't', '<p>x</p>', 'published', now() FROM categories WHERE slug = 'فلسطين'$$, 'posts_check1');
 SELECT pg_temp.expect_fail('posts: cannot publish without text',
   $$INSERT INTO posts (kind_code, category_id, title, slug, status, published_at, cover_media_id)
     SELECT 'news', c.id, 't', 't', 'published', now(), m.id FROM categories c, media_assets m
-    WHERE c.slug = 'فلسطين' AND m.path = 'a/cover.jpg'$$);
+    WHERE c.slug = 'فلسطين' AND m.path = 'a/cover.jpg'$$, 'posts_check2');
 INSERT INTO posts (kind_code, category_id, title, slug, body, status, published_at, cover_media_id)
 SELECT 'news', c.id, 'ارتفاع الدولار', 'ارتفاع-الدولار', '<p>نص</p>', 'published', now(), m.id
 FROM categories c, media_assets m WHERE c.slug = 'أسواق-ومال' AND m.path = 'a/cover.jpg';
 SELECT pg_temp.expect_fail('posts: kind cannot change',
-  $$UPDATE posts SET kind_code = 'report' WHERE slug = 'ارتفاع-الدولار'$$);
+  $$UPDATE posts SET kind_code = 'report' WHERE slug = 'ارتفاع-الدولار'$$, 'trg_posts_kind_rules');
 
 -- Subtype integrity
 SELECT pg_temp.expect_fail('subtype: episode row cannot attach to a news post',
   $$INSERT INTO podcast_seasons (season_number) VALUES (99);
     INSERT INTO podcast_episodes (post_id, season_id, episode_number)
-    SELECT p.id, s.id, 1 FROM posts p, podcast_seasons s WHERE p.slug = 'ارتفاع-الدولار' AND s.season_number = 99$$);
+    SELECT p.id, s.id, 1 FROM posts p, podcast_seasons s WHERE p.slug = 'ارتفاع-الدولار' AND s.season_number = 99$$, 'podcast_episodes_post_id_kind_code_fkey');
 
 -- Deferred check: a published episode must have its podcast_episodes row (checked at commit)
 SELECT pg_temp.expect_fail('subtype: published episode without episode row',
   $$SET CONSTRAINTS posts_subtype_present IMMEDIATE;
     INSERT INTO posts (kind_code, title, slug, body, status, published_at, cover_media_id)
-    SELECT 'episode', 'حلقة', 'حلقة', '<p>x</p>', 'published', now(), id FROM media_assets WHERE path = 'a/cover.jpg'$$);
+    SELECT 'episode', 'حلقة', 'حلقة', '<p>x</p>', 'published', now(), id FROM media_assets WHERE path = 'a/cover.jpg'$$, 'trg_posts_subtype_present');
 
 SELECT pg_temp.expect_fail('subtype: published infographic without its download row',
   $$SET CONSTRAINTS posts_subtype_present IMMEDIATE;
     INSERT INTO posts (kind_code, category_id, title, slug, body, status, published_at, cover_media_id)
     SELECT 'infographic', c.id, 'إنفوغراف', 'إنفوغراف', '<p>x</p>', 'published', now(), m.id
-    FROM categories c, media_assets m WHERE c.slug = 'فلسطين' AND m.path = 'a/cover.jpg'$$);
+    FROM categories c, media_assets m WHERE c.slug = 'فلسطين' AND m.path = 'a/cover.jpg'$$, 'trg_posts_subtype_present');
 
 BEGIN;
   INSERT INTO podcast_seasons (season_number, title_ar) VALUES (1, 'الموسم الأول');
@@ -138,7 +160,7 @@ COMMIT;
 SELECT pg_temp.expect_fail('podcast: duplicate episode number in a season',
   $$INSERT INTO posts (kind_code, title, slug) VALUES ('episode', 'مكرر', 'مكرر');
     INSERT INTO podcast_episodes (post_id, season_id, episode_number)
-    SELECT p.id, s.id, 1 FROM posts p, podcast_seasons s WHERE p.slug = 'مكرر' AND s.season_number = 1$$);
+    SELECT p.id, s.id, 1 FROM posts p, podcast_seasons s WHERE p.slug = 'مكرر' AND s.season_number = 1$$, 'podcast_episodes_season_id_episode_number_key');
 
 -- Awareness card: character is reached through the pose (no duplicate character_id)
 INSERT INTO characters (name_ar, slug, role_ar, accent_color) VALUES ('رَقَم', 'raqam', 'الراوي', '#0B3D5C');
@@ -146,17 +168,17 @@ INSERT INTO character_poses (character_id, pose_type_code, static_media_id)
 SELECT c.id, 'explaining', m.id FROM characters c, media_assets m WHERE c.slug = 'raqam' AND m.path = 'a/pose.png';
 SELECT pg_temp.expect_fail('characters: same pose twice for one character',
   $$INSERT INTO character_poses (character_id, pose_type_code, static_media_id)
-    SELECT c.id, 'explaining', m.id FROM characters c, media_assets m WHERE c.slug = 'raqam' AND m.path = 'a/pose.png'$$);
+    SELECT c.id, 'explaining', m.id FROM characters c, media_assets m WHERE c.slug = 'raqam' AND m.path = 'a/pose.png'$$, 'character_poses_character_id_pose_type_code_key');
 
 -- ---------------------------------------------------------------- video
 SELECT pg_temp.expect_fail('video: upload without a file',
-  $$INSERT INTO videos (source, display_title) VALUES ('upload', 'مقطع')$$);
+  $$INSERT INTO videos (source, display_title) VALUES ('upload', 'مقطع')$$, 'videos_check');
 INSERT INTO videos (source) VALUES ('youtube');
 INSERT INTO youtube_videos (video_id, youtube_id, source_title)
 SELECT max(id), 'dQw4w9WgXcQ', 'Episode 1' FROM videos;
 SELECT pg_temp.expect_fail('video: bad YouTube id',
   $$INSERT INTO videos (source) VALUES ('youtube');
-    INSERT INTO youtube_videos (video_id, youtube_id, source_title) SELECT max(id), 'bad id!', 'x' FROM videos$$);
+    INSERT INTO youtube_videos (video_id, youtube_id, source_title) SELECT max(id), 'bad id!', 'x' FROM videos$$, 'youtube_videos_youtube_id_check');
 INSERT INTO playlists (name_ar, slug) VALUES ('الموسم الأول', 'season-1');
 WITH v AS (INSERT INTO videos (source) VALUES ('youtube') RETURNING id)
 INSERT INTO youtube_videos (video_id, youtube_id, source_title) SELECT id, 'abcdefghijk', 'Episode 2' FROM v;
@@ -171,7 +193,7 @@ SELECT pg_temp.expect_eq('playlist: swap positions (deferrable unique)',
   (SELECT string_agg(video_id::text, ',' ORDER BY video_id DESC) FROM youtube_videos));
 SELECT pg_temp.expect_fail('playlist: same position twice is refused at commit',
   $$SET CONSTRAINTS playlist_videos_position_uq IMMEDIATE;
-    UPDATE playlist_videos SET sort_order = 1$$);
+    UPDATE playlist_videos SET sort_order = 1$$, 'playlist_videos_position_uq');
 
 -- ---------------------------------------------------------------- currency
 INSERT INTO exchange_rates (currency_code, provider_code, mid_rate, effective_at) VALUES
@@ -188,52 +210,52 @@ SELECT pg_temp.expect_eq('rate_board: manual override wins',
   (SELECT buy_rate::text || '/' || is_manual FROM rate_board WHERE currency_code = 'USD'), '3.7000000000/true');
 SELECT pg_temp.expect_fail('rate_overrides: overlapping periods refused (EXCLUDE)',
   $$INSERT INTO rate_overrides (currency_code, buy_rate, sell_rate, valid_from)
-    VALUES ('USD', 3.6, 3.9, now() + interval '1 hour')$$);
+    VALUES ('USD', 3.6, 3.9, now() + interval '1 hour')$$, 'rate_overrides_no_overlap');
 SELECT pg_temp.expect_fail('rate_overrides: sell below buy',
   $$INSERT INTO rate_overrides (currency_code, buy_rate, sell_rate, valid_from)
-    VALUES ('JOD', 5.3, 5.2, now())$$);
+    VALUES ('JOD', 5.3, 5.2, now())$$, 'rate_overrides_check');
 SELECT pg_temp.expect_fail('exchange_rates: ILS against itself',
-  $$INSERT INTO exchange_rates (currency_code, provider_code, mid_rate, effective_at) VALUES ('ILS', 'bank_of_israel', 1, now())$$);
+  $$INSERT INTO exchange_rates (currency_code, provider_code, mid_rate, effective_at) VALUES ('ILS', 'bank_of_israel', 1, now())$$, 'exchange_rates_currency_code_check');
 SELECT pg_temp.expect_eq('pegs: AED derived from USD (3.75 / 3.6725)',
   (SELECT round(mid_rate, 4)::text || '/' || is_pegged FROM rate_board WHERE currency_code = 'AED'), '1.0211/true');
 SELECT pg_temp.expect_eq('pegs: SAR derived from USD (3.75 / 3.75)',
   (SELECT round(mid_rate, 4)::text FROM rate_board WHERE currency_code = 'SAR'), '1.0000');
 SELECT pg_temp.expect_fail('pegs: a pegged currency cannot be fetched separately',
-  $$INSERT INTO exchange_rates (currency_code, provider_code, mid_rate, effective_at) VALUES ('AED', 'bank_of_israel', 1.02, now())$$);
+  $$INSERT INTO exchange_rates (currency_code, provider_code, mid_rate, effective_at) VALUES ('AED', 'bank_of_israel', 1.02, now())$$, 'trg_exchange_rates_not_pegged');
 
 -- ---------------------------------------------------------------- weather
 SELECT pg_temp.expect_fail('weather: only one default city',
-  $$UPDATE weather_locations SET is_default = true WHERE city_id = (SELECT id FROM cities WHERE slug = 'جنين')$$);
+  $$UPDATE weather_locations SET is_default = true WHERE city_id = (SELECT id FROM cities WHERE slug = 'جنين')$$, 'weather_locations_one_default_uq');
 SELECT pg_temp.expect_fail('weather: unknown condition code',
   $$INSERT INTO weather_observations (city_id, provider_code, observed_at, temperature_c, condition_code, is_day)
-    SELECT id, 'openweathermap', now(), 22, 9999, true FROM cities WHERE slug = 'نابلس'$$);
+    SELECT id, 'openweathermap', now(), 22, 9999, true FROM cities WHERE slug = 'نابلس'$$, 'weather_observations_condition_code_fkey');
 
 -- ---------------------------------------------------------------- feature flags
 SELECT pg_temp.expect_fail('flags: payments need booking on',
-  $$UPDATE feature_flags SET is_enabled = true WHERE key = 'online_payments'$$);
+  $$UPDATE feature_flags SET is_enabled = true WHERE key = 'online_payments'$$, 'trg_feature_flags_dependency');
 UPDATE feature_flags SET is_enabled = true WHERE key = 'booking';
 UPDATE feature_flags SET is_enabled = true WHERE key = 'online_payments';
 SELECT pg_temp.expect_fail('flags: cannot switch booking off while payments on',
-  $$UPDATE feature_flags SET is_enabled = false WHERE key = 'booking'$$);
+  $$UPDATE feature_flags SET is_enabled = false WHERE key = 'booking'$$, 'trg_feature_flags_dependency');
 SELECT pg_temp.expect_fail('settings: invalid e-mail refused (email_address domain)',
-  $$UPDATE settings SET value = 'raqam.ps' WHERE key = 'contact.email'$$);
+  $$UPDATE settings SET value = 'raqam.ps' WHERE key = 'contact.email'$$, 'email_address_check');
 SELECT pg_temp.expect_fail('settings: local phone refused (phone_e164 domain)',
-  $$UPDATE settings SET value = '0599123456' WHERE key = 'contact.phone'$$);
+  $$UPDATE settings SET value = '0599123456' WHERE key = 'contact.phone'$$, 'phone_e164_check');
 UPDATE settings SET value = 'info@raqam.ps' WHERE key = 'contact.email';
 UPDATE settings SET value = '+970599123456' WHERE key = 'contact.phone';
 SELECT pg_temp.expect_fail('providers: two primary currency providers',
-  $$UPDATE data_providers SET is_active = true, is_backup = false WHERE code = 'exchangerate_api'$$);
+  $$UPDATE data_providers SET is_active = true, is_backup = false WHERE code = 'exchangerate_api'$$, 'data_providers_one_primary_uq');
 
 -- ---------------------------------------------------------------- services
 SELECT pg_temp.expect_fail('services: "on request" must not have a price',
   $$INSERT INTO services (group_id, name_ar, slug, summary, price_mode, price_amount, currency_code)
-    VALUES (1, 'x', 'x', 'x', 'on_request', 12345, 'USD')$$);
+    VALUES (1, 'x', 'x', 'x', 'on_request', 12345, 'USD')$$, 'services_check');
 SELECT pg_temp.expect_fail('services: no special offer on a price "on request"',
   $$INSERT INTO services (group_id, name_ar, slug, summary, price_mode, sale_price_amount, sale_ends_at)
-    VALUES (1, 'z', 'z', 'z', 'on_request', 9999, now() + interval '7 days')$$);
+    VALUES (1, 'z', 'z', 'z', 'on_request', 9999, now() + interval '7 days')$$, 'services_check3');
 SELECT pg_temp.expect_fail('services: sale price must be lower',
   $$INSERT INTO services (group_id, name_ar, slug, summary, price_mode, price_amount, currency_code, sale_price_amount, sale_ends_at)
-    VALUES (1, 'y', 'y', 'y', 'fixed', 12345, 'USD', 23456, now() + interval '7 days')$$);
+    VALUES (1, 'y', 'y', 'y', 'fixed', 12345, 'USD', 23456, now() + interval '7 days')$$, 'services_check3');
 INSERT INTO services (group_id, name_ar, slug, summary, price_mode, price_amount, currency_code, price_note)
 VALUES (1, 'حلقة بودكاست', 'حلقة-بودكاست', 'استضافة في حلقة', 'fixed', 12345, 'USD', 'للحلقة');   -- made-up amounts throughout
 
@@ -246,14 +268,14 @@ INSERT INTO bookings (service_id, customer_id, preferred_contact, details, price
                       access_token_hash, consent_at)
 SELECT s.id, c.id, 'whatsapp', 'تفاصيل', s.price_amount, s.currency_code, repeat('1', 64), now()
 FROM services s, customers c WHERE s.slug = 'حلقة-بودكاست' AND c.email = 'sami@example.com';
-SELECT pg_temp.expect_eq('bookings: reference generated',
+SELECT pg_temp.expect_trigger('trg_bookings_reference', 'bookings: reference generated',
   (SELECT reference FROM bookings LIMIT 1), 'RQ-' || local_year() || '-00001');
-SELECT pg_temp.expect_eq('bookings: initial history row written',
+SELECT pg_temp.expect_trigger('trg_bookings_initial_history', 'bookings: initial history row written',
   (SELECT count(*)::text FROM booking_status_history), '1');
 SELECT pg_temp.expect_fail('bookings: direct status update refused',
-  $$UPDATE bookings SET status_code = 'confirmed'$$);
+  $$UPDATE bookings SET status_code = 'confirmed'$$, 'trg_bookings_guard_status');
 SELECT pg_temp.expect_fail('bookings: illegal transition new -> published',
-  $$INSERT INTO booking_status_history (booking_id, status_code) SELECT id, 'published' FROM bookings LIMIT 1$$);
+  $$INSERT INTO booking_status_history (booking_id, status_code) SELECT id, 'published' FROM bookings LIMIT 1$$, 'trg_booking_history_apply');
 INSERT INTO booking_status_history (booking_id, status_code, note) SELECT id, 'contacted', 'اتصلنا' FROM bookings LIMIT 1;
 SELECT pg_temp.expect_eq('bookings: legal transition applied',
   (SELECT status_code FROM bookings LIMIT 1), 'contacted');
@@ -264,7 +286,7 @@ INSERT INTO booking_attachments (booking_id, media_id)
 SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path IN ('b/1.pdf', 'b/2.pdf', 'b/3.pdf');
 SELECT pg_temp.expect_fail('bookings: a 4th attachment is refused',
   $$INSERT INTO booking_attachments (booking_id, media_id)
-    SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path = 'b/4.pdf'$$);
+    SELECT b.id, m.id FROM bookings b, media_assets m WHERE m.path = 'b/4.pdf'$$, 'trg_booking_attachments_limit');
 
 -- ---------------------------------------------------------------- payments & invoices
 INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status,
@@ -272,18 +294,18 @@ INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, am
 SELECT id, 'fake', 1, 'ORD-1', 12345, 'USD', 'captured', 'bk1-a1', now() FROM bookings LIMIT 1;
 SELECT pg_temp.expect_fail('payments: second successful payment for one booking',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key, paid_at)
-    SELECT id, 'fake', 2, 'ORD-2', 12345, 'USD', 'captured', 'bk1-a2', now() FROM bookings LIMIT 1$$);
+    SELECT id, 'fake', 2, 'ORD-2', 12345, 'USD', 'captured', 'bk1-a2', now() FROM bookings LIMIT 1$$, 'payments_one_success_per_booking_uq');
 INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key, paid_at)
 SELECT id, 'fake', 4, 'ORD-4', 12345, 'USD', 'duplicate', 'bk1-a4', now() FROM bookings LIMIT 1;
 SELECT pg_temp.expect_fail('payments: a duplicate payment was paid',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, status, idempotency_key)
-    SELECT id, 'fake', 5, 'ORD-5', 12345, 'USD', 'duplicate', 'bk1-a5' FROM bookings LIMIT 1$$);
+    SELECT id, 'fake', 5, 'ORD-5', 12345, 'USD', 'duplicate', 'bk1-a5' FROM bookings LIMIT 1$$, 'payments_check');
 SELECT pg_temp.expect_fail('payments: same idempotency key twice',
   $$INSERT INTO payments (booking_id, gateway_code, attempt_no, gateway_order_id, amount, currency_code, idempotency_key)
-    SELECT id, 'fake', 3, 'ORD-3', 12345, 'USD', 'bk1-a1' FROM bookings LIMIT 1$$);
+    SELECT id, 'fake', 3, 'ORD-3', 12345, 'USD', 'bk1-a1' FROM bookings LIMIT 1$$, 'payments_idempotency_key_key');
 INSERT INTO refunds (payment_id, amount, status) SELECT id, 2345, 'succeeded' FROM payments LIMIT 1;
 SELECT pg_temp.expect_fail('refunds: total cannot exceed payment',
-  $$INSERT INTO refunds (payment_id, amount) SELECT id, 10001 FROM payments LIMIT 1$$);
+  $$INSERT INTO refunds (payment_id, amount) SELECT id, 10001 FROM payments LIMIT 1$$, 'trg_refunds_not_exceed');
 
 INSERT INTO invoices (payment_id, billed_name, billed_email, currency_code, tax_rate_bp)
 SELECT p.id, 'سامي', 'sami@example.com', 'USD', 1600 FROM payments p LIMIT 1;
@@ -292,44 +314,44 @@ SELECT pg_temp.expect_eq('invoices: booking comes from the payment (no booking_i
    WHERE table_name = 'invoices' AND column_name = 'booking_id'), '0');
 INSERT INTO invoice_lines (invoice_id, line_no, description, quantity, unit_amount)
 SELECT id, 1, 'حلقة بودكاست', 1, 12345 FROM invoices;
-SELECT pg_temp.expect_eq('invoices: number generated',
+SELECT pg_temp.expect_trigger('trg_invoices_number', 'invoices: number generated',
   (SELECT number FROM invoices), 'INV-' || local_year() || '-00001');
 SELECT pg_temp.expect_eq('invoices: totals computed by view (16% VAT)',
   (SELECT subtotal || '/' || tax_amount || '/' || total_amount FROM invoice_totals), '12345/1975/14320');
 SELECT pg_temp.expect_fail('invoices: billed data immutable',
-  $$UPDATE invoices SET billed_name = 'غيره'$$);
+  $$UPDATE invoices SET billed_name = 'غيره'$$, 'trg_invoices_immutable');
 UPDATE invoices SET pdf_media_id = (SELECT id FROM media_assets WHERE path = 'a/pdf.pdf');
 SELECT pg_temp.expect_fail('invoices: PDF attached only once',
-  $$UPDATE invoices SET pdf_media_id = (SELECT id FROM media_assets WHERE path = 'a/cover.jpg')$$);
+  $$UPDATE invoices SET pdf_media_id = (SELECT id FROM media_assets WHERE path = 'a/cover.jpg')$$, 'trg_invoices_immutable');
 SELECT pg_temp.expect_fail('invoices: cannot delete',
-  $$DELETE FROM invoices$$);
+  $$DELETE FROM invoices$$, 'trg_invoices_immutable');
 SELECT pg_temp.expect_fail('invoice_lines: cannot change',
-  $$UPDATE invoice_lines SET unit_amount = 1$$);
+  $$UPDATE invoice_lines SET unit_amount = 1$$, 'trg_invoices_immutable');
 
 -- ---------------------------------------------------------------- chatbot, menus, home, newsletter
 INSERT INTO faqs (question, answer) VALUES ('كيف أعلن؟', 'تواصل معنا');
 SELECT pg_temp.expect_fail('bot: FAQ-backed entry must not repeat the text',
-  $$INSERT INTO bot_entries (faq_id, question, answer) SELECT id, 'q', 'a' FROM faqs LIMIT 1$$);
+  $$INSERT INTO bot_entries (faq_id, question, answer) SELECT id, 'q', 'a' FROM faqs LIMIT 1$$, 'bot_entries_check');
 INSERT INTO bot_entries (faq_id) SELECT id FROM faqs LIMIT 1;
 SELECT pg_temp.expect_fail('bot: service action needs a service',
-  $$INSERT INTO bot_entries (question, answer, action_type) VALUES ('q', 'a', 'service')$$);
+  $$INSERT INTO bot_entries (question, answer, action_type) VALUES ('q', 'a', 'service')$$, 'bot_entries_check1');
 SELECT pg_temp.expect_fail('bot: visitor message over 500 chars',
   $$INSERT INTO bot_conversations (session_hash) VALUES (repeat('2', 64));
-    INSERT INTO bot_messages (conversation_id, role, content) SELECT max(id), 'user', repeat('ا', 501) FROM bot_conversations$$);
+    INSERT INTO bot_messages (conversation_id, role, content) SELECT max(id), 'user', repeat('ا', 501) FROM bot_conversations$$, 'bot_messages_check');
 
 SELECT pg_temp.expect_fail('menu: item with two targets',
-  $$INSERT INTO menu_items (menu_id, label_ar, url, section_id) VALUES (1, 'x', '/x', 1)$$);
+  $$INSERT INTO menu_items (menu_id, label_ar, url, section_id) VALUES (1, 'x', '/x', 1)$$, 'menu_items_check');
 INSERT INTO menu_items (menu_id, label_ar, section_id) VALUES (1, 'البودكاست', 1);
 SELECT pg_temp.expect_fail('home: category block without category',
-  $$INSERT INTO home_blocks (block_type, sort_order) VALUES ('category', 1)$$);
+  $$INSERT INTO home_blocks (block_type, sort_order) VALUES ('category', 1)$$, 'home_blocks_check');
 SELECT pg_temp.expect_fail('newsletter: issue week must start on Saturday',
-  $$INSERT INTO newsletter_issues (week_start, subject) VALUES ('2026-10-12', 'x')$$);
+  $$INSERT INTO newsletter_issues (week_start, subject) VALUES ('2026-10-12', 'x')$$, 'newsletter_issues_week_start_check');
 SELECT pg_temp.expect_fail('subscribers: active without confirmation',
-  $$INSERT INTO subscribers (email, status, source_placement) VALUES ('n@example.com', 'active', 'footer')$$);
+  $$INSERT INTO subscribers (email, status, source_placement) VALUES ('n@example.com', 'active', 'footer')$$, 'subscribers_check');
 SELECT pg_temp.expect_fail('subscribers: consent without the form it came from (19.9)',
   $$INSERT INTO subscribers (email, status, confirmed_at) VALUES ('n@example.com', 'active', now())$$);
 SELECT pg_temp.expect_fail('subscribers: unknown form',
-  $$INSERT INTO subscribers (email, status, confirmed_at, source_placement) VALUES ('n@example.com', 'active', now(), 'popup')$$);
+  $$INSERT INTO subscribers (email, status, confirmed_at, source_placement) VALUES ('n@example.com', 'active', now(), 'popup')$$, 'subscribers_source_placement_check');
 INSERT INTO subscribers (email, status, confirmed_at, source_path, source_placement)
   VALUES ('n@example.com', 'active', now(), '/news/1/x', 'post_end');
 INSERT INTO subscribers (email, status, confirmed_at, source_path, source_placement)
@@ -340,13 +362,13 @@ INSERT INTO audit_log (actor_user_id, action, subject_table, subject_id)
 SELECT id, 'publish', 'posts', 2 FROM users WHERE user_type = 'staff';
 INSERT INTO audit_log_changes (audit_id, field, old_value, new_value)
 SELECT id, 'status', 'draft', 'published' FROM audit_log;
-SELECT pg_temp.expect_fail('audit: UPDATE refused', $$UPDATE audit_log SET action = 'update'$$);
-SELECT pg_temp.expect_fail('audit: DELETE refused', $$DELETE FROM audit_log$$);
-SELECT pg_temp.expect_fail('audit: change rows immutable', $$UPDATE audit_log_changes SET new_value = 'x'$$);
+SELECT pg_temp.expect_fail('audit: UPDATE refused', $$UPDATE audit_log SET action = 'update'$$, 'trg_audit_append_only');
+SELECT pg_temp.expect_fail('audit: DELETE refused', $$DELETE FROM audit_log$$, 'trg_audit_append_only');
+SELECT pg_temp.expect_fail('audit: change rows immutable', $$UPDATE audit_log_changes SET new_value = 'x'$$, 'trg_audit_append_only');
 SELECT pg_temp.expect_fail('audit: pruning young rows refused',
-  $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log$$);
+  $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log$$, 'trg_audit_append_only');
 SELECT pg_temp.expect_fail('audit: pruning changes of a young row refused',
-  $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log_changes$$);
+  $$SET LOCAL raqam.audit_prune = 'on'; DELETE FROM audit_log_changes$$, 'trg_audit_append_only');
 INSERT INTO audit_log (action, subject_table, subject_id, occurred_at)
 VALUES ('update', 'posts', 2, now() - interval '3 years');
 INSERT INTO audit_log_changes (audit_id, field, old_value, new_value)
@@ -365,12 +387,15 @@ REFRESH MATERIALIZED VIEW CONCURRENTLY post_view_totals;
 SELECT pg_temp.expect_eq('analytics: total views from materialized view',
   (SELECT total_views::text FROM post_view_totals t JOIN posts p ON p.id = t.post_id WHERE p.slug = 'ارتفاع-الدولار'), '100');
 SELECT pg_temp.expect_fail('analytics: unique visitors > page views',
-  $$INSERT INTO site_stats_daily VALUES (current_date, 10, 11)$$);
+  $$INSERT INTO site_stats_daily VALUES (current_date, 10, 11)$$, 'site_stats_daily_check');
 
 -- ---------------------------------------------------------------- updated_at trigger
-UPDATE posts SET title = title || ' ' WHERE slug = 'مسودة';
-SELECT pg_temp.expect_eq('updated_at refreshed by trigger',
-  (SELECT (updated_at >= created_at)::text FROM posts WHERE slug = 'مسودة'), 'true');
+-- Made a day old, so only the trigger can bring updated_at back to the present (a default would not).
+INSERT INTO authors (name, slug, created_at, updated_at)
+VALUES ('كاتب قديم', 'old-author', now() - interval '1 day', now() - interval '1 day');
+UPDATE authors SET name = 'كاتب قديم جدا' WHERE slug = 'old-author';
+SELECT pg_temp.expect_trigger('trg_set_updated_at', 'updated_at refreshed by trigger',
+  (SELECT (updated_at > now() - interval '1 minute')::text FROM authors WHERE slug = 'old-author'), 'true');
 
 -- ---------------------------------------------------------------- fixes from the 2026-10-12 review
 -- Arabic fallback search: hamza variant + missing letter still find the article
@@ -385,7 +410,7 @@ SELECT pg_temp.expect_eq('search: typo «الدولر» still matches (trigram)'
 INSERT INTO post_body_media (post_id, media_id)
 SELECT p.id, m.id FROM posts p, media_assets m WHERE p.slug = 'ارتفاع-الدولار' AND m.path = 'a/pose.png';
 SELECT pg_temp.expect_fail('body media: image used in an article cannot be deleted',
-  $$DELETE FROM media_assets WHERE path = 'a/pose.png'$$);
+  $$DELETE FROM media_assets WHERE path = 'a/pose.png'$$, 'character_poses_static_media_id_fkey');
 INSERT INTO post_body_videos (post_id, video_id)
 SELECT p.id, y.video_id FROM posts p, youtube_videos y WHERE p.slug = 'ارتفاع-الدولار' AND y.youtube_id = 'dQw4w9WgXcQ';
 SELECT pg_temp.expect_eq('video_usage: body embed is listed',
@@ -393,35 +418,28 @@ SELECT pg_temp.expect_eq('video_usage: body embed is listed',
 
 -- House ad for empty slots
 SELECT pg_temp.expect_fail('house ad: needs at least one image',
-  $$INSERT INTO house_ads (placement_code) VALUES ('sidebar_mpu')$$);
+  $$INSERT INTO house_ads (placement_code) VALUES ('sidebar_mpu')$$, 'house_ads_check');
 INSERT INTO house_ads (placement_code, desktop_media_id)
 SELECT 'sidebar_mpu', id FROM media_assets WHERE path = 'a/cover.jpg';
 
 -- Team page ordering
 INSERT INTO authors (name, slug, job_title, team_sort_order) VALUES ('محرر رقم', 'editor', 'رئيس التحرير', 1);
 SELECT pg_temp.expect_fail('team: negative order refused',
-  $$INSERT INTO authors (name, slug, team_sort_order) VALUES ('x', 'x', -1)$$);
+  $$INSERT INTO authors (name, slug, team_sort_order) VALUES ('x', 'x', -1)$$, 'authors_team_sort_order_check');
 
 -- ---------------------------------------------------------------- queue bookkeeping (Laravel)
 INSERT INTO failed_jobs (uuid, connection, queue, payload, exception)
 VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1e', 'redis', 'default', '{}', 'RuntimeException');
 SELECT pg_temp.expect_fail('failed_jobs: same uuid twice',
   $$INSERT INTO failed_jobs (uuid, connection, queue, payload, exception)
-    VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1e', 'redis', 'default', '{}', 'x')$$);
+    VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1e', 'redis', 'default', '{}', 'x')$$, 'failed_jobs_uuid_key');
 SELECT pg_temp.expect_fail('job_batches: negative pending count',
   $$INSERT INTO job_batches (id, name, total_jobs, pending_jobs, failed_jobs, failed_job_ids, created_at)
-    VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1f', 'newsletter', 1, -1, 0, '[]', 1760000000)$$);
+    VALUES ('0192f0c4-5b7e-7c1a-9d3e-2f4a6b8c0d1f', 'newsletter', 1, -1, 0, '[]', 1760000000)$$, 'job_batches_pending_jobs_check');
 
 -- ---------------------------------------------------------------- statistics reference
 -- 22.6 and the answer engines of phase 10b: eleven sources and five answer engines.
 SELECT pg_temp.expect_eq('traffic sources: 16 seeded',
   (SELECT count(*)::text FROM traffic_sources), '16');
 SELECT pg_temp.expect_fail('traffic sources: a code is lower-case letters only',
-  $$INSERT INTO traffic_sources (code, name_ar) VALUES ('answer-1', 'محرك')$$);
-
--- ---------------------------------------------------------------- report
-\o
-\set QUIET off
-SELECT n AS "#", CASE WHEN ok THEN 'PASS' ELSE 'FAIL' END AS result, label, left(detail, 90) AS detail
-FROM test_results ORDER BY n;
-SELECT count(*) FILTER (WHERE ok) AS passed, count(*) FILTER (WHERE NOT ok) AS failed FROM test_results;
+  $$INSERT INTO traffic_sources (code, name_ar) VALUES ('answer-1', 'محرك')$$, 'traffic_sources_code_check');
