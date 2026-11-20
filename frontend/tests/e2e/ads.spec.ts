@@ -23,7 +23,10 @@ const markers = { popup: "raqam:ad-popup", bar: "data-ad-bar-box" };
 const isWide = (page: Page) => page.viewportSize()!.width >= 1024;
 const isPhone = (page: Page) => page.viewportSize()!.width < 768;
 
-/** Every script the page loads, with its body, and whether one was asked for after the page's load event. */
+/**
+ * Every script the page loads, with its body, and whether one was asked for after the page's load event. A script is
+ * listed once its body is read, which can end after the code has already run and drawn: wait for it with expect.poll.
+ */
 function recordScripts(page: Page) {
   const scripts: { url: string; body: string }[] = [];
   page.on("response", async (r) => {
@@ -184,7 +187,7 @@ test.describe("the phone's bar", () => {
       await expect(bar(page)).toHaveCount(0);
       expect(scripts.holding(markers.bar)).toEqual([]);
       await scrollUntil(page, bar(page));
-      expect(scripts.holding(markers.bar)).toHaveLength(1);
+      await expect.poll(() => scripts.holding(markers.bar).length).toBe(1);
       expect(await scripts.afterLoad(scripts.holding(markers.bar)[0])).toBe(true);
 
       const box = (await bar(page).boundingBox())!;
@@ -215,7 +218,7 @@ test.describe("the phone's bar", () => {
     expect(await page.evaluate(() => document.readyState), "the scrolls came before the load").not.toBe("complete");
     await page.waitForLoadState("load");
     await expect(bar(page)).toBeVisible({ timeout: 10_000 });
-    expect(scripts.holding(markers.bar)).toHaveLength(1);
+    await expect.poll(() => scripts.holding(markers.bar).length).toBe(1);
     expect(await scripts.afterLoad(scripts.holding(markers.bar)[0])).toBe(true);
   });
 
