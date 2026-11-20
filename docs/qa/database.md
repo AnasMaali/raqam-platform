@@ -35,11 +35,9 @@ The full table, rule by rule with its tests, is [database-coverage.md](database-
 `database/tests/coverage-table.sh`.
 
 **Stand-ins.** Three rules can never be the one that refuses, because another rule always refuses the same rows first.
-Each counts through that other rule, with the reason written in `coverage.sql`:
-- `settings_check5` and `settings_check6` cast the value to `email_address` and `phone_e164`. A bad value fails the cast
-  (the domain refuses it) before the CHECK can be false.
-- `rate_overrides_sell_rate_check` (`sell_rate > 0`) follows from `buy_rate > 0` and `sell_rate >= buy_rate`, which
-  PostgreSQL checks first.
+`settings_check2`, `settings_check5` and `settings_check6` cast a url, e-mail or phone setting to `url_text`,
+`email_address` and `phone_e164`. A bad value fails the cast (the domain refuses it) before the CHECK can be false, so
+each counts through its domain, with the reason written in `coverage.sql`.
 
 **Mutation sweep.** Each of the 242 rules was dropped in turn on a fresh copy of the schema, and the whole suite run:
 - 242 of 242 made it fail.
@@ -47,7 +45,9 @@ Each counts through that other rule, with the reason written in `coverage.sql`:
   - the subtype rows pointed at a post of another kind, so the composite key refused them too. Now they point at a post
     of the kind they claim, and only the CHECK stands between, say, a podcast episode row and a success story's post;
   - a zero buy rate also met the EXCLUDE of an existing override;
-  - two CHECKs are implied by others (below).
+  - two CHECKs were implied by others, so dropping them changed nothing. They are gone now (decision QA-7):
+    `page_views >= 0` follows from the rules on `unique_visitors`, and `searches >= 0` from those on
+    `zero_result_searches`. The tests of a negative count are named after the rule that refuses it now.
 
 Defects found in the tests themselves:
 - **`updated_at refreshed by trigger`** compared `updated_at >= created_at`. That holds with or without the trigger:
@@ -55,6 +55,19 @@ Defects found in the tests themselves:
   trigger can bring it back to the present.
 - **The two "published post without its subtype row" tests** counted the error of `SET CONSTRAINTS` (the trigger was
   missing) as the trigger's refusal. They are now named after the trigger, and fail without it.
+
+**The decisions of QA-7**, each with its test first and a mutation:
+- **NaN.** A `numeric` column takes `'NaN'`, and PostgreSQL counts NaN as larger than any number, so a CHECK of
+  `> 0` let it through. The fix is `col > 0 AND col < 'Infinity'` (NaN is not below Infinity) on:
+  - exchange rates, pegs and overrides;
+  - invoice quantities;
+  - media durations;
+  - wind speeds.
+
+  Forecasts get the observations' range (-60 to 70 °C). Infinity does not fit those columns' precision, so the column
+  itself already refuses it; the tests show both.
+- **The url setting** is read as `url_text`, so `'https:// not a url'` is refused.
+- **The two implied CHECKs** are dropped.
 
 ## Integrity of the demo data
 
@@ -155,11 +168,21 @@ and the second silently overwrote the first. That is the very case the guard is 
 ## Arabic order
 
 Lists of names come back in the database's order: the API's authors and guests, the panel's pickers and tables, about
-25 places. The local databases are made with the C locale, which orders by code point, so «أحمد» comes before
-«إبراهيم»: every hamza form of the alef counts as its own letter. CI's `postgres:16` image makes its databases with
-another locale. `backend/tests/Feature/Schema/ArabicCollationTest.php` asks the API for twelve names and expects an
-Arabic reader's order, the one PostgreSQL's ICU Arabic collation (`ar-x-icu`) gives. It prints the database's collation
-when it fails. It fails locally today; which order, and where to set it, is the owner's decision (QA-7 report).
+25 places. Neither of the platform's databases ordered them the way an Arabic reader would:
+- the local ones are made with the C locale, which orders by code point;
+- CI's `postgres:16` image makes them with `en_US.utf8`.
+
+Both put «أحمد» before «إبراهيم»: every hamza form of the alef counted as its own letter.
+
+The fix (decision QA-7): the 11 columns lists are ordered by carry `COLLATE "ar-x-icu"` themselves, so the order no
+longer depends on how the database was made. Slugs, codes and e-mails do not, and neither does the database.
+`ArabicCollationTest`:
+- asks the API for twelve names and expects ICU's order, checked on PostgreSQL 16 before it was written (آمنة, then
+  إبراهيم, then أحمد);
+- requires exactly those 11 columns to carry the collation.
+
+ICU is now a deployment requirement, with the REINDEX to run after an ICU upgrade ([deployment-requirements.md, "PostgreSQL
+with ICU"](../deployment-requirements.md#postgresql-with-icu-and-arabic-names-in-order)).
 
 ## Time zones
 
@@ -171,18 +194,41 @@ when it fails. It fails locally today; which order, and where to set it, is the 
 - **The session speaks UTC:** the connection sets it (`config/database.php`), and the local server's own zone is
   Asia/Jerusalem.
 
+## A whole index on every foreign key
+
+Five foreign keys had only a partial index (`WHERE deleted_at IS NULL`, `WHERE read_at IS NULL`...). A partial index
+does not serve the key's own look-ups, made when a parent row is deleted or its key changes.
+
+What was done (decision QA-7):
+- **The test** (`AutomationSchemaTest`) asks for a whole, valid index.
+- **The safety net** in `11-triggers-updated-at.sql` makes an index for any key without one. It too counts only whole
+  ones now.
+- **Each of the five has its whole index.**
+
+Each partial index was kept only where a plan uses it. Measured on raqam_qa's index statistics from the QA crawls,
+and on a copy grown to 37k posts, 50k bookings and 50k notifications:
+
+| Partial index | Used | Kept |
+|---|---|---|
+| `posts_kind_published_idx` | 24 033 scans; the kind lists | yes |
+| `posts_category_published_idx` | 0 scans; the category list uses `posts_published_idx` even at 37k posts | **no, dropped** |
+| `services_group_idx` | 1031 scans | yes |
+| `bookings_status_idx` | the inbox by status at 50k bookings | yes |
+| `admin_notifications_unread_idx` | the unread count and list | yes |
+
 ## The application's role
 
 [deployment-requirements.md, "The database roles"](../deployment-requirements.md#the-database-roles):
 - the owner and the application;
 - `database/roles/production-roles.sql`;
-- `database/roles/check-roles.sh`: 35 of its 36 checks pass. The one open point is that the application cannot
-  refresh the view totals.
+- `database/roles/check-roles.sh`: 40 of 40. The application refreshes the view totals through the owner's
+  `refresh_post_view_totals()` (decision QA-7), and still cannot refresh the view itself, drop it or replace the
+  function.
 
 The check ran on a server of its own (a scratch cluster, then CI). Signed in as the application role on a copy of the
 QA data:
 - all 52 API endpoints answered;
-- every scheduled command ran, apart from that refresh.
+- every scheduled command ran, `stats:flush` included once it called the function.
 
 **Mutations:** each weakened grant was caught:
 - the audit log made updatable;
@@ -191,7 +237,10 @@ QA data:
 - the migrations list made writable;
 - the PDF column's grant left out;
 - views made writable;
-- a sequence right given.
+- a sequence right given;
+- the function's grant left out;
+- the function made runnable by PUBLIC;
+- the function without SECURITY DEFINER.
 
 ## Size and growth
 
@@ -206,7 +255,7 @@ The figures are upper bounds: small tables carry their pages' and indexes' fixed
 | Table | Rows a year | Size a year | Kept |
 |---|---|---|---|
 | `post_views_daily` | ~117 000 (up to ~294 000 when every published post is read every day) | ~12 MB (≤ 25 MB) | every row (the statistics by period) |
-| `weather_observations` | ~22 700 | ≤ 11 MB | every row: **not cleaned** (only today's are read) |
+| `weather_observations` | ~22 700 | ≤ 1 MB kept (30 days) | 30 days (only today's are read) |
 | `posts` | ~2 000 | ~10 MB | binned ones purged after 90 days |
 | `post_revisions` | ~4 000 | ~4 MB | the last 100 of each post |
 | `audit_log` + `audit_log_changes` | ~6 000 + ~22 000 | ~4 MB | 2 years |
@@ -214,17 +263,21 @@ The figures are upper bounds: small tables carry their pages' and indexes' fixed
 | the other daily statistics | ~35 000 | ~5 MB | every row |
 | everything else | | ~3 MB | |
 
-About 50 MB a year at most. Today's 47 MB would be about 100 MB after the first year: no concern for one server. The
+About 40 MB a year at most. Today's 47 MB would be about 90 MB after the first year: no concern for one server. The
 media files are on their disk or R2, not in the database.
 
 `backend/tests/Feature/Schema/TableGrowthTest.php` puts every table into one of three groups:
-- **Cleaned:** 13 tables, each with its scheduled command or its cap, and the file that does it.
-- **Kept, with the reason written:** 29 tables.
+- **Cleaned:** 15 tables, each with its scheduled command or its cap, and the file that does it (its query on the
+  table, not just its name).
+- **Kept, with the reason written:** 27 tables.
 - **People's:** 89 tables, which grow only with what editors, admins, customers or the reference data add.
 
 A new table must be placed. Mutations caught: a cleaning unscheduled, a new table unplaced, a cascade the cleaning
-relies on removed. Two tables are kept for want of a decision rather than by one: `weather_observations` and
-`admin_notifications` (QA-7 report).
+relies on removed, a cleaning's query gone.
+
+`retention:prune` also cleans two more tables (decision QA-7):
+- weather readings after 30 days;
+- an admin's notifications 90 days after they were read. An unread one is never deleted automatically.
 
 ## Rolling back with data
 

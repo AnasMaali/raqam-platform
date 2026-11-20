@@ -54,7 +54,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `currencies_minor_units_check` | currencies | currencies: more than 4 minor units is refused; currencies: negative minor units are refused |
 | check | `currency_pegs_check` | currency_pegs | currency_pegs: a currency pegged to itself |
 | check | `currency_pegs_check1` | currency_pegs | currency_pegs: ILS as the anchor; currency_pegs: ILS as the pegged currency |
-| check | `currency_pegs_units_per_anchor_check` | currency_pegs | currency_pegs: zero units per anchor |
+| check | `currency_pegs_units_per_anchor_check` | currency_pegs | currency_pegs: zero units per anchor; currency_pegs: NaN units per anchor are refused |
 | check | `data_providers_code_check` | data_providers | data_providers: a code with a dash is refused |
 | check | `data_providers_service_check` | data_providers | data_providers: an unknown service is refused |
 | check | `device_stats_daily_device_type_check` | device_stats_daily | device_stats_daily: unknown device type refused |
@@ -73,7 +73,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `event_types_code_check` | event_types | event_types: code with digits or capitals refused |
 | check | `exchange_rates_check` | exchange_rates | exchange_rates: published more than a day after it was fetched |
 | check | `exchange_rates_currency_code_check` | exchange_rates | exchange_rates: ILS against itself |
-| check | `exchange_rates_mid_rate_check` | exchange_rates | exchange_rates: rate of zero |
+| check | `exchange_rates_mid_rate_check` | exchange_rates | exchange_rates: rate of zero; exchange_rates: a NaN rate is refused |
 | check | `feature_flags_check` | feature_flags | feature_flags: a flag cannot depend on itself |
 | check | `feature_flags_key_check` | feature_flags | feature_flags: a key with digits is refused |
 | check | `guest_roles_code_check` | guest_roles | guest_roles: code must be lower-case latin letters only |
@@ -91,7 +91,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `initiatives_kind_code_check` | initiatives | initiatives: subtype row with a kind other than initiative |
 | check | `initiatives_status_check` | initiatives | initiatives: status other than ongoing or ended |
 | check | `invoice_lines_line_no_check` | invoice_lines | invoice_lines: line number must be positive |
-| check | `invoice_lines_quantity_check` | invoice_lines | invoice_lines: quantity must be above zero |
+| check | `invoice_lines_quantity_check` | invoice_lines | invoice_lines: quantity must be above zero; invoice_lines: a NaN quantity is refused |
 | check | `invoices_number_seq_check` | invoices | invoices: a number below 1 is refused even without the number trigger |
 | check | `job_batches_failed_jobs_check` | job_batches | job_batches: a negative failed-job count is refused |
 | check | `job_batches_pending_jobs_check` | job_batches | job_batches: negative pending count |
@@ -106,7 +106,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `media_assets_check5` | media_assets | media_assets: a PDF over 20 MB is refused |
 | check | `media_assets_check6` | media_assets | media: uploaded clip longer than 90 s; media_assets: an uploaded clip over 30 MB is refused; media_assets: an uploaded clip without a duration is refused |
 | check | `media_assets_disk_check` | media_assets | media_assets: an unknown storage disk is refused |
-| check | `media_assets_duration_seconds_check` | media_assets | media_assets: a zero duration is refused |
+| check | `media_assets_duration_seconds_check` | media_assets | media_assets: a zero duration is refused; media_assets: a NaN duration is refused |
 | check | `media_assets_focal_x_check` | media_assets | media_assets: focal x above 1 is refused |
 | check | `media_assets_focal_y_check` | media_assets | media_assets: a negative focal y is refused |
 | check | `media_assets_height_check` | media_assets | media_assets: a zero height is refused |
@@ -157,10 +157,10 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `provider_health_consecutive_failures_check` | provider_health | provider_health: a negative failure count is refused |
 | check | `rate_board_currencies_currency_code_check` | rate_board_currencies | rate_board_currencies: ILS is the quote currency, never on the board |
 | check | `rate_board_currencies_display_decimals_check` | rate_board_currencies | rate_board_currencies: more than 6 decimals; rate_board_currencies: negative decimals |
-| check | `rate_overrides_buy_rate_check` | rate_overrides | rate_overrides: buy rate of zero |
+| check | `rate_overrides_buy_rate_check` | rate_overrides | rate_overrides: buy rate of zero; rate_overrides: a NaN buy rate is refused |
 | check | `rate_overrides_check` | rate_overrides | rate_overrides: sell below buy; rate_overrides: sell rate of zero (refused as below the buy rate) |
 | check | `rate_overrides_check1` | rate_overrides | rate_overrides: end not after the start |
-| check | `rate_overrides_sell_rate_check` | rate_overrides | through `rate_overrides_check`: sell_rate > 0 follows from buy_rate > 0 and sell_rate >= buy_rate, which PostgreSQL checks first (by name) |
+| check | `rate_overrides_sell_rate_check` | rate_overrides | rate_overrides: a NaN sell rate is refused |
 | check | `redirects_check` | redirects | redirects: a 410 with a target refused; redirects: a 301 without a target refused |
 | check | `redirects_check1` | redirects | redirects: a path redirecting to itself refused |
 | check | `redirects_from_path_check` | redirects | redirects: source path without a leading slash refused |
@@ -172,8 +172,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `roles_code_check` | roles | roles: a code with digits or dashes is refused; roles: an upper-case code is refused |
 | check | `roundtable_sessions_kind_code_check` | roundtable_sessions | roundtable_sessions: subtype row with a kind other than roundtable |
 | check | `search_stats_daily_check` | search_stats_daily | search_stats_daily: more zero-result searches than searches refused |
-| check | `search_stats_daily_searches_check` | search_stats_daily | search_stats_daily: negative searches refused |
-| check | `search_stats_daily_zero_result_searches_check` | search_stats_daily | search_stats_daily: negative zero-result searches refused |
+| check | `search_stats_daily_zero_result_searches_check` | search_stats_daily | search_stats_daily: negative zero-result searches refused; search_stats_daily: negative searches refused (through zero_result_searches >= 0) |
 | check | `sections_key_check` | sections | sections: key outside the seven sections |
 | check | `service_contact_clicks_daily_channel_check` | service_contact_clicks_daily | service_contact_clicks_daily: unknown channel refused |
 | check | `service_contact_clicks_daily_clicks_check` | service_contact_clicks_daily | service_contact_clicks_daily: negative clicks refused |
@@ -184,7 +183,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `services_price_mode_check` | services | services: unknown price mode |
 | check | `settings_check` | settings | settings: an integer setting refuses text |
 | check | `settings_check1` | settings | settings: a boolean setting refuses yes |
-| check | `settings_check2` | settings | settings: a url setting refuses another scheme |
+| check | `settings_check2` | settings | through `url_text_check`: value::url_text: a bad address fails the cast, refused by the domain, before the CHECK is false |
 | check | `settings_check3` | settings | settings: a time setting refuses 24:00 |
 | check | `settings_check4` | settings | settings: a media setting refuses a non-number |
 | check | `settings_check5` | settings | through `email_address_check`: value::email_address: a bad e-mail fails the cast, refused by the domain, before the CHECK is false |
@@ -192,8 +191,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `settings_key_check` | settings | settings: a key without group.name is refused; settings: a group name with digits is refused |
 | check | `settings_value_type_check` | settings | settings: an unknown value type is refused |
 | check | `site_stats_daily_check` | site_stats_daily | analytics: unique visitors > page views |
-| check | `site_stats_daily_page_views_check` | site_stats_daily | site_stats_daily: negative page views refused |
-| check | `site_stats_daily_unique_visitors_check` | site_stats_daily | site_stats_daily: negative unique visitors refused |
+| check | `site_stats_daily_unique_visitors_check` | site_stats_daily | site_stats_daily: negative unique visitors refused; site_stats_daily: negative page views refused (through unique_visitors >= 0) |
 | check | `social_platforms_code_check` | social_platforms | social_platforms: a code with digits is refused; social_platforms: an upper-case code is refused |
 | check | `subscribers_check` | subscribers | subscribers: active without confirmation |
 | check | `subscribers_check1` | subscribers | subscribers: unsubscribed without the time refused |
@@ -214,12 +212,14 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | check | `videos_check1` | videos | videos: uploaded clip without a display title |
 | check | `videos_duration_seconds_check` | videos | videos: duration of zero seconds |
 | check | `videos_source_check` | videos | videos: source other than youtube or upload |
-| check | `weather_forecasts_check` | weather_forecasts | weather_forecasts: day high below the day low |
+| check | `weather_forecasts_check` | weather_forecasts | weather_forecasts: day high below the day low; weather_forecasts: a NaN day low is refused |
+| check | `weather_forecasts_temp_max_c_check` | weather_forecasts | weather_forecasts: a NaN day high is refused; weather_forecasts: a day high above 70 C is refused |
+| check | `weather_forecasts_temp_min_c_check` | weather_forecasts | weather_forecasts: a day low below -60 C is refused |
 | check | `weather_observations_feels_like_c_check` | weather_observations | weather_observations: feels-like above 80 C |
 | check | `weather_observations_humidity_pct_check` | weather_observations | weather_observations: humidity above 100 % |
 | check | `weather_observations_temperature_c_check` | weather_observations | weather_observations: temperature above 70 C; weather_observations: temperature below -60 C |
 | check | `weather_observations_wind_deg_check` | weather_observations | weather_observations: wind direction above 360 degrees |
-| check | `weather_observations_wind_kmh_check` | weather_observations | weather_observations: negative wind speed |
+| check | `weather_observations_wind_kmh_check` | weather_observations | weather_observations: negative wind speed; weather_observations: a NaN wind speed is refused |
 | check | `youtube_videos_availability_check` | youtube_videos | youtube_videos: availability outside ok/private/removed/unknown |
 | check | `youtube_videos_source_check` | youtube_videos | youtube_videos: subtype row with a source other than youtube |
 | check | `youtube_videos_youtube_id_check` | youtube_videos | video: bad YouTube id |
@@ -230,7 +230,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | domain | `phone_e164_check` | phone_e164 | phone: must be E.164; settings: local phone refused (phone_e164 domain); settings: a phone setting refuses a local number |
 | domain | `sha256_hex_check` | sha256_hex | sha256_hex: upper-case hex is refused; sha256_hex: a digest shorter than 64 characters is refused |
 | domain | `slug_text_check` | slug_text | slug: tashkeel refused; slug: spaces refused |
-| domain | `url_text_check` | url_text | url_text: a javascript: address is refused; url_text: an address with a space is refused; url_text: an address without a scheme is refused |
+| domain | `url_text_check` | url_text | url_text: a javascript: address is refused; url_text: an address with a space is refused; url_text: an address without a scheme is refused; settings: a url setting refuses another scheme; settings: a url setting with a space is refused (url_text) |
 | exclude | `rate_overrides_no_overlap` | rate_overrides | rate_overrides: overlapping periods refused (EXCLUDE) |
 | trigger | `trg_set_updated_at` | ad_campaigns advertisers authors bookings bot_entries categories characters customers email_templates faqs feature_flags guests house_ads media_assets newsletter_issues organizations pages payments playlists posts provider_health rate_board_currencies sections seo_meta services settings subscribers users videos | updated_at refreshed by trigger |
 | trigger | `trg_audit_append_only` | audit_log audit_log_changes | audit: UPDATE refused; audit: DELETE refused; audit: change rows immutable; audit: pruning young rows refused; audit: pruning changes of a young row refused |
