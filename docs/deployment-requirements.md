@@ -198,15 +198,37 @@ psql -v ON_ERROR_STOP=1 -v owner=raqam_owner -v app=raqam_app -v db=raqam -d raq
 
 It was also run against a copy of the QA data, with the API and every scheduled command signed in as `raqam_app`:
 - all 52 API endpoints answered;
-- every command ran, apart from the two outside fetches pointed at a closed port, and the one open point below.
+- every command ran, `stats:flush` included, apart from the two outside fetches pointed at a closed port.
 
-**Open: refreshing the view totals.** In PostgreSQL 16 only a materialized view's owner can refresh it. So
-`stats:flush`, signed in as `raqam_app`, cannot run `REFRESH MATERIALIZED VIEW CONCURRENTLY post_view_totals`. The
-choice is the owner's (a schema change, QA-7):
-- a `SECURITY DEFINER` function owned by `raqam_owner` that only refreshes it, which the application may run;
-- or the view owned by a third role that `raqam_app` is a member of.
+**The view totals.** In PostgreSQL 16 only a materialized view's owner can refresh it. So the schema has
+`refresh_post_view_totals()`:
+- it is owned by `raqam_owner` and runs as it (`SECURITY DEFINER`, with `search_path = pg_catalog, public`);
+- it does only `REFRESH MATERIALIZED VIEW CONCURRENTLY public.post_view_totals`;
+- PUBLIC may not run it, and `production-roles.sql` lets `raqam_app` run it.
 
-Until then the check reports it as the one failure.
+`stats:flush` calls the function. `raqam_app` still cannot refresh the view itself, drop it, or replace the
+function, and the check tests all three.
+
+## PostgreSQL with ICU, and Arabic names in order
+
+The names and titles that lists are ordered by carry ICU's Arabic collation on the column itself (`COLLATE
+"ar-x-icu"`): authors, guests, organizations, users, cities, tags, services, pages, categories, playlists and ad
+places. So «إبراهيم» comes before «أحمد», whatever locale the database was made with. Slugs, codes and e-mails
+keep the database's own order.
+
+- **ICU is required.** The PostgreSQL server must be built with ICU. The official `postgres:16` image is.
+  `SELECT collname FROM pg_collation WHERE collname = 'ar-x-icu'` must return a row, or the migrations fail.
+- **After an upgrade of the system's ICU library** (a new image or OS release), the order may change slightly:
+  1. PostgreSQL warns that the collation's version does not match.
+  2. Rebuild the indexes on those columns, then record the new version:
+     ```sql
+     REINDEX TABLE authors; REINDEX TABLE guests; REINDEX TABLE organizations; REINDEX TABLE users;
+     REINDEX TABLE cities; REINDEX TABLE tags; REINDEX TABLE services; REINDEX TABLE pages;
+     REINDEX TABLE categories; REINDEX TABLE playlists; REINDEX TABLE ad_placements;
+     ALTER COLLATION "ar-x-icu" REFRESH VERSION;
+     ```
+  3. `SELECT collname FROM pg_collation WHERE collversion <> pg_collation_actual_version(oid)` shows any collation
+     still out of step.
 
 ## Backups and restoring
 

@@ -46,6 +46,11 @@ REVOKE UPDATE ON audit_log, audit_log_changes FROM :"app";
 REVOKE UPDATE, DELETE ON invoices, invoice_lines, booking_status_history FROM :"app";
 GRANT UPDATE (pdf_media_id) ON invoices TO :"app";
 
+-- The view totals: only their owner can refresh a materialized view, so the application runs the owner's function,
+-- which does exactly that and nothing else (stats:flush). Nobody else may run it.
+REVOKE ALL ON FUNCTION refresh_post_view_totals() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION refresh_post_view_totals() TO :"app";
+
 -- Laravel's list of migrations belongs to the deploy.
 REVOKE INSERT, UPDATE, DELETE ON migrations FROM :"app";
 

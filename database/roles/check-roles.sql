@@ -122,7 +122,18 @@ SELECT pg_temp.allowed('prune an audit row older than two years', $sql$DO $do$ B
 SELECT pg_temp.allowed('lock the synonyms while they are rebuilt (as SynonymLibrary does)',
   'LOCK TABLE synonym_terms IN SHARE ROW EXCLUSIVE MODE');
 SELECT pg_temp.allowed('a temporary table of its own', 'CREATE TEMP TABLE role_scratch (id int)');
-SELECT pg_temp.allowed('refresh the view totals (stats:flush)', 'REFRESH MATERIALIZED VIEW CONCURRENTLY post_view_totals');
+SELECT pg_temp.allowed('refresh the view totals through the owner''s function (stats:flush)', 'SELECT refresh_post_view_totals()');
+SELECT pg_temp.allowed('the refresh function runs as its owner, with its own search path, and PUBLIC cannot run it', $sql$DO $do$
+DECLARE f record; BEGIN
+  SELECT p.prosecdef, p.proconfig, pg_get_userbyid(p.proowner) AS owner INTO f FROM pg_proc p WHERE p.oid = 'refresh_post_view_totals()'::regprocedure;
+  IF NOT f.prosecdef THEN RAISE EXCEPTION 'not SECURITY DEFINER'; END IF;
+  IF f.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog, public'] THEN RAISE EXCEPTION 'search_path: %', f.proconfig; END IF;
+  IF f.owner = current_user THEN RAISE EXCEPTION 'owned by the application'; END IF;
+  IF has_function_privilege('public', 'refresh_post_view_totals()', 'EXECUTE') THEN RAISE EXCEPTION 'PUBLIC can run it'; END IF;
+END $do$$sql$);
+SELECT pg_temp.refused('refresh the view totals itself', 'REFRESH MATERIALIZED VIEW CONCURRENTLY post_view_totals');
+SELECT pg_temp.refused('drop the view totals', 'DROP MATERIALIZED VIEW post_view_totals');
+SELECT pg_temp.refused('replace the refresh function', $sql$CREATE OR REPLACE FUNCTION refresh_post_view_totals() RETURNS void LANGUAGE sql AS $f$ SELECT $f$$sql$);
 
 -- ---------------------------------------------------------------- report
 \o

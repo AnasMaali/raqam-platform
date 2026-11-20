@@ -201,3 +201,17 @@ test('the raw retention period is the setting analytics.raw_retention_days', fun
 
     expect(DB::table('not_found_paths')->pluck('path')->all())->toBe(['/b']);
 });
+
+// The application's database role cannot refresh a materialized view (only its owner can): the flush asks the
+// function the owner made for it (docs/deployment-requirements.md, "The database roles").
+test('the flush refreshes the view totals through refresh_post_view_totals(), never with a REFRESH of its own', function () {
+    $queries = [];
+    DB::listen(function ($q) use (&$queries) {
+        $queries[] = $q->sql;
+    });
+
+    app(StatsFlusher::class)->flush();
+
+    expect(collect($queries)->filter(fn ($sql) => str_contains($sql, 'refresh_post_view_totals()'))->count())->toBe(1)
+        ->and(collect($queries)->filter(fn ($sql) => stripos($sql, 'REFRESH MATERIALIZED VIEW') !== false)->all())->toBe([]);
+});
