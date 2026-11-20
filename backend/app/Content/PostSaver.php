@@ -79,13 +79,13 @@ final class PostSaver
      */
     public function save(Post $post, array $data, int $userId, ?string $expectedUpdatedAt = null): Post
     {
-        $this->guardAgainstOverwrite($post, $expectedUpdatedAt);
         $oldSlug = $post->slug;
         $wasPublic = $post->status !== 'draft' || $post->published_at !== null;
         $oldStatus = $post->status;
 
         try {
-            DB::transaction(function () use ($post, $data, $userId) {
+            DB::transaction(function () use ($post, $data, $userId, $expectedUpdatedAt) {
+                $this->guardAgainstOverwrite($post, $expectedUpdatedAt);
                 // The mode lasts until the outermost transaction ends, so say it on both sides: inside a
                 // test or an import an earlier save must not leave the rule switched to IMMEDIATE.
                 DB::statement('SET CONSTRAINTS posts_subtype_present DEFERRED');
@@ -134,8 +134,17 @@ final class PostSaver
         if ($post->status !== 'draft') {
             throw new PostRuleViolation('الحفظ التلقائي للمسودات فقط.');
         }
-        $this->guardAgainstOverwrite($post, $expectedUpdatedAt);
 
+        return DB::transaction(function () use ($post, $data, $userId, $expectedUpdatedAt) {
+            $this->guardAgainstOverwrite($post, $expectedUpdatedAt);
+
+            return $this->writeAutosave($post, $data, $userId);
+        });
+    }
+
+    /** @param  array<string, mixed>  $data */
+    private function writeAutosave(Post $post, array $data, int $userId): Post
+    {
         $changes = [];
         foreach (['title' => 255, 'subtitle' => 255, 'excerpt' => 500] as $column => $max) {
             if (array_key_exists($column, $data)) {
@@ -643,14 +652,18 @@ final class PostSaver
         return (string) DB::table('posts')->where('id', $post instanceof Post ? $post->id : $post)->value('updated_at');
     }
 
-    /** Two tabs, or two editors: the one that saves second is told instead of silently winning. */
+    /**
+     * Two tabs, or two editors: the one that saves second is told instead of silently winning. Called inside the save's
+     * transaction, it locks the row before it compares, so two saves of the same version at the same moment take turns
+     * and the second one sees the first one's time.
+     */
     private function guardAgainstOverwrite(Post $post, ?string $expected): void
     {
         if ($expected === null) {
             return;
         }
 
-        if ($this->token($post) !== $expected) {
+        if ((string) DB::table('posts')->where('id', $post->id)->lockForUpdate()->value('updated_at') !== $expected) {
             throw new PostRuleViolation('عُدّلت هذه المادة من مكان آخر منذ فتحتها. حدّث الصفحة لترى آخر نسخة، وانسخ تعديلاتك قبل ذلك إن أردت.');
         }
     }
