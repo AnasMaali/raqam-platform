@@ -229,7 +229,7 @@ suite when a rule has no test. A test counts for a rule only when that rule is t
 | domain | `money_minor_check` | money_minor | money_minor: a negative amount is refused |
 | domain | `phone_e164_check` | phone_e164 | phone: must be E.164; settings: local phone refused (phone_e164 domain); settings: a phone setting refuses a local number |
 | domain | `sha256_hex_check` | sha256_hex | sha256_hex: upper-case hex is refused; sha256_hex: a digest shorter than 64 characters is refused |
-| domain | `slug_text_check` | slug_text | slug: tashkeel refused; slug: spaces refused |
+| domain | `slug_text_check` | slug_text | slug: tashkeel refused; slug: spaces refused; slug: a dot refused (it would read as a file, a 404 on the site) |
 | domain | `url_text_check` | url_text | url_text: a javascript: address is refused; url_text: an address with a space is refused; url_text: an address without a scheme is refused; settings: a url setting refuses another scheme; settings: a url setting with a space is refused (url_text) |
 | exclude | `rate_overrides_no_overlap` | rate_overrides | rate_overrides: overlapping periods refused (EXCLUDE) |
 | trigger | `trg_set_updated_at` | ad_campaigns advertisers authors bookings bot_entries categories characters customers email_templates faqs feature_flags guests house_ads media_assets newsletter_issues organizations pages payments playlists posts provider_health rate_board_currencies sections seo_meta services settings subscribers users videos | updated_at refreshed by trigger |

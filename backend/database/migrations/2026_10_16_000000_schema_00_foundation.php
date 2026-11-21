@@ -39,9 +39,10 @@ CREATE EXTENSION IF NOT EXISTS btree_gist;  -- EXCLUDE constraints on scalar + r
 --  Domains: one definition of a rule, reused by every column
 -- ---------------------------------------------------------------------
 
--- Arabic-friendly URL slug: no spaces / reserved URL chars, no tashkeel, lower-case Latin.
+-- Arabic-friendly URL slug: no spaces / reserved URL chars, no dot (an address ending in .<letters> reads as a file,
+-- which the website answers 404 before any page), no tashkeel, lower-case Latin.
 CREATE DOMAIN slug_text AS varchar(200)
-  CHECK (VALUE ~ '^[^[:space:]/?#%&]+$'
+  CHECK (VALUE ~ '^[^[:space:]/?#%&.]+$'
          AND VALUE !~ '[ً-ْٰ]'
          AND VALUE = lower(VALUE));
 
