@@ -39,6 +39,7 @@ use App\Console\SystemWatchCommand;
 use App\Console\WatchSignInFailuresCommand;
 use App\Console\WeatherFetchCommand;
 use App\Console\WeeklyDigestCommand;
+use App\Http\Controllers\CspReportController;
 use App\Http\Controllers\HealthController;
 use App\Http\Middleware\QueryReport;
 use App\Http\Middleware\RedisOutage;
@@ -69,6 +70,8 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             Route::get('/up', HealthController::class);
             Route::get('/livez', [HealthController::class, 'live']);
+            // What the panel's content security policy blocked, from the browser (PanelContentPolicy). No session either.
+            Route::post('/csp-report', CspReportController::class)->middleware('throttle:csp-report');
         },
     )
     ->withCommands([AdminCreateCommand::class, AdminUnlockCommand::class, PruneDevicesCommand::class, PublishDuePostsCommand::class, PurgeTrashedPostsCommand::class, InstallPagesCommand::class, CheckVideosCommand::class, InstallCharactersCommand::class,

@@ -77,6 +77,10 @@ security policy"). It is written when the site is built, so the build must see t
   e.g. `https://media.example.org`), separated by spaces or commas, each an origin only (scheme, host and port). When it
   is empty the API's own origin is used, which is wrong as soon as the site reaches the API on an internal address: every
   picture would then be blocked. Set it whenever the media are not served from the API's origin.
+- **`MEDIA_ORIGINS` in the back end's `.env` too**, with the same value: the panel's content security policy
+  (`App\Http\PanelContentPolicy`) lets pictures and videos come only from the back end itself and from these origins,
+  so with the media on their own subdomain or on R2 and the value missing, the panel shows no picture. Its blocked loads
+  are `[csp]` lines in the back end's log, as on the website.
 - **The website's server listens on `0.0.0.0` or `localhost`** (`next start -H`, or `HOSTNAME` for the standalone
   server), never on one IP address such as `127.0.0.1`: the not-found page is a rewrite to the server itself under the
   name `localhost`, and a server bound to another name passes that rewrite on as an outside request, which fails (every

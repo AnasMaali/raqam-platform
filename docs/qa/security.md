@@ -139,10 +139,13 @@ request to the built site; and the site's own folders refused, which the route t
   each page's data as inline scripts, different on every page, so neither a hash nor a nonce can name them on pages
   that are cached and prerendered (`frontend/README.md`, "Content security policy"). The rest of the policy holds:
   no inline event handler (`script-src-attr 'none'`), no eval, scripts only from the site and Turnstile, requests to
-  the site only, no plugin, no framing. The panel has only `frame-ancestors 'none'; base-uri 'self'; form-action 'self';
-  object-src 'none'` (no `default-src`, hence "wildcard"): Filament's Alpine evaluates the expressions written in the
-  page, which a policy without `'unsafe-eval'` would block (`SecurityHeaders`). A fuller policy for the panel is
-  possible with `'unsafe-eval'` (decision below).
+  the site only, no plugin, no framing. The panel had only `frame-ancestors 'none'; base-uri 'self'; form-action 'self';
+  object-src 'none'` when it was scanned (no `default-src`, hence "wildcard"). Since then it has a full, enforced
+  policy (`App\Http\PanelContentPolicy`): `default-src 'self'`, scripts from the panel only, requests to the panel
+  only, pictures and videos from the panel, the media's origins and YouTube's pictures, no frame, no plugin. It keeps
+  `'unsafe-inline'` (Filament's inline scripts have no nonce) and `'unsafe-eval'`: Livewire 3 bundles Alpine's standard
+  build, which runs every expression written in the page through `new Function`, and Livewire 3 has no build without
+  it. The whole panel browser suite runs with the policy on and fails on anything it blocks.
 - **(B) DELETE on `/api/v1/account`** is the customer's own account deletion (`docs/api/openapi.yaml`): it needs a
   customer session, and the customer accounts are switched off, so it answers 404. `OPTIONS` and a GET's 405 name the
   method of a switched-off route; the API description is public, so this tells nothing new.
@@ -208,9 +211,7 @@ The full table is `private/qa-zap/outside-checks.md`; what it checks:
 
 ## Decisions asked for
 
-1. **A fuller policy for the panel**: `default-src 'self'`, scripts from the panel only (with `'unsafe-inline'
-   'unsafe-eval'`, which Filament's Alpine needs), requests to the panel only, pictures from the panel and the media.
-   An injected script could then neither load another script nor send anything anywhere. It needs a full pass of the
-   panel's browser tests with the policy on, to catch what it would block.
+1. **A fuller policy for the panel**: decided and done after this package (`App\Http\PanelContentPolicy`, enforced,
+   with reports to `/csp-report`).
 2. **The server in front** (Caddy, phase 11): the items above are written as requirements, to be checked on staging
    the way `qa-outside.php` checks the QA environment.

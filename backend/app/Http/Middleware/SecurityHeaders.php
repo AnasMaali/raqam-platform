@@ -2,18 +2,22 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\PanelContentPolicy;
 use Closure;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * The headers every answer of the back end carries (the panel, the API, the preview page, the error pages, and the
  * answers made before the application's code runs: it is the outermost middleware).
  * An endpoint that chose its own value for one of them (the preview page's stricter policy) keeps it.
  *
- * There is no full Content-Security-Policy for the panel: Filament's Alpine needs inline evaluation. What is set
- * here is the part that costs nothing: nobody may frame the panel (clickjacking on "publish" or "delete"),
- * and nobody may change what a relative address means or where a form posts to.
+ * Every page (an HTML answer with no policy of its own) gets the full content security policy (PanelContentPolicy).
+ * Other answers (JSON, files) get its part that concerns them: nobody may frame them, change what a relative address
+ * means or where a form posts to, or embed a plugin.
  */
 class SecurityHeaders
 {
@@ -45,7 +49,10 @@ class SecurityHeaders
         }
 
         $csp = (string) $response->headers->get('Content-Security-Policy');
-        if (! str_contains($csp, 'frame-ancestors')) {
+        if ($csp === '' && self::isPage($response)) {
+            // A page (the panel, its sign-in, an error page): the full policy (PanelContentPolicy).
+            $response->headers->set('Content-Security-Policy', PanelContentPolicy::header());
+        } elseif (! str_contains($csp, 'frame-ancestors')) {
             $response->headers->set('Content-Security-Policy', trim($csp.'; '.implode('; ', ["frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'"]), '; '));
         }
 
@@ -54,5 +61,16 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    /** An HTML answer: so typed, or untyped yet (Symfony writes text/html only when it sends a page) and no data or file. */
+    private static function isPage(Response $response): bool
+    {
+        $type = (string) $response->headers->get('Content-Type');
+        if ($type !== '') {
+            return str_starts_with(strtolower($type), 'text/html');
+        }
+
+        return ! $response instanceof JsonResponse && ! $response instanceof BinaryFileResponse && ! $response instanceof StreamedResponse;
     }
 }

@@ -97,6 +97,15 @@ return [
     | The free quota is 10,000 units a day and resets at midnight Pacific time; one videos.list call costs 1 unit.
     | We stop calling at `quota_budget` and warn at `quota_warn`.
     */
+    /*
+    | The panel's content security policy (App\Http\PanelContentPolicy): the origins its pictures and videos come from
+    | besides the back end itself, separated by spaces or commas (the media subdomain, or the R2 bucket's public
+    | address). The same name and form as the website's MEDIA_ORIGINS.
+    */
+    'csp' => [
+        'media_origins' => env('MEDIA_ORIGINS', ''),
+    ],
+
     'youtube' => [
         'key' => env('YOUTUBE_API_KEY'),
         'quota_budget' => 9000,

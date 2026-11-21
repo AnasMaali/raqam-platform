@@ -11,6 +11,7 @@ under the private `ADMIN_PATH`, every page behind the sign-in) by its screens, a
 | PUT | `private-media/{path}` | Laravel's upload receiver of the local private disk (registered with `serve`) | refused without a signed upload link; the application never makes one |
 | GET | `up` | Every part of the platform (database, Redis, scheduler, queue), for the monitor outside the server | `X-Health-Token` header = `HEALTH_TOKEN`, else a plain 404; true/false per part only |
 | GET | `livez` | PHP answers, for the container's health check (also during maintenance) | none needed; says only "ok", looks at nothing |
+| POST | `csp-report` | What the panel's content security policy blocked, from the browser: one `[csp]` line of the log each | anyone (a browser sends it); only the two CSP report types, 8 KB, 60 a minute per address, no session |
 | GET | `livewire/livewire.js` | The panel's Livewire script | public file |
 | GET | `livewire/livewire.min.js.map` | Its source map | public file |
 | GET | `livewire/preview-file/{filename}` | Preview of a file chosen in a panel form | Livewire's signed URL |
