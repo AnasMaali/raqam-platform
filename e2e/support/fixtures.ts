@@ -70,6 +70,19 @@ export const test = base.extend<Fixtures>({
             await app.stop();
         }
     },
+    // The panel's content security policy is enforced (App\Http\PanelContentPolicy): anything it blocks in a test's
+    // browser fails that test, so the whole suite is a check that the policy lets the panel work. A test that blocks
+    // something on purpose says so with the annotation { type: 'csp-violation-expected' }.
+    context: async ({ context }, use, testInfo) => {
+        const blocked: string[] = [];
+        context.on('console', (message) => {
+            if (/Content Security Policy/i.test(message.text())) blocked.push(message.text());
+        });
+        await use(context);
+        if (!testInfo.annotations.some((a) => a.type === 'csp-violation-expected')) {
+            expect(blocked, 'what the content security policy blocked').toEqual([]);
+        }
+    },
     baseURL: async ({ app }, use) => use(app.url),
     adminPassword: async ({}, use) => use(process.env.E2E_ADMIN_PASSWORD!),
 });
