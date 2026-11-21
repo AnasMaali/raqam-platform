@@ -230,6 +230,19 @@ test('a preview link stops working after its time, and cannot be changed or made
     $this->get($url)->assertForbidden();
 });
 
+test('without a valid link, a post that exists and one that does not answer the same (QA-8)', function () {
+    $draft = app(PostSaver::class)->create('news', 'مسودة', $this->user->id);
+    $trashed = app(PostSaver::class)->create('news', 'محذوف', $this->user->id);
+    $trashed->delete();
+    auth()->logout();
+
+    // Otherwise anyone could count the drafts by trying addresses: the signature is checked before the post is looked up.
+    foreach ([$draft->id, $trashed->id, $draft->id + 1000] as $id) {
+        $this->get("/preview/{$id}")->assertForbidden();
+        $this->get("/preview/{$id}?signature=abc&expires=9999999999")->assertForbidden();
+    }
+});
+
 test('only the lifetimes on offer can be asked for', function () {
     $post = app(PostSaver::class)->create('news', 'خبر', $this->user->id);
 

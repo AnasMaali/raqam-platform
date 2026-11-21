@@ -244,9 +244,10 @@ export async function startApp(options: AppOptions = {}): Promise<App> {
 
     const serverLogFile = join(storage, 'logs/php-server.log');
     const serverErr = openSync(serverLogFile, 'a');
+    // expose_php on, as PHP is without its production ini: the application must take the header off itself (QA-8).
     const server: ChildProcess = spawn(
         'php',
-        ['-d', 'variables_order=EGPCS', '-d', 'memory_limit=512M', '-d', 'upload_max_filesize=40M', '-d', 'post_max_size=48M', '-S', `127.0.0.1:${port}`, resolve(BACKEND, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')],
+        ['-d', 'variables_order=EGPCS', '-d', 'expose_php=On', '-d', 'memory_limit=512M', '-d', 'upload_max_filesize=40M', '-d', 'post_max_size=48M', '-S', `127.0.0.1:${port}`, resolve(BACKEND, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')],
         { cwd: docroot, env, stdio: ['ignore', 'ignore', serverErr], detached: true },
     );
     closeSync(serverErr);
