@@ -1,0 +1,41 @@
+# The website, passively: the spider follows the site's own links from the home page and the sitemap, and every answer
+# is checked as it comes. Nothing is attacked. Run by scripts/qa-zap.sh site-baseline.
+env:
+  contexts:
+    - name: site
+      urls: ["${QA_SITE}/"]
+      includePaths: ["${QA_SITE}.*"]
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: spider
+    parameters:
+      context: site
+      url: "${QA_SITE}/"
+      maxDuration: 10
+      maxChildren: 25
+      parseSitemapXml: true
+      parseRobotsTxt: true
+      # Reading only: no form is sent.
+      processForm: false
+      postForm: false
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 15
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: site-baseline
+      reportTitle: Raqam QA website, baseline
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: site-baseline
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]

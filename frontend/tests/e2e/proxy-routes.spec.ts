@@ -79,8 +79,15 @@ test("addresses that are no page are still turned away", () => {
   for (const path of ["/x/1/a", "/x/123", "/currencies/usd/more", "/weather/x/y", "/awareness/characters/x/y", "/video/x", "/login", "/x.php", "/favicon.ico", "/wp-login.php"]) {
     expect(routeOf(path), path).toBe("not-a-page");
   }
+  // A file deeper than the root is the site's only in its own folders: anywhere else it reached a page's route, which
+  // streamed before it found nothing (a 404 page with status 200; QA-8, the outside scan).
+  for (const path of ["/a/b.sql", "/storage/logs/laravel.log", "/vendor/autoload.php", "/database/raqam_schema.sql", "/news/123/x.php", "/news/123.bak", "/wp-content/x.php"]) {
+    expect(routeOf(path), path).toBe("not-a-page");
+  }
   // The site's folders keep their files, and its own root files are its own.
   expect(routeOf("/brand/logo-512.png")).toBe("left-alone");
+  expect(routeOf("/sitemaps/pages.xml")).toBe("left-alone");
+  expect(routeOf("/_next/static/chunks/x.js")).toBe("left-alone");
   for (const file of ["/robots.txt", "/sitemap.xml", "/llms.txt"]) expect(routeOf(file), file).toBe("left-alone");
   // One part that is not the site's own: a page from the panel, asked about.
   expect(routeOf("/about")).toBe("page");
@@ -96,5 +103,13 @@ test("every address of one part goes through the check, and an unknown one answe
   expect(config.matcher).toContain("/([^/]+)");
   for (const path of ["/labour", "/ogre", "/brandon", "/apiary", "/feedsx", "/brand", "/og", "/sitemaps", "/feeds", "/api"]) {
     expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+  }
+});
+
+test("a file's address outside the site's folders answers 404 before any page, as the scanners try them", async ({ request }) => {
+  for (const path of ["/a/b.sql", "/storage/logs/laravel.log", "/vendor/autoload.php", "/news/123/x.php", "/news/123.bak", "/news/123.zip"]) {
+    const answer = await request.get(path, { maxRedirects: 0 });
+    expect(answer.status(), path).toBe(404);
+    expect(await answer.text(), path).not.toContain('id="__next_error__"');
   }
 });

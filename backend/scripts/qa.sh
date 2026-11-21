@@ -125,8 +125,9 @@ serve() {
   cd "$QA_HOME/public"
   # Several workers: the browser checks load pages side by side, and one PHP process answers one request at a time.
   # Every answer gives its number of queries (QUERY_REPORT, docs/qa/performance.md); RAQAM_QA_QUERY_LOG names a file
-  # for each query and its time as well.
-  APP_ENV=qa QUERY_REPORT=true QUERY_REPORT_LOG="${RAQAM_QA_QUERY_LOG:-}" PHP_CLI_SERVER_WORKERS="${RAQAM_QA_WORKERS:-4}" exec php -d variables_order=EGPCS -d memory_limit=512M -d upload_max_filesize=40M -d post_max_size=48M \
+  # for each query and its time as well. RAQAM_QA_QUERY_REPORT=false leaves the count out, as production does (the
+  # outside security scan, docs/qa/security.md).
+  APP_ENV=qa QUERY_REPORT="${RAQAM_QA_QUERY_REPORT:-true}" QUERY_REPORT_LOG="${RAQAM_QA_QUERY_LOG:-}" PHP_CLI_SERVER_WORKERS="${RAQAM_QA_WORKERS:-4}" exec php -d variables_order=EGPCS -d memory_limit=512M -d upload_max_filesize=40M -d post_max_size=48M \
     -S "127.0.0.1:$PORT" "$BACKEND/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
 }
 

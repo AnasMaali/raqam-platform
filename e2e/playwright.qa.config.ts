@@ -32,6 +32,8 @@ export default defineConfig({
         { name: 'phone-360', testMatch: /panel-crawl/, use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true } },
         // The database queries of every API endpoint and panel screen, against their budgets (docs/qa/performance.md).
         { name: 'query-budget', testMatch: /query-budget\.spec/, use: computer },
+        // The sign-in's request limit, from outside (docs/qa/security.md). Signed out, with an e-mail of its own.
+        { name: 'signin-limit', testMatch: /signin-limit\.spec/, use: { ...computer, storageState: undefined } },
         { name: 'site-map', testMatch: /site-map/, use: site },
         { name: 'site-checks', testMatch: /site-checks/, dependencies: ['site-map'], use: site },
         { name: 'site-browser', testMatch: /site-pages/, dependencies: ['site-map'], use: site },

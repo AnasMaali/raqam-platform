@@ -50,7 +50,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Middleware\ThrottleRequests;
+use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -76,18 +78,23 @@ return Application::configure(basePath: dirname(__DIR__))
         NewsletterWeeklyDraftCommand::class, NewsletterStatsCommand::class, BrevoSetupCommand::class, InstallChatbotCommand::class,
         PruneRetainedDataCommand::class, StatsFlushCommand::class, StatsPruneCommand::class, PruneAuditLogCommand::class, InstallHomeLayoutCommand::class, InstallPermissionsCommand::class])
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->append(SecurityHeaders::class);
         // `php artisan down` must not make the container look dead: it would be restarted in the middle of the work.
         $middleware->preventRequestsDuringMaintenance(except: ['livez']);
         // Redis not answering: the API's reads go on from the database, the rest answers 503 (QA-6).
         $middleware->prepend(RedisOutage::class);
         // The QA environment's query count (off unless QUERY_REPORT is set; production refuses it). First, so it counts all.
         $middleware->prepend(QueryReport::class);
+        // The security headers on every answer, those made before the application's own code too (a body larger than PHP
+        // takes, the maintenance page, Redis down): the outermost middleware (QA-8).
+        $middleware->prepend(SecurityHeaders::class);
         // Text that is not UTF-8 is refused before anything reads it (phase 10b security review).
         $middleware->api(prepend: [RejectMalformedText::class]);
         $middleware->alias(['feature' => RequireFeature::class]);
         // A switched-off system answers 404 before a request limit counts the request.
         $middleware->prependToPriorityList(ThrottleRequests::class, RequireFeature::class);
+        // A signed link is checked before its record is looked up, so a made-up link answers 403 whether the record exists
+        // or not (a draft's preview answered 404 or 403 and told which ids exist: QA-8).
+        $middleware->prependToPriorityList(SubstituteBindings::class, ValidateSignature::class);
     })
     // Online payment (decision 16, switched off).
     ->withCommands([ReconcilePaymentsCommand::class])

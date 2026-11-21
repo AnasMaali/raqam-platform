@@ -92,6 +92,26 @@ security policy"). It is written when the site is built, so the build must see t
   blocked address and the page (no query, no visitor data). A new kind of line after a deploy is a page that needs a
   source added to the policy, or something the policy is right to block.
 
+## The web server in front
+
+The outside scan of the QA environment (docs/qa/security.md) found what only the server in front of the back end and
+the website can do. Each is checked again on staging, the way `backend/scripts/qa-outside.php` checks the QA
+environment.
+
+- **PHP with its production ini** (`php.ini-production`: `expose_php = Off`, `display_errors = Off`). The back end takes
+  `X-Powered-By` off its own answers anyway (SecurityHeaders), but not off a PHP file the server would run by itself.
+- **No version in `Server`**: Caddy's `header -Server` on both sites (and nothing like `Via` naming the software).
+- **Only GET, HEAD, POST and OPTIONS reach the website and the back end**; any other method answers 405 at the server.
+  The website's server cannot refuse them itself: Node refuses TRACE and TRACK before any of the site's code runs (a
+  500 and a stack in the log), and a page answers any other method (PROPFIND) as if it were a GET.
+- **The files the server sends itself carry the same headers as PHP's answers**: the back end's `public/` (the panel's
+  `/css`, `/js`, `/fonts`, and `/storage/media/…` while media stay on the local disk) gets `X-Content-Type-Options:
+  nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin` and `Content-Security-Policy:
+  frame-ancestors 'none'`, and the media rules of the hardening list (their own subdomain, `sandbox` for SVG and PDF).
+  PHP never sees these requests, so nothing in the application can add them.
+- **HSTS on the back end**: it is sent on https requests only, so the trusted proxies must be set (above) for the
+  application to see https; or Caddy sends `Strict-Transport-Security: max-age=31536000; includeSubDomains` itself.
+
 ## Watching the platform: `/up` and `/livez`
 
 Two addresses, for two different watchers (`App\Http\Controllers\HealthController`):

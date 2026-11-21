@@ -1,0 +1,50 @@
+# The admin panel, signed in and passively: the spider reads the pages a signed-in admin can open (GET only, no form is
+# sent, never the sign-out) with the session of a sign-in made just before (its cookie from the environment, never
+# written here). Nothing is attacked and nothing is changed. Run by scripts/qa-zap.sh panel-crawl.
+env:
+  contexts:
+    - name: panel
+      urls: ["${QA_API}/${QA_ADMIN_PATH}"]
+      includePaths: ["${QA_API}/${QA_ADMIN_PATH}.*"]
+      excludePaths: ["${QA_API}/${QA_ADMIN_PATH}/logout.*", "${QA_API}/${QA_ADMIN_PATH}/session.*", "${QA_API}/${QA_ADMIN_PATH}/login.*"]
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: replacer
+    parameters:
+      deleteAllRules: true
+    rules:
+      - description: the signed-in session
+        matchType: req_header
+        matchString: Cookie
+        matchRegex: false
+        replacementString: "${QA_PANEL_COOKIE}"
+        url: "${QA_API}/${QA_ADMIN_PATH}.*"
+  - type: spider
+    parameters:
+      context: panel
+      url: "${QA_API}/${QA_ADMIN_PATH}"
+      maxDuration: 10
+      maxChildren: 15
+      processForm: false
+      postForm: false
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: panel-crawl
+      reportTitle: Raqam QA panel, signed in, passive
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: panel-crawl
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]

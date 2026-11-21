@@ -5,7 +5,9 @@ use App\Models\Post;
 use App\Models\User;
 use App\Providers\AppServiceProvider;
 use Filament\Facades\Filament;
+use Illuminate\Foundation\MaintenanceModeManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 
 uses(RefreshDatabase::class);
 
@@ -15,6 +17,9 @@ const EVERY_RESPONSE = [
     'X-Content-Type-Options' => 'nosniff',
     'X-Frame-Options' => 'DENY',
     'Cross-Origin-Opener-Policy' => 'same-origin',
+    // No page of another origin may load an answer of the back end as a picture, a script or a frame source (QA-8):
+    // the site's pages never do (their media are files the web server sends, outside PHP).
+    'Cross-Origin-Resource-Policy' => 'same-origin',
 ];
 
 function hasSecurityHeaders($response, string $what): void
@@ -74,4 +79,45 @@ test('in production every address the back end writes starts with APP_URL over h
 
 test('a file chosen in a panel form is never previewed as SVG (security review)', function () {
     expect(config('livewire.temporary_file_upload.preview_mimes'))->not->toContain('svg')->toContain('png');
+});
+
+/*
+ * The answers made before the application's own code runs carry the headers too (QA-8, the outside scan): a body
+ * larger than PHP takes (413), the maintenance page (503) and a server error (500). The headers' middleware is the
+ * outermost one, so whatever answers inside it, it adds them.
+ */
+test('a body too large to take is refused with every security header', function () {
+    $response = $this->call('POST', '/api/v1/contact', server: ['CONTENT_LENGTH' => (string) (PHP_INT_MAX >> 1), 'HTTP_ACCEPT' => 'application/json']);
+
+    expect($response->getStatusCode())->toBe(413);
+    hasSecurityHeaders($response, '413');
+});
+
+test('the maintenance page carries every security header', function () {
+    // Kept in this process's memory, not in the shared storage folder, where the other test processes would see it.
+    config(['app.maintenance.driver' => 'cache', 'app.maintenance.store' => 'array']);
+    app()->forgetInstance(MaintenanceModeManager::class);
+    app()->maintenanceMode()->activate([]);
+    try {
+        $response = $this->get('/'.config('raqam.admin_path').'/login');
+        $api = $this->getJson('/api/v1/posts');
+    } finally {
+        app()->maintenanceMode()->deactivate();
+    }
+
+    expect($response->getStatusCode())->toBe(503)->and($api->getStatusCode())->toBe(503);
+    hasSecurityHeaders($response, 'maintenance page');
+    hasSecurityHeaders($api, 'maintenance answer of the API');
+});
+
+test('a server error carries every security header and shows no trace', function () {
+    config(['app.debug' => false]);
+    Route::get('/qa-security-boom', fn () => throw new RuntimeException('qa boom in '.__FILE__));
+    Route::get('/api/v1/qa-security-boom', fn () => throw new RuntimeException('qa boom in '.__FILE__));
+
+    foreach ([$this->get('/qa-security-boom'), $this->getJson('/api/v1/qa-security-boom')] as $response) {
+        expect($response->getStatusCode())->toBe(500)
+            ->and($response->getContent())->not->toContain('qa boom')->not->toContain('.php')->not->toContain('Stack trace');
+        hasSecurityHeaders($response, '500');
+    }
 });
