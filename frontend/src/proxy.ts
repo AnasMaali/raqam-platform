@@ -308,9 +308,14 @@ export function routeOf(pathname: string): RouteKind {
   const parts = pathname.split("/").filter(Boolean);
   if (parts.length === 1 && parts[0] === indexNowFile()) return "indexnow";
   if (ownPaths.has(`/${parts.join("/")}`)) return "left-alone";
-  // A file (it has an extension) is never a page: deeper ones are the site's folders' (public/brand, …); at the root
-  // only the site's own files are known.
-  if (/\.[A-Za-z0-9]+$/.test(pathname)) return parts.length > 1 || ownFiles.has(parts[0]) ? "left-alone" : "not-a-page";
+  // A file (it has an extension) is never a page. Deeper ones are the site's only in its own folders (public/brand,
+  // the build's files, the sitemaps); anywhere else one reached a page's route, which streamed a 200 before it found
+  // nothing (QA-8: /storage/logs/laravel.log, /vendor/autoload.php). At the root only the site's own files are known.
+  if (/\.[A-Za-z0-9]+$/.test(pathname)) {
+    const ours = parts.length > 1 ? (leftAlone as readonly string[]).includes(parts[0]) : ownFiles.has(parts[0]);
+
+    return ours ? "left-alone" : "not-a-page";
+  }
   if ((leftAlone as readonly string[]).includes(parts[0])) {
     // The folders' contents are theirs; the bare name is no page, but for the lab's own index (development only).
     return parts.length > 1 || parts[0] === "lab" ? "left-alone" : "not-a-page";
