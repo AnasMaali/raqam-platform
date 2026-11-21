@@ -7,7 +7,9 @@ use App\Providers\AppServiceProvider;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\MaintenanceModeManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 uses(RefreshDatabase::class);
 
@@ -120,4 +122,22 @@ test('a server error carries every security header and shows no trace', function
             ->and($response->getContent())->not->toContain('qa boom')->not->toContain('.php')->not->toContain('Stack trace');
         hasSecurityHeaders($response, '500');
     }
+});
+
+/*
+ * Every PHP answer says Cross-Origin-Resource-Policy: same-origin (QA-8), so nothing another origin loads (a picture in
+ * a mail program or on the website, a feed's enclosure, a social card) may be served through PHP. The media are files
+ * the web server (or R2) sends; the one file route PHP has is private-media, for booking attachments seen in the panel
+ * (same origin) and nothing linked from outside but by a click (a navigation, which the header does not touch).
+ */
+test('no route of the back end serves the public media: they are files the web server sends, outside PHP', function () {
+    foreach (['/storage/media/2026/11/picture.jpg', '/storage/media/2026/11/picture.webp', '/storage/x.png'] as $path) {
+        expect(fn () => Route::getRoutes()->match(Request::create($path)))->toThrow(NotFoundHttpException::class);
+    }
+    foreach (['public', 'media_local_public'] as $disk) {
+        expect(config("filesystems.disks.{$disk}.serve"))->not->toBeTrue("{$disk} is served through PHP");
+    }
+
+    $fileRoutes = collect(Route::getRoutes()->getRoutes())->filter(fn ($r) => str_contains($r->uri(), '{path}'))->map->uri()->values()->all();
+    expect($fileRoutes)->toBe(['private-media/{path}', 'private-media/{path}']);
 });

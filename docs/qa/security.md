@@ -215,3 +215,21 @@ The full table is `private/qa-zap/outside-checks.md`; what it checks:
    with reports to `/csp-report`).
 2. **The server in front** (Caddy, phase 11): the items above are written as requirements, to be checked on staging
    the way `qa-outside.php` checks the QA environment.
+
+## Follow-ups (after the review of QA-8)
+
+- **No dot in a slug.** The website now answers 404 before any page for an address deeper than the root that ends in
+  `.<letters or digits>` (fix 1). A slug with a dot would have been such an address, so `slug_text` refuses `.` (the
+  migration edited in place, before launch). Every slug writer already made dot-free slugs: the panel's forms and the
+  services through `UniqueSlug::for` or `ArabicSlug::make`, which turn every dot into a dash (posts, categories, tags,
+  authors, guests, organisations, sectors, pages, playlists and podcast seasons, characters, services), and the
+  install's fixed lists (sections, pages, characters, cities, services). There is no import. Redirects hold paths,
+  not slugs, and the site asks the redirect lookup before it answers 404, so an old `.html` address can still be moved.
+  Tests: the domain (SQL suite and `FoundationSchemaTest`), `ArabicSlugTest` (dots become dashes) and
+  `SlugWritersTest` (every slug of the 13 tables after the install is as `ArabicSlug::make` writes it).
+- **Cross-Origin-Resource-Policy: same-origin on every PHP answer** blocks nothing another origin loads. The media
+  (pictures in the site and in the newsletter's mails, the characters' animations, the feeds' enclosures, the social
+  cards' pictures) are files the web server or R2 sends, outside PHP. The one file route PHP has is
+  `private-media/{path}`: booking attachments, seen in the panel (same origin), and invoices, which go out as mail
+  attachments. Opening any link is a navigation, which the header does not touch. Test: `SecurityHeadersTest` (no
+  route serves the public media, and `private-media` is the only file route).

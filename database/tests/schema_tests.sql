@@ -73,6 +73,9 @@ SELECT pg_temp.expect_fail('slug: tashkeel refused',
   $$INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقْتِصَاد')$$, 'slug_text_check');
 SELECT pg_temp.expect_fail('slug: spaces refused',
   $$INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد فلسطين')$$, 'slug_text_check');
+-- A slug with a dot would look like a file's address, which the website answers 404 before any page (src/proxy.ts).
+SELECT pg_temp.expect_fail('slug: a dot refused (it would read as a file, a 404 on the site)',
+  $$INSERT INTO tags (name_ar, slug) VALUES ('تقرير السنة', 'تقرير.2026')$$, 'slug_text_check');
 SELECT pg_temp.expect_fail('phone: must be E.164',
   $$INSERT INTO customers (name, email, phone) VALUES ('A', 'a@b.co', '0599123456')$$, 'phone_e164_check');
 INSERT INTO tags (name_ar, slug) VALUES ('اقتصاد', 'اقتصاد');
