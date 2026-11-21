@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\QueryReport;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -18,6 +19,12 @@ function queryReportRoutes(): void
         DB::select('select 3');
 
         return response('ok');
+    });
+    // A query that took a whole number of milliseconds (here exactly 2), as a fast one sometimes does.
+    Route::get('/qa-probe/whole-ms', function () {
+        event(new QueryExecuted('select 9', [], 2.0, DB::connection()));
+
+        return 'ok';
     });
     Route::get('/qa-probe/cached', fn () => response((string) Cache::remember('qa-probe', 60, fn () => DB::scalar('select 41 + 1'))));
 }
@@ -82,4 +89,17 @@ test('with a log file, every query of an answer is written with its time, one li
         ->and($lines[0]['queries'][0]['ms'])->toBeFloat()
         ->and($lines[1]['cache'])->toBe('off')
         ->and($lines[1]['queries'])->toHaveCount(1);
+});
+
+test('a time of a whole number of milliseconds is still written as a decimal (the test above failed when a query took 1 ms)', function () {
+    $file = tempnam(sys_get_temp_dir(), 'queries');
+    config(['raqam.qa.query_report' => true, 'raqam.qa.query_log' => $file]);
+
+    $this->get('/qa-probe/whole-ms');
+
+    $line = file_get_contents($file);
+    unlink($file);
+
+    expect($line)->toContain('"ms":2.0')
+        ->and(json_decode($line, true)['queries'][0]['ms'])->toBeFloat();
 });

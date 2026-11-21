@@ -16,6 +16,9 @@ dataset('titles', [
     'eastern arabic-indic digits too' => ['سنة ۲۰۲۶', 'سنة-2026'],
     'mixed digits' => ['عام ٢٠26 والربع ٣', 'عام-2026-والربع-3'],
     'only punctuation' => ['؟؟ !!', ''],
+    // A dot never stays: an address ending in .<letters> is a file's to the website, a 404 before any page (QA-8).
+    'dots become dashes' => ['تقرير 2026.pdf والإصدار 1.2', 'تقرير-2026-pdf-والإصدار-1-2'],
+    'a name ending in a dot' => ['شركة النور م.ع.', 'شركة-النور-م-ع'],
 ]);
 
 it('builds the slug', function (string $title, string $slug) {

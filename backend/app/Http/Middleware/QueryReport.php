@@ -70,7 +70,8 @@ class QueryReport
             'status' => $response->getStatusCode(),
             'cache' => strtolower((string) $request->header(self::CACHE_HEADER)) === 'off' ? 'off' : 'on',
             'queries' => $queries,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+            // A time of a whole number of milliseconds stays a decimal (2.0, not 2), the same type on every line.
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_PRESERVE_ZERO_FRACTION);
 
         file_put_contents((string) $file, $line."\n", FILE_APPEND | LOCK_EX);
     }

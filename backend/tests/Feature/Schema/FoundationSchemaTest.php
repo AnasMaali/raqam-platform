@@ -22,6 +22,8 @@ test('a domain refuses an invalid value', function (string $domain, string $valu
     'slug with a space' => ['slug_text', 'اقتصاد فلسطين'],
     'slug with a slash' => ['slug_text', 'a/b'],
     'slug in upper case' => ['slug_text', 'Raqam'],
+    'slug with a dot (a file\'s address on the site)' => ['slug_text', 'report.html'],
+    'slug ending in a dot' => ['slug_text', 'تقرير.'],
     'e-mail without @' => ['email_address', 'raqam.ps'],
     'local phone number' => ['phone_e164', '0599123456'],
     'ftp url' => ['url_text', 'ftp://raqam.ps'],

@@ -195,7 +195,9 @@ try {
     $round = function (string $n, int $places): string {
         $half = bcdiv('5', bcpow('10', (string) ($places + 1)), $places + 1);
 
-        return bcadd(bccomp($n, '0') >= 0 ? bcadd($n, $half, $places + 1) : bcsub($n, $half, $places + 1), '0', $places);
+        // The sign compared at the number's own scale: bccomp's default scale is 0, which reads -0.48 as 0 and rounded
+        // every change between -1 and 0 towards zero (a fall of 0.4815 % came out as -0.47, the view's -0.48 is right).
+        return bcadd(bccomp($n, '0', 20) >= 0 ? bcadd($n, $half, $places + 1) : bcsub($n, $half, $places + 1), '0', $places);
     };
     $lines = DB::table('invoice_lines')->get()->groupBy('invoice_id');
     $diff = [];
