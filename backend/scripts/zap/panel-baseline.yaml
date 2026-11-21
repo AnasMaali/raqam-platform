@@ -1,0 +1,38 @@
+# The admin panel, signed out and passively: what anyone who finds its address sees (the sign-in page and where it
+# leads). The address comes from the environment at run time and is never written here. Run by scripts/qa-zap.sh
+# panel-baseline.
+env:
+  contexts:
+    - name: panel
+      urls: ["${QA_API}/${QA_ADMIN_PATH}/login"]
+      includePaths: ["${QA_API}/${QA_ADMIN_PATH}.*", "${QA_API}/livewire.*", "${QA_API}/css.*", "${QA_API}/js.*", "${QA_API}/fonts.*"]
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: spider
+    parameters:
+      context: panel
+      url: "${QA_API}/${QA_ADMIN_PATH}/login"
+      maxDuration: 3
+      processForm: false
+      postForm: false
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: panel-baseline
+      reportTitle: Raqam QA panel, signed out
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: panel-baseline
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]

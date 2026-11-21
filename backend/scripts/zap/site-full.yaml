@@ -1,0 +1,92 @@
+# The website, actively, on a short list of pages and routes of each kind: the home page, an article, a list, search,
+# the contact and newsletter forms' routes, the chat and the CSP report route. The routes are sent as the site's own
+# pages send them (its Origin, a visitor's forwarded address). Run by scripts/qa-zap.sh site-full.
+env:
+  contexts:
+    - name: pages
+      urls: ["${QA_SITE}/"]
+      includePaths:
+        - "${QA_SITE}/"
+        - "${QA_SITE}${QA_ARTICLE_PATH}"
+        - "${QA_SITE}/news"
+        - "${QA_SITE}/search.*"
+        - "${QA_SITE}/contact"
+        - "${QA_SITE}/api/contact"
+        - "${QA_SITE}/api/newsletter/subscribe"
+        - "${QA_SITE}/api/chat"
+        - "${QA_SITE}/api/csp-report"
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: replacer
+    parameters:
+      deleteAllRules: true
+    rules:
+      - description: the site's own origin, as its pages send it
+        matchType: req_header
+        matchString: Origin
+        matchRegex: false
+        replacementString: "${QA_SITE}"
+        url: "${QA_SITE}/api/.*"
+      - description: the visitor's address, as the proxy in front of the site adds it (a documentation address)
+        matchType: req_header
+        matchString: X-Forwarded-For
+        matchRegex: false
+        replacementString: 203.0.113.8
+        url: "${QA_SITE}/api/.*"
+  - type: requestor
+    requests:
+      - url: "${QA_SITE}/"
+      - url: "${QA_SITE}${QA_ARTICLE_PATH}"
+      - url: "${QA_SITE}/news"
+      - url: "${QA_SITE}/search?q=%D8%A7%D9%84%D8%AF%D9%88%D9%84%D8%A7%D8%B1"
+      - url: "${QA_SITE}/contact"
+      - url: "${QA_SITE}/api/contact"
+        method: POST
+        headers: ["Content-Type: application/json"]
+        data: '{"name":"زائر الفحص","email":"scan@example.org","phone":"","subject":"سؤال","message":"رسالة من فحص الأمان.","website":"","turnstile_token":"pass:contact"}'
+      - url: "${QA_SITE}/api/newsletter/subscribe"
+        method: POST
+        headers: ["Content-Type: application/json"]
+        data: '{"email":"scan@example.org","website":"","placement":"home","path":"/","turnstile_token":"pass:newsletter"}'
+      - url: "${QA_SITE}/api/chat"
+      - url: "${QA_SITE}/api/chat"
+        method: POST
+        headers: ["Content-Type: application/json"]
+        data: '{"message":"سعر الدولار","conversation":null,"path":"/","website":""}'
+      - url: "${QA_SITE}/api/csp-report"
+        method: POST
+        headers: ["Content-Type: application/csp-report"]
+        data: '{"csp-report":{"effective-directive":"img-src","blocked-uri":"https://example.org/x.png","document-uri":"${QA_SITE}/"}}'
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+  - type: activeScan
+    parameters:
+      context: pages
+      maxScanDurationInMins: 60
+      maxRuleDurationInMins: 8
+      threadPerHost: 2
+    policyDefinition:
+      defaultStrength: medium
+      defaultThreshold: medium
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: site-full
+      reportTitle: Raqam QA website, active scan of chosen pages
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: site-full
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]

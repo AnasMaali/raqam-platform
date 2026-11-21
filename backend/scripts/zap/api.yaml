@@ -1,0 +1,68 @@
+# The API, actively: every operation of docs/api/openapi.yaml, with the site's token (from the environment at run time,
+# never written here) so the site-only routes are scanned too. Run by scripts/qa-zap.sh api.
+env:
+  contexts:
+    - name: api
+      urls: ["${QA_API}/api/v1"]
+      includePaths: ["${QA_API}/api/v1.*"]
+  parameters:
+    # The OpenAPI reader reports the license without an SPDX identifier as an error; OpenAPI 3.1 makes it optional
+    # (a proprietary license has none), and every operation is still imported (docs/qa/security.md).
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: replacer
+    parameters:
+      deleteAllRules: true
+    rules:
+      - description: site token
+        matchType: req_header
+        matchString: X-Raqam-Site-Token
+        matchRegex: false
+        replacementString: "${QA_SITE_TOKEN}"
+      - description: the visitor's address the site's server sends (a documentation address)
+        matchType: req_header
+        matchString: X-Raqam-Visitor-Ip
+        matchRegex: false
+        replacementString: 203.0.113.7
+      - description: the visitor's browser the site's server sends
+        matchType: req_header
+        matchString: X-Raqam-Visitor-Ua
+        matchRegex: false
+        replacementString: qa-security-scan
+  - type: openapi
+    parameters:
+      apiFile: "${ZAP_OPENAPI}"
+      targetUrl: "${QA_API}/api/v1"
+      context: api
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10
+  - type: activeScan
+    parameters:
+      context: api
+      maxScanDurationInMins: 90
+      maxRuleDurationInMins: 10
+      threadPerHost: 2
+    policyDefinition:
+      defaultStrength: medium
+      defaultThreshold: medium
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: api-active
+      reportTitle: Raqam QA API, active scan
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: "${ZAP_REPORT_DIR}"
+      reportFile: api-active
+    risks: [info, low, medium, high]
+    confidences: [falsepositive, low, medium, high, confirmed]

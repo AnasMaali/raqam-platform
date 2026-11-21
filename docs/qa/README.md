@@ -170,3 +170,16 @@ cd e2e && node qa/stand-in.mjs 8790                                     # the ou
 cd backend && env <stand-in settings> APP_ENV=qa php scripts/qa-schedule-day.php
 PGHOST=127.0.0.1 PGUSER=raqam scripts/check-restore.sh raqam_qa <restored copy>
 ```
+
+## Security from outside (QA 8)
+
+OWASP ZAP (run on the machine, no container) against the API, the website and the panel, and the checks a scanner
+does not make (the headers on every kind of answer, what is never served, cookies, CORS, methods, redirects, a forged
+Host, body sizes, the request limits): [security.md](security.md). The reports go to `private/qa-zap/` only.
+
+```sh
+cd backend && RAQAM_QA_QUERY_REPORT=false scripts/qa.sh serve           # as production answers: no query count
+scripts/qa-zap.sh api | site-baseline | site-full | panel-baseline | panel-crawl
+php scripts/qa-outside.php --limits
+cd e2e && npx playwright test -c playwright.qa.config.ts --project=signin-limit
+```
