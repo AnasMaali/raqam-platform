@@ -131,6 +131,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('ads-impressions', fn (Request $request) => Limit::perMinute((int) config('raqam.ads.impression_requests_per_minute'))
             ->by('ads-views|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('newsletter', fn (Request $request) => Limit::perMinute((int) config('raqam.newsletter.requests_per_minute'))->by('newsletter|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
+        RateLimiter::for('csp-report', fn (Request $request) => Limit::perMinute(60)->by('csp-report|'.TrackingHash::visitor($request->ip())));
         RateLimiter::for('brevo-webhook', fn (Request $request) => Limit::perMinute(120)->by('brevo-webhook|'.TrackingHash::visitor($request->ip())));
         RateLimiter::for('chat', fn (Request $request) => Limit::perMinute(30)->by('chat|'.TrackingHash::visitor(SiteToken::visitorIp($request))));
         RateLimiter::for('contact-form', fn (Request $request) => Limit::perMinute((int) config('raqam.contact.requests_per_minute'))->by('contact-form|'.TrackingHash::visitor(SiteToken::visitorIp($request))));

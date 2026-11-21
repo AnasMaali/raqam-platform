@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Auth\AdminSessionLimits;
+use App\Filament\InitialsAvatar;
 use App\Filament\Pages\Auth\AdminLogin;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Filament\Pages\ChangePassword;
@@ -53,6 +54,8 @@ class AdminPanelProvider extends PanelProvider
             ->brandName('رَقَم')
             ->colors(['primary' => Color::Amber])
             ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
+            // Drawn here, not fetched from ui-avatars.com (the content security policy, decision after QA-8).
+            ->defaultAvatarProvider(InitialsAvatar::class)
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
             ->navigationGroups(['المحتوى', 'الإحصائيات', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'الشات بوت', 'البحث', 'النظام'])
