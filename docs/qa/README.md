@@ -91,6 +91,9 @@ Words in Latin letters on purpose are listed in the spec, each group with its re
 - settings' names;
 - file names.
 
+A command's name in an alert (`queue:work`, `schedule:run`) is drawn as code, left to right, and code is not counted as
+English text.
+
 Stored values count as data: the audit trail's values before and after, and a field the trail records that has no
 Arabic name yet (shown as stored, left to right; `AuditFieldNamesTest` fails on every such field in CI).
 

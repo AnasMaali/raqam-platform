@@ -109,7 +109,7 @@ final class EmailCatalog
                 'name' => 'تنبيه: جزء من المنصة متوقف', 'audience' => 'admin', 'sender' => 'no_reply', 'direct' => true,
                 'subject' => 'تنبيه: {الخدمة}',
                 'body' => '<p>{الخدمة} (لوحظ في {الوقت} بتوقيت القدس).</p><p>{الأثر}</p><p>{الحل}</p>',
-                'vars' => ['الخدمة' => 'text', 'الوقت' => 'text', 'الأثر' => 'text', 'الحل' => 'text'],
+                'vars' => ['الخدمة' => 'text', 'الوقت' => 'text', 'الأثر' => 'text', 'الحل' => 'html'],
             ],
             'admin_failed_signins' => [
                 'name' => 'تنبيه: محاولات دخول فاشلة كثيرة', 'audience' => 'admin', 'sender' => 'no_reply',

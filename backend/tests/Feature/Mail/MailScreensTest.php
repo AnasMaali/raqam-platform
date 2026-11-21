@@ -15,7 +15,9 @@ use App\Mail\TemplatedEmail;
 use App\Models\ContactMessage;
 use App\Models\User;
 use App\Panel\AdminAlerts;
+use App\Panel\AlertText;
 use App\Panel\ConnectionStatus;
+use App\Panel\SystemWatch;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -138,6 +140,27 @@ test('the bell shows the unread count and the newest alerts; clicking one marks 
     Livewire::test(AdminBell::class)->call('readAll');
     expect(AdminAlerts::unreadCount($this->user->id))->toBe(0);
 });
+
+test('a command named in an alert is code read left to right, in the bell, the alerts screen and the e-mail', function () {
+    SystemWatch::queueStopped(7);
+    $code = '<code dir="ltr">queue:work</code>';
+
+    Livewire::test(AdminBell::class)->assertSee($code, escape: false);
+    Livewire::test(ListAdminNotifications::class)->assertSee($code, escape: false);
+    expect(sentEmailsTo('me@raqam.example')[0]->getHtmlBody())->toContain('تأكد أن '.$code.' يعمل');
+});
+
+test('an alert\'s text stays text: only a command\'s name becomes code', function (string $text, string $html) {
+    expect(AlertText::html($text)->toHtml())->toBe($html);
+})->with([
+    'a command' => ['شغّل schedule:run كل دقيقة', 'شغّل <code dir="ltr">schedule:run</code> كل دقيقة'],
+    'two, one with a dash' => ['search:reindex ثم search:sync-due', '<code dir="ltr">search:reindex</code> ثم <code dir="ltr">search:sync-due</code>'],
+    'markup is escaped' => ['<b>queue:work</b> & <script>', '&lt;b&gt;<code dir="ltr">queue:work</code>&lt;/b&gt; &amp; &lt;script&gt;'],
+    'an address is not a command' => ['راجع https://example.com/a:b', 'راجع https://example.com/a:b'],
+    'a path is not a command' => ['الملف disk:media/photo', 'الملف disk:media/photo'],
+    'a time is not a command' => ['عند 12:30', 'عند 12:30'],
+    'a capital is not a command' => ['HTTP:500 و Redis:down', 'HTTP:500 و Redis:down'],
+]);
 
 test('an alert never leads out of the panel', function (string $path) {
     expect(AdminBell::url($path))->toBeNull();
