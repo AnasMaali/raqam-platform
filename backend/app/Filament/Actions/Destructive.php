@@ -21,7 +21,11 @@ final class Destructive
     {
         return $action->color('gray')->requiresConfirmation()
             ->modalIcon(Heroicon::OutlinedTrash)->modalIconColor('danger')
-            ->modalSubmitAction(fn (Action $submit) => $submit->color('danger'))
+            // Filament hands closure arguments over by name: here `$action` is the confirmation's submit button (any
+            // other name would get the destructive action itself, and its dialog's button would open the dialog again).
+            ->modalSubmitAction(fn (Action $action) => $action->color('danger'))
+            // The red button says what it does («نقل إلى السلة», «حذف»), not «تأكيد».
+            ->modalSubmitActionLabel(fn (Action $action) => $action->getLabel())
             ->modalHeading(fn (Action $action, ?Model $record = null) => self::heading(
                 (string) $action->getLabel(),
                 $action->isBulk() ? null : $record,

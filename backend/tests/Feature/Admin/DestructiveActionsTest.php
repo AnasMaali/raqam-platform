@@ -49,7 +49,12 @@ test('moving an item to the trash: a grey button, a confirmation that names it, 
 
     expect($trash->getColor())->toBe('gray');
     $page->mountAction('trash')->assertMountedActionModalSee('نقل إلى السلة «خبر سيُنقل»');
-    expect($page->instance()->getMountedAction()->getModalSubmitAction()->getColor())->toBe('danger');
+    $submit = $page->instance()->getMountedAction()->getModalSubmitAction();
+    // The red button is the confirmation's own submit, not a second copy of the trash button that opens it again.
+    expect($submit->getName())->toBe('submit')
+        ->and($submit->getColor())->toBe('danger')
+        ->and($submit->getLabel())->toBe('نقل إلى السلة')
+        ->and($page->instance()->getMountedAction()->getColor())->toBe('gray');
 
     // The other buttons of the header are quiet too: the bar under the form holds the one primary button.
     foreach (['breaking', 'preview', 'revisions'] as $name) {
@@ -88,4 +93,11 @@ test('every other list\'s bin is quiet too, and says «إزالة»', function (
     $bin = Repeater::make('items')->getDeleteAction();
 
     expect($bin->getColor())->toBe('gray')->and($bin->getTooltip())->toBe('إزالة');
+});
+
+test('confirming the trash moves the item and goes back to the list', function () {
+    $post = app(PostSaver::class)->create('news', 'إلى السلة', auth()->id());
+
+    Livewire::test(EditPost::class, ['record' => $post->id])->callAction('trash')->assertHasNoActionErrors()->assertRedirect();
+    expect(Post::withTrashed()->find($post->id)->trashed())->toBeTrue();
 });

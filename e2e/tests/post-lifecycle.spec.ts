@@ -57,7 +57,8 @@ test('trash: it leaves the site at once (410) and comes back when restored', asy
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(200);
 
     await page.getByRole('button', { name: 'نقل إلى السلة' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'تأكيد' }).click();
+    // The confirmation's red button says what it does.
+    await page.locator('.fi-modal-window:visible').getByRole('button', { name: 'نقل إلى السلة' }).click();
     await page.waitForURL(/\/posts\/?(\?.*)?$/);
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(410);
 
