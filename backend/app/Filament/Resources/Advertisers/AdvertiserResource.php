@@ -36,7 +36,7 @@ class AdvertiserResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'الإعلانات';
 
-    protected static ?int $navigationSort = 72;
+    protected static ?int $navigationSort = 32;
 
     protected static bool $isGloballySearchable = false;
 

@@ -36,9 +36,9 @@ class GeneralSettings extends Page
 
     protected static ?string $navigationLabel = 'الإعدادات العامة';
 
-    protected static ?int $navigationSort = 80;
+    protected static ?int $navigationSort = 90;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
     /** @var array<string, mixed>|null */
     public ?array $data = [];

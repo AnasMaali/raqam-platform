@@ -35,9 +35,9 @@ class NotFoundPathResource extends Resource
 
     protected static ?string $navigationLabel = 'صفحات غير موجودة (404)';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'الإحصائيات';
+    protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 63;
 
     public static function canCreate(): bool
     {

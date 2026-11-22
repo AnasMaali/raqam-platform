@@ -1,0 +1,18 @@
+{
+  "name": "raqam-panel-theme",
+  "private": true,
+  "type": "module",
+  "description": "Builds the admin panel's theme (resources/css/filament/admin/theme.css) into public/build. Nothing here runs in production.",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "4.3.5",
+    "laravel-vite-plugin": "3.2.1",
+    "tailwindcss": "4.3.5",
+    "vite": "8.3.6"
+  }
+}

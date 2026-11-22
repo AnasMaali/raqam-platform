@@ -37,9 +37,9 @@ class OrganizationResource extends Resource
 
     protected static ?string $navigationLabel = 'الجهات والشركات';
 
-    protected static ?int $navigationSort = 35;
+    protected static ?int $navigationSort = 57;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function canCreate(): bool
     {

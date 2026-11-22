@@ -39,7 +39,7 @@ class SynonymGroupResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'البحث';
 
-    protected static ?int $navigationSort = 61;
+    protected static ?int $navigationSort = 80;
 
     protected static bool $isGloballySearchable = false;
 

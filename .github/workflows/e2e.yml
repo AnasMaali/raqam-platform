@@ -77,7 +77,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: e2e/package-lock.json
+          cache-dependency-path: |
+            e2e/package-lock.json
+            backend/package-lock.json
 
       - name: Month (cache key of the system packages)
         id: month
@@ -117,6 +119,8 @@ jobs:
           TRY_SECONDS=400 ../.github/scripts/retry.sh composer install --no-interaction --no-progress --prefer-dist
           cp .env.example .env
           php artisan key:generate
+          TRY_SECONDS=300 ../.github/scripts/retry.sh npm ci --no-fund --no-audit
+          npm run build
 
       - name: Meilisearch binary cache
         uses: actions/cache@v6

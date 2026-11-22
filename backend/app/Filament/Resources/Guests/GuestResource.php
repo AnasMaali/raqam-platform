@@ -52,9 +52,9 @@ class GuestResource extends Resource
 
     protected static ?string $navigationLabel = 'الضيوف';
 
-    protected static ?int $navigationSort = 36;
+    protected static ?int $navigationSort = 51;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'الأشخاص';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function form(Schema $schema): Schema
     {

@@ -56,9 +56,9 @@ class VideoResource extends Resource
 
     protected static ?string $navigationLabel = 'مكتبة الفيديو';
 
-    protected static ?int $navigationSort = 25;
+    protected static ?int $navigationSort = 20;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'الفيديو';
 
     public static function form(Schema $schema): Schema
     {

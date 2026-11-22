@@ -49,9 +49,9 @@ class PlaylistResource extends Resource
 
     protected static ?string $navigationLabel = 'قوائم التشغيل';
 
-    protected static ?int $navigationSort = 26;
+    protected static ?int $navigationSort = 21;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'الفيديو';
 
     public static function form(Schema $schema): Schema
     {

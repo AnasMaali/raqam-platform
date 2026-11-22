@@ -54,9 +54,9 @@ class AuthorResource extends Resource
 
     protected static ?string $navigationLabel = 'الكتّاب';
 
-    protected static ?int $navigationSort = 35;
+    protected static ?int $navigationSort = 50;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'الأشخاص';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function form(Schema $schema): Schema
     {

@@ -42,7 +42,7 @@ class FaqResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'الشات بوت';
 
-    protected static ?int $navigationSort = 74;
+    protected static ?int $navigationSort = 76;
 
     protected static bool $isGloballySearchable = false;
 

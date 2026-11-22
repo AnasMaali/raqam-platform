@@ -129,6 +129,28 @@ jobs:
         timeout-minutes: 2
         run: cp .env.example .env && php artisan key:generate
 
+      # The panel's theme (resources/css/filament/admin/theme.css), built as production builds it: the panel's pages
+      # link public/build/manifest.json, which is not committed.
+      - uses: actions/setup-node@v7
+        timeout-minutes: 10
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install the theme's build tools
+        timeout-minutes: 10
+        run: TRY_SECONDS=300 ../.github/scripts/retry.sh npm ci --no-fund
+
+      # The same rule as the website: what builds the shipped files fails the run on any known vulnerability.
+      - name: Theme packages audit
+        timeout-minutes: 3
+        run: npm audit --omit=dev --audit-level=low
+
+      - name: Build the panel's theme
+        timeout-minutes: 5
+        run: npm run build
+
       - name: Meilisearch binary cache
         uses: actions/cache@v6
         timeout-minutes: 5

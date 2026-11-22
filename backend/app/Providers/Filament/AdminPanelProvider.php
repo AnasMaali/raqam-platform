@@ -13,6 +13,7 @@ use App\Filament\Pages\HomeLayoutEditor;
 use App\Filament\Pages\MenuEditor;
 use App\Filament\Pages\SearchStatistics;
 use App\Filament\Pages\Statistics;
+use App\Filament\PanelTheme;
 use App\Filament\Resources\Posts\Pages\EditPost;
 use App\Http\Controllers\AdminSessionController;
 use App\Http\Middleware\EnforceAdminSessionLimits;
@@ -24,9 +25,9 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
-use Filament\Support\Colors\Color;
 use Filament\View\PanelsRenderHook;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -52,13 +53,36 @@ class AdminPanelProvider extends PanelProvider
             ->login(AdminLogin::class)
             ->routes(fn () => Route::get('/login/code', AdminLoginCode::class)->name('auth.login.code'))
             ->brandName('رَقَم')
-            ->colors(['primary' => Color::Amber])
-            ->font('Noto Sans Arabic', url: asset('css/panel-font.css'), provider: LocalFontProvider::class)
+            // The brand (DESIGN.md, "The panel"): the colours from PanelTheme, everything else from the theme's CSS,
+            // built by Vite into public/build (resources/css/filament/admin/theme.css). Alexandria is declared there.
+            ->colors(PanelTheme::colors())
+            ->viteTheme('resources/css/filament/admin/theme.css')
+            ->font('Alexandria', provider: LocalFontProvider::class)
+            // The header logo in the panel; the vertical one, with the slogan, on the sign-in steps (nobody is signed in there).
+            ->brandLogo(fn () => asset(Filament::auth()->check() ? 'brand/logo-ar-header.svg' : 'brand/logo-ar-vertical.svg'))
+            ->darkModeBrandLogo(fn () => asset(Filament::auth()->check() ? 'brand/logo-ar-header-white.svg' : 'brand/logo-ar-vertical-white.svg'))
+            ->brandLogoHeight(fn () => Filament::auth()->check() ? '1.75rem' : '6rem')
+            ->favicon(asset('brand/mark.svg'))
             // Drawn here, not fetched from ui-avatars.com (the content security policy, decision after QA-8).
             ->defaultAvatarProvider(InitialsAvatar::class)
             ->sidebarCollapsibleOnDesktop()
             ->unsavedChangesAlerts()
-            ->navigationGroups(['المحتوى', 'الإحصائيات', 'الأشخاص', 'الموقع', 'الأسعار والطقس', 'التواصل', 'الشات بوت', 'البحث', 'النظام'])
+            // Ordered by how often an editor needs each screen: the daily ones first, with no group (posts, media, the
+            // home's layout, messages), then the weekly groups, then the rare ones, closed until opened. PanelNavigationTest
+            // holds the whole order.
+            ->navigationGroups([
+                NavigationGroup::make('النشرة البريدية'),
+                NavigationGroup::make('الفيديو'),
+                NavigationGroup::make('الإعلانات'),
+                NavigationGroup::make('الخدمات'),
+                NavigationGroup::make('الإحصائيات'),
+                NavigationGroup::make('التصنيفات والأشخاص')->collapsed(),
+                NavigationGroup::make('الموقع')->collapsed(),
+                NavigationGroup::make('الأسعار والطقس')->collapsed(),
+                NavigationGroup::make('الشات بوت')->collapsed(),
+                NavigationGroup::make('البحث')->collapsed(),
+                NavigationGroup::make('الإعدادات والنظام')->collapsed(),
+            ])
             ->pages([Dashboard::class, MenuEditor::class, GeneralSettings::class, ChangePassword::class, SearchStatistics::class, Statistics::class, HomeLayoutEditor::class])
             ->userMenuItems([
                 Action::make('password')->label('تغيير كلمة المرور')->icon('heroicon-o-key')->url(fn () => ChangePassword::getUrl()),

@@ -31,9 +31,9 @@ class EmailLogResource extends Resource
 
     protected static ?string $navigationLabel = 'سجل الإيميلات';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'النظام';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
-    protected static ?int $navigationSort = 81;
+    protected static ?int $navigationSort = 94;
 
     protected static bool $isGloballySearchable = false;
 

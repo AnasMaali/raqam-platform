@@ -58,9 +58,7 @@ class MediaAssetResource extends Resource
 
     protected static ?string $navigationLabel = 'مكتبة الوسائط';
 
-    protected static ?int $navigationSort = 20;
-
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static ?int $navigationSort = 2;
 
     public const TYPES = [
         'image' => 'صور',

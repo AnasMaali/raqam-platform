@@ -35,7 +35,7 @@ class Statistics extends Page
 
     protected static string|\UnitEnum|null $navigationGroup = 'الإحصائيات';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 45;
 
     /** @var array<string, mixed>|null */
     public ?array $data = [];

@@ -34,9 +34,9 @@ class SubscriberResource extends Resource
 
     protected static ?string $navigationLabel = 'مشتركو النشرة';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'التواصل';
+    protected static string|\UnitEnum|null $navigationGroup = 'النشرة البريدية';
 
-    protected static ?int $navigationSort = 71;
+    protected static ?int $navigationSort = 11;
 
     protected static bool $isGloballySearchable = false;
 

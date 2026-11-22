@@ -35,9 +35,9 @@ class SectorResource extends Resource
 
     protected static ?string $navigationLabel = 'القطاعات الاقتصادية';
 
-    protected static ?int $navigationSort = 36;
+    protected static ?int $navigationSort = 58;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function form(Schema $schema): Schema
     {

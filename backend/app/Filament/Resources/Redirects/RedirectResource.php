@@ -39,7 +39,7 @@ class RedirectResource extends Resource
 
     protected static ?string $navigationLabel = 'التحويلات';
 
-    protected static ?int $navigationSort = 37;
+    protected static ?int $navigationSort = 62;
 
     protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
 

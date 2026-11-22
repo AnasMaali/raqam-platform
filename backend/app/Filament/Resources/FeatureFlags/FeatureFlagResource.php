@@ -30,9 +30,9 @@ class FeatureFlagResource extends Resource
 
     protected static ?string $navigationLabel = 'مفاتيح التشغيل';
 
-    protected static ?int $navigationSort = 81;
+    protected static ?int $navigationSort = 91;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
     public static function canCreate(): bool
     {

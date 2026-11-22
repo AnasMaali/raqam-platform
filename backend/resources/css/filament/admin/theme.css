@@ -1,0 +1,154 @@
+/*
+ * The admin panel's theme: Raqam's tokens (DESIGN.md, "The panel") over Filament's own styles.
+ * Colours are Filament's scales, registered in PHP (App\Filament\PanelTheme), so that Filament still picks the text
+ * colour of each button and badge by contrast; this file holds what PHP cannot set: the typeface, the radii, the flat
+ * surfaces, and the borders of controls. Built by `npm run build` into public/build (git-ignored).
+ */
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../app/Livewire/**/*';
+@source '../../../../resources/views/filament/**/*';
+@source '../../../../resources/views/livewire/**/*';
+
+/* The site's own file (frontend/src/fonts), copied: Arabic with Latin, digits and punctuation, weights 400 to 700. */
+@font-face {
+    font-family: 'Alexandria';
+    font-style: normal;
+    font-weight: 400 700;
+    font-display: swap;
+    src: url('../../../fonts/alexandria/alexandria-arabic-latin.woff2') format('woff2');
+}
+
+@theme {
+    /* Three radii only (DESIGN.md, "Shapes"): xs 2px for labels, sm 4px for buttons and controls, md 8px for surfaces. */
+    --radius-sm: 0.125rem;
+    --radius: 0.25rem;
+    --radius-md: 0.25rem;
+    --radius-lg: 0.25rem;
+    --radius-xl: 0.5rem;
+    --radius-2xl: 0.5rem;
+    --radius-3xl: 0.5rem;
+
+    /* Flat surfaces separated by hairlines; one shadow, `shadow-raised`, for what floats over the page. */
+    --shadow-2xs: 0 0 #0000;
+    --shadow-xs: 0 0 #0000;
+    --shadow-sm: 0 0 #0000;
+    --shadow: 0 0 #0000;
+    --shadow-md: 0 0 #0000;
+    --shadow-lg: 0 12px 32px -12px rgb(11 14 20 / 0.28);
+    --shadow-xl: 0 12px 32px -12px rgb(11 14 20 / 0.28);
+    --shadow-2xl: 0 12px 32px -12px rgb(11 14 20 / 0.28);
+}
+
+/*
+ * Unlayered, so it wins over Filament's layered components and utilities.
+ * `line` is a hairline (decoration); `line-strong` is the border of a control, which must reach 3:1 against the
+ * page and the surface in both themes (WCAG 1.4.11). Tests read these two values: PanelThemeTest.
+ */
+:root {
+    --raqam-line: #dcdfe6;
+    --raqam-line-strong: #7d8491;
+}
+
+:root.dark {
+    --raqam-line: #262c3a;
+    --raqam-line-strong: #6b7384;
+}
+
+/* Controls: text fields, selects, checkboxes, radios, the toggle's off track. Disabled controls keep Filament's. */
+.fi-input-wrp:not(.fi-disabled):not(.fi-invalid),
+.fi-checkbox-input:not(:checked):not(:disabled):not(.fi-invalid),
+.fi-radio-input:not(:checked):not(:disabled):not(.fi-invalid) {
+    --tw-ring-color: var(--raqam-line-strong);
+}
+
+.fi-input-wrp:not(.fi-disabled):not(.fi-invalid):focus-within {
+    --tw-ring-color: var(--color-primary-600);
+}
+
+:root.dark .fi-input-wrp:not(.fi-disabled):not(.fi-invalid):focus-within {
+    --tw-ring-color: var(--color-primary-400);
+}
+
+.fi-toggle:not(.fi-color) {
+    background-color: var(--raqam-line-strong);
+}
+
+/* A placeholder is a hint, so it is readable too: muted on light, muted-dark on dark. */
+.fi-input::placeholder,
+.fi-input-wrp input::placeholder,
+.fi-input-wrp textarea::placeholder {
+    color: var(--color-gray-500);
+}
+
+:root.dark .fi-input::placeholder,
+:root.dark .fi-input-wrp input::placeholder,
+:root.dark .fi-input-wrp textarea::placeholder {
+    color: var(--color-gray-400);
+}
+
+/* Hairlines around surfaces, the directory's rules. */
+.fi-topbar,
+.fi-section,
+.fi-ta-ctn,
+.fi-simple-main,
+.fi-tabs,
+.fi-wi-stats-overview-stat,
+.fi-fo-repeater-item,
+.fi-fo-builder-item,
+.fi-dropdown-panel,
+.fi-modal-window {
+    --tw-ring-color: var(--raqam-line);
+}
+
+/* The sidebar: each group opens like a chapter, its name in blue over a hairline; the open screen is tinted, with a
+   rule on its start side (the panel is right to left: an inset shadow moved left draws on the right). */
+.fi-sidebar-group + .fi-sidebar-group {
+    border-top: 1px solid var(--raqam-line);
+    padding-top: 0.75rem;
+}
+
+.fi-sidebar-group-label {
+    color: var(--color-primary-600);
+}
+
+:root.dark .fi-sidebar-group-label {
+    color: var(--color-primary-400);
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: var(--color-primary-50);
+    box-shadow: inset -3px 0 0 var(--color-primary-600);
+}
+
+:root.dark .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: var(--color-primary-950);
+    box-shadow: inset -3px 0 0 var(--color-primary-400);
+}
+
+/* Figures line up in tables, stats and page numbers; elsewhere they stay proportional (DESIGN.md, "Numbers"). */
+.fi-ta-cell,
+.fi-ta-summary-row,
+.fi-wi-stats-overview-stat-value,
+.fi-pagination {
+    font-variant-numeric: tabular-nums;
+}
+
+/* The logo is the brand's drawing, never stretched. */
+.fi-logo {
+    width: auto;
+}
+
+/* A finger needs 44 px (DESIGN.md, "Layout"): buttons, icon buttons and fields grow on a touch screen only. */
+@media (pointer: coarse) {
+    .fi-btn,
+    .fi-input-wrp {
+        min-height: 2.75rem;
+    }
+
+    .fi-icon-btn {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+}
