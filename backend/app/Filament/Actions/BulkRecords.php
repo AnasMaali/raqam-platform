@@ -21,7 +21,7 @@ final class BulkRecords
     /** @param  (Closure(Model): bool)|null  $allowed  records it does not apply to are left alone and counted */
     public static function delete(?Closure $allowed = null, string $label = 'حذف المحدد'): BulkAction
     {
-        return BulkAction::make('deleteSelected')->label($label)->icon(Heroicon::OutlinedTrash)->color('danger')
+        return Destructive::quiet(BulkAction::make('deleteSelected'))->label($label)->icon(Heroicon::OutlinedTrash)
             ->requiresConfirmation()->modalDescription('يُحذف كل عنصر محدد كما لو حذفته وحده؛ ما زال مستخدماً لا يُحذف.')
             ->deselectRecordsAfterCompletion()
             ->action(function (Collection $records) use ($allowed) {

@@ -10,6 +10,7 @@ use App\Chat\ChatResponder;
 use App\Chat\KnowledgeBaseResponder;
 use App\Console\WipeDatabaseCommand;
 use App\Events\PostChanged;
+use App\Filament\Actions\Destructive;
 use App\Filament\Forms\LtrFields;
 use App\Filament\Pages\Auth\AdminLoginCode;
 use App\Listeners\NotifyIndexNowOfPostChange;
@@ -23,6 +24,9 @@ use App\Support\ProductionChecks;
 use App\Support\QueryTally;
 use App\Support\RequestMemo;
 use App\Support\TrackingHash;
+use Filament\Actions\Action;
+use Filament\Actions\DeleteAction;
+use Filament\Forms\Components\Repeater;
 use Illuminate\Auth\Events\CurrentDeviceLogout;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -72,6 +76,12 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Every delete in the panel is quiet until asked: a grey button, red only inside the confirmation that names it.
+        DeleteAction::configureUsing(fn (DeleteAction $action) => Destructive::quiet($action));
+        // A list's row (a block of the home page, a picture of a gallery, a menu link) is removed by a quiet bin that says
+        // what it does; nothing is gone until the form is saved.
+        Repeater::configureUsing(fn (Repeater $repeater) => $repeater->deleteAction(fn (Action $action) => $action->color('gray')->tooltip('إزالة')));
+
         // db:wipe, migrate:fresh/refresh/reset/rollback never run in production, not even with --force.
         DB::prohibitDestructiveCommands($this->app->isProduction());
 

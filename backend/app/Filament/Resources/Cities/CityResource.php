@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Cities;
 
+use App\Filament\Actions\Destructive;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Cities\Pages\ManageCities;
 use App\Integrations\DataProviders;
@@ -91,9 +92,9 @@ class CityResource extends Resource
                         });
                         Notification::make()->success()->title('حُفظت المدينة.')->send();
                     }),
-                Action::make('remove')->label('حذف')->icon(Heroicon::OutlinedTrash)->color('danger')
+                Destructive::quiet(Action::make('remove'))->label('حذف')->icon(Heroicon::OutlinedTrash)
                     ->visible(fn (WeatherLocation $r) => ! $r->is_default)
-                    ->requiresConfirmation()->modalHeading('حذف المدينة من الطقس')
+                    ->requiresConfirmation()
                     ->modalDescription('تُحذف المدينة مع قراءاتها وتوقعاتها، وتجيب صفحتها «لم تعد موجودة» (410). لإخفائها مؤقتاً استعمل «تعديل» وأطفئ الظهور.')
                     ->action(function (WeatherLocation $r) {
                         app(WeatherCities::class)->remove($r, auth()->id());
