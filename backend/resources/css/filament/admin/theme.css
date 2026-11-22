@@ -152,3 +152,58 @@
         min-height: 2.75rem;
     }
 }
+
+/*
+ * The editor (EditPost). On a phone and a tablet the side column opens up into the form's single column, so «النشر»
+ * (state, date, featured, breaking) comes before the text and the rest of the side follows it.
+ */
+@media (max-width: 1023.98px) {
+    .fi-grid-col:has(> .fi-sc-component > .raqam-post-side),
+    .fi-grid-col:has(> .fi-sc-component > .raqam-post-side) > .fi-sc-component,
+    .raqam-post-side,
+    .raqam-post-side > .fi-grid {
+        display: contents;
+    }
+
+    .raqam-post-side > .fi-grid > .fi-grid-col:has(.raqam-post-publish) {
+        order: -1;
+    }
+}
+
+/* The editor's bar: the state and what happened to the changes first, then the buttons. */
+.raqam-save-state {
+    display: flex;
+    flex: 1 1 12rem;
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--color-gray-600);
+}
+
+:root.dark .raqam-save-state {
+    color: var(--color-gray-400);
+}
+
+.raqam-save-state-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.raqam-save-state-dirty {
+    color: var(--color-warning-600);
+    font-weight: 500;
+}
+
+:root.dark .raqam-save-state-dirty {
+    color: var(--color-warning-400);
+}
+
+@media (max-width: 639.98px) {
+    .raqam-bar-cancel {
+        display: none;
+    }
+}

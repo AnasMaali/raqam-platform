@@ -101,7 +101,7 @@ for (const kind of kinds) {
         await pick(page, 'cover_media_id', 'cover.png', 'cover');
         await kind.facts?.(page);
 
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
         await page.getByRole('button', { name: 'تأكيد' }).click();
         await expect(page.getByText('تم الحفظ')).toBeVisible();
 

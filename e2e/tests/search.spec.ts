@@ -112,7 +112,7 @@ test.describe('search on the engine', () => {
         await pick(page, 'awareness.character_id', 'المستشار');
         await pick(page, 'awareness.character_pose_id', 'تشرح');
         await pick(page, 'awareness.awareness_type_code', 'نصيحة');
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
         await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
         await until(page.request, app.url, 'الأعياد', card, true);
 

@@ -29,12 +29,20 @@
             this.savedHash = this.backedUpHash = this.hash()
             this.look()
 
-            window.Livewire.on('post-saved', () => { this.savedHash = this.hash(); this.forget(); this.note = ''; this.draft = this.w().data?.status === 'draft' })
-            window.Livewire.on('post-autosaved', ({ at }) => { this.savedHash = this.sent; this.note = 'حُفظت المسودة تلقائياً ' + at })
-            window.Livewire.on('post-autosave-failed', ({ message }) => { this.sent = ''; this.note = message })
+            window.Livewire.on('post-saved', () => { this.savedHash = this.hash(); this.forget(); this.note = ''; this.draft = this.w().data?.status === 'draft'; this.announce() })
+            window.Livewire.on('post-autosaved', ({ at }) => { this.savedHash = this.sent; this.note = 'حُفظت المسودة تلقائياً ' + at; this.announce() })
+            window.Livewire.on('post-autosave-failed', ({ message }) => { this.sent = ''; this.note = message; this.announce() })
 
             setInterval(() => this.autosave(), this.every)
             setInterval(() => this.copy(), 2000)
+            setInterval(() => this.announce(), 1000)
+            this.announce()
+        },
+        // The bar under the form says whether there are changes not saved yet (post-save-state.blade.php).
+        announce() {
+            const state = { dirty: this.hash() !== this.savedHash, note: this.note }
+            window.raqamPostState = state
+            if (typeof window.dispatchEvent === 'function') window.dispatchEvent(new CustomEvent('raqam-post-state', { detail: state }))
         },
         hash() { try { return JSON.stringify(this.w().data) ?? '' } catch (e) { return '' } },
         autosave() {
@@ -64,6 +72,7 @@
             this.w().$set('data', this.offer.data)
             this.offer = null
             this.note = 'استُرجعت النسخة المحلية. راجعها ثم احفظ.'
+            this.announce()
         },
         dismiss() { this.offer = null; this.forget() },
         forget() { try { window.localStorage.removeItem(this.key) } catch (e) {} },
@@ -82,9 +91,4 @@
             <button type="button" x-on:click="dismiss()" style="border:1px solid #fff;border-radius:8px;padding:6px 14px">تجاهل</button>
         </span>
     </div>
-    <div
-        x-show="note && ! offer"
-        x-text="note"
-        style="position:fixed;inset-inline-start:16px;bottom:16px;z-index:50;border-radius:8px;padding:6px 12px;font-size:13px;background:rgba(0,0,0,.75);color:#fff"
-    ></div>
 </div>

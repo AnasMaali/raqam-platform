@@ -38,6 +38,26 @@ function newPost(string $kind = 'news', string $title = 'مسودة جديدة')
     return app(PostSaver::class)->create($kind, $title, auth()->id());
 }
 
+/** A button of the bar under the editor's form (the form's actions, not the page's header). */
+function barAction(string $name): TestAction
+{
+    return TestAction::make($name)->schemaComponent('form-actions', schema: 'content');
+}
+
+/** @return array<string, string> the bar's buttons, name => label, in order (the state line left out). */
+function barButtons(Post $post): array
+{
+    $page = edit($post)->instance();
+    $out = [];
+    foreach ((fn () => $this->getFormActions())->call($page) as $action) {
+        if ($action->getName() !== 'saveState') {
+            $out[$action->getName()] = (string) $action->getLabel();
+        }
+    }
+
+    return $out;
+}
+
 function edit(Post $post)
 {
     return Livewire::test(EditPost::class, ['record' => $post->id]);
@@ -123,7 +143,7 @@ test('publishing works, and the quick button publishes with the current text', f
     $post = newPost();
 
     edit($post)->fillForm(['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id])
-        ->callAction('publishNow')->assertHasNoFormErrors();
+        ->callAction(barAction('publishNow'))->assertHasNoFormErrors();
 
     expect($post->fresh())->status->toBe('published')->and($post->fresh()->published_at)->not->toBeNull();
 });
@@ -131,7 +151,7 @@ test('publishing works, and the quick button publishes with the current text', f
 test('the quick publish button on an incomplete item explains what is missing and closes its dialog', function () {
     $post = newPost();
 
-    $page = edit($post)->callAction('publishNow')   // no text, no category, no cover
+    $page = edit($post)->callAction(barAction('publishNow'))   // no text, no category, no cover
         ->assertNotified()
         ->assertHasErrors(['data.cover_media_id'])
         ->assertSet('mountedActions', [])             // the confirmation dialog is gone, not stuck open
@@ -144,7 +164,7 @@ test('the quick publish button is not offered for an item that is already publis
     $post = newPost();
     app(PostSaver::class)->save($post, ['title' => 'x', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
 
-    edit($post->fresh())->assertActionHidden('publishNow');
+    edit($post->fresh())->assertActionDoesNotExist(barAction('publishNow'));
 });
 
 test('scheduling from the form needs a future time and publishes through the queue', function () {
@@ -362,4 +382,71 @@ test('bulk trash moves the selected items to the trash', function () {
     Livewire::test(ListPosts::class)->selectTableRecords([$a->id, $b->id])->callAction(TestAction::make('trash')->table()->bulk());
 
     expect(Post::count())->toBe(1)->and(Post::find($keep->id))->not->toBeNull()->and(Post::onlyTrashed()->count())->toBe(2);
+});
+
+// ---- the bar under the form: publishing by state (panel phase 3) --------------------------------
+
+test('a draft\'s bar publishes, schedules or keeps it a draft, and Ctrl+S only saves', function () {
+    $post = newPost();
+
+    expect(barButtons($post))->toBe(['publishNow' => 'نشر', 'schedule' => 'جدولة…', 'save' => 'حفظ كمسودة', 'cancel' => 'إلغاء']);
+    expect((fn () => $this->getFormActions())->call(edit($post)->instance())[3]->getKeyBindings())->toBe(['mod+s']);
+    edit($post)->assertActionDoesNotExist('publishNow');   // no longer in the header
+});
+
+test('a published item is updated, a scheduled one updated or published at once, an archived one updated or published again', function () {
+    $published = newPost('news', 'منشور');
+    app(PostSaver::class)->save($published, ['title' => 'منشور', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
+    expect(barButtons($published->fresh()))->toBe(['save' => 'تحديث', 'cancel' => 'إلغاء']);
+
+    $scheduled = newPost('news', 'مجدول');
+    app(PostSaver::class)->save($scheduled, ['title' => 'مجدول', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled', 'published_at' => now()->addDay()->format('Y-m-d H:i:s')], $this->admin->id);
+    expect(barButtons($scheduled->fresh()))->toBe(['save' => 'تحديث', 'publishNow' => 'نشر الآن', 'cancel' => 'إلغاء']);
+
+    app(PostSaver::class)->save($published->fresh(), ['title' => 'منشور', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'archived'], $this->admin->id);
+    expect(barButtons($published->fresh()))->toBe(['save' => 'تحديث', 'publishNow' => 'نشر', 'cancel' => 'إلغاء']);
+});
+
+test('a draft\'s save button says what it will do when the state above it is changed', function () {
+    $post = newPost();
+
+    edit($post)->fillForm(['status' => 'scheduled'])->assertActionHasLabel(barAction('save'), 'حفظ')
+        ->fillForm(['status' => 'draft'])->assertActionHasLabel(barAction('save'), 'حفظ كمسودة');
+});
+
+test('«جدولة…» asks for the time and schedules the draft with the current text; a time in the past is refused', function () {
+    $post = newPost();
+    $page = edit($post)->fillForm(['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id]);
+
+    $page->callAction(barAction('schedule'), ['at' => now('Asia/Hebron')->subHour()->format('Y-m-d H:i')])->assertNotified();
+    expect($post->fresh()->status)->toBe('draft');
+
+    $at = now('Asia/Hebron')->addDay()->startOfMinute();
+    $page->callAction(barAction('schedule'), ['at' => $at->format('Y-m-d H:i')])->assertHasNoFormErrors();
+    expect($post->fresh())->status->toBe('scheduled')
+        ->and($post->fresh()->published_at->equalTo($at))->toBeTrue()
+        ->and($post->fresh()->body)->toContain('نص');
+});
+
+test('the confirmation to publish names the item', function () {
+    $post = newPost('news', 'خبر عن السوق');
+
+    edit($post)->mountAction(barAction('publishNow'))->assertMountedActionModalSee('نشر «خبر عن السوق»');
+});
+
+test('the bar stays on screen and starts with the item\'s state and whether changes are saved', function () {
+    $post = newPost();
+
+    expect(edit($post)->instance()->areFormActionsSticky())->toBeTrue();
+    edit($post)->assertSeeHtml('raqam-save-state')->assertSee('مسودة')->assertSee('لا تغييرات غير محفوظة', false);
+});
+
+test('after publishing from the bar, the same page\'s bar is the published item\'s, keyed by the state', function () {
+    $post = newPost();
+
+    edit($post)->assertSeeHtml('wire:key="post-bar-draft"')
+        ->fillForm(['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id])
+        ->callAction(barAction('publishNow'))->assertHasNoFormErrors()->assertNoRedirect()
+        ->assertSeeHtml('wire:key="post-bar-published"')->assertDontSeeHtml('wire:key="post-bar-draft"')
+        ->assertActionDoesNotExist(barAction('publishNow'))->assertActionHasLabel(barAction('save'), 'تحديث');
 });

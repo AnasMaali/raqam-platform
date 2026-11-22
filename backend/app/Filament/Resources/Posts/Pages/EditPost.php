@@ -13,10 +13,12 @@ use App\Models\Post;
 use App\Seo\SeoMetaSaver;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Support\Exceptions\Halt;
 use Filament\Support\Icons\Heroicon;
@@ -38,6 +40,14 @@ class EditPost extends EditRecord
     }
 
     protected static string $resource = PostResource::class;
+
+    /** The item's state when the save began: a save that changes it opens the page again (afterSave). */
+    private ?string $statusBeforeSave = null;
+
+    protected function beforeSave(): void
+    {
+        $this->statusBeforeSave = $this->getRecord()->status;
+    }
 
     /** What the database last said about this item; handed back on every save to notice another editor's change. */
     public ?string $saveToken = null;
@@ -94,6 +104,13 @@ class EditPost extends EditRecord
         $this->saveToken = app(PostSaver::class)->token($this->getRecord());
         $this->fillForm();   // show what was really stored: the cleaned text, the address that was made
         $this->dispatch('post-saved');
+
+        // The bar's buttons follow the stored state (getFormActions), and the page keeps its layout for the whole
+        // request: after publishing or scheduling, it is built again from the new state. The bar carries the state in its
+        // wire:key, so the page replaces the old bar instead of reshaping its buttons one into another.
+        if ($this->getRecord()->status !== $this->statusBeforeSave) {
+            unset($this->cachedSchemas['content']);
+        }
     }
 
     /** Called by the page every 30 seconds while a draft's text has changed. Not validated: a half-written draft is fine. */
@@ -130,13 +147,60 @@ class EditPost extends EditRecord
         return $state['data'];
     }
 
+    /** The bar stays at the bottom of the screen while the form scrolls, on a phone too. */
+    public static bool $formActionsAreSticky = true;
+
+    /**
+     * The bar under the form, by the item's state as stored: a draft is published, scheduled or kept as a draft; a
+     * scheduled, published or archived item is updated, and the first and last can also go live at once. Ctrl+S is
+     * always the save button, so it never publishes. The bar starts with what has happened to the editor's changes.
+     */
+    protected function getFormActions(): array
+    {
+        $status = $this->getRecord()->status;
+        $save = $this->getSaveFormAction()
+            ->label(fn () => $status !== 'draft' ? 'تحديث' : (($this->data['status'] ?? 'draft') === 'draft' ? 'حفظ كمسودة' : 'حفظ'))
+            ->color($status === 'draft' ? 'gray' : 'primary');
+
+        return array_values(array_filter([
+            Action::make('saveState')->view('filament.post-save-state', fn () => ['status' => Post::STATUSES[$status] ?? $status, 'tone' => $status]),
+            $status === 'draft' ? $this->publishAction('نشر', 'primary') : null,
+            $status === 'draft' ? $this->scheduleAction() : null,
+            $save,
+            in_array($status, ['scheduled', 'archived'], true) ? $this->publishAction($status === 'archived' ? 'نشر' : 'نشر الآن', 'gray') : null,
+            // A phone has its own way back; the bar keeps to one line there (theme.css).
+            $this->getCancelFormAction()->extraAttributes(['class' => 'raqam-bar-cancel']),
+        ]));
+    }
+
+    public function getFormActionsContentComponent(): Component
+    {
+        return parent::getFormActionsContentComponent()->extraAttributes(['wire:key' => 'post-bar-'.$this->getRecord()->status]);
+    }
+
+    private function publishAction(string $label, string $color): Action
+    {
+        return Action::make('publishNow')->label($label)->icon(Heroicon::OutlinedPaperAirplane)->color($color)
+            ->requiresConfirmation()->modalHeading(fn () => 'نشر «'.$this->getRecord()->title.'»')
+            ->modalDescription('تُحفظ التعديلات وتُنشر المادة فوراً.')
+            ->action(fn (Action $action) => $this->saveFromAction($action, ['status' => 'published'], 'تعذّر النشر'));
+    }
+
+    private function scheduleAction(): Action
+    {
+        return Action::make('schedule')->label('جدولة…')->icon(Heroicon::OutlinedClock)->color('gray')
+            ->modalHeading(fn () => 'جدولة «'.$this->getRecord()->title.'»')
+            // No timezone() here: the value goes into the form as typed (Palestine time), and the form's own date field
+            // turns it into UTC once, on save. With timezone() it would be turned twice.
+            ->schema([DateTimePicker::make('at')->label('وقت النشر')->seconds(false)->native(false)->displayFormat('Y-m-d H:i')
+                ->required()->helperText('بتوقيت فلسطين، بعد دقيقة من الآن على الأقل.')])
+            ->modalDescription('تُحفظ التعديلات وتُنشر المادة تلقائياً في هذا الوقت.')->modalSubmitActionLabel('جدولة')
+            ->action(fn (array $data, Action $action) => $this->saveFromAction($action, ['status' => 'scheduled', 'published_at' => $data['at']], 'تعذّرت الجدولة'));
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('publishNow')->label('نشر الآن')->icon(Heroicon::OutlinedPaperAirplane)->color('success')
-                ->visible(fn () => in_array($this->getRecord()->status, ['draft', 'scheduled', 'archived'], true))
-                ->requiresConfirmation()->modalDescription('تُحفظ التعديلات وتُنشر المادة فوراً.')
-                ->action(fn (Action $action) => $this->saveFromAction($action, ['status' => 'published'], 'تعذّر النشر')),
             Action::make('breaking')->label('عاجل')->icon(Heroicon::OutlinedBolt)->color('danger')
                 ->schema([Select::make('hours')->label('مدة العاجل')->native(false)->options([1 => 'ساعة', 3 => '3 ساعات', 6 => '6 ساعات', 12 => '12 ساعة', 24 => '24 ساعة'])->default(3)->required()])
                 ->modalDescription('تُحفظ التعديلات ويظهر الخبر في شريط العاجل حتى انتهاء المدة.')->modalSubmitActionLabel('جعله عاجلاً')

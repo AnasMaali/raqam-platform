@@ -53,7 +53,7 @@ function openTab({ draft = true, serverAt = 1_699_999_000, data = { title: 'أ',
     tab.init();
     const intervals = timers.filter((t) => typeof t === 'object');
     return {
-        tab, wire, calls, listeners, intervals,
+        tab, wire, calls, listeners, intervals, view,
         run: (ms) => intervals.filter((t) => t.ms === ms).forEach((t) => t.fn()),
     };
 }
@@ -64,13 +64,17 @@ const KEY = 'raqam:post:1:42';
 
 // --- a draft being typed
 let t = openTab();
-check(t.intervals.length === 2 && t.intervals.map((i) => i.ms).sort((a, b) => a - b).join() === '2000,30000', 'two timers: a 2 s local copy and a 30 s autosave');
+check(t.intervals.length === 3 && t.intervals.map((i) => i.ms).sort((a, b) => a - b).join() === '1000,2000,30000', 'three timers: the bar\'s state each second, a 2 s local copy and a 30 s autosave');
+check(t.view.raqamPostState?.dirty === false, 'nothing typed yet: the bar says there is nothing unsaved');
 t.run(30000);
 check(t.calls.length === 0, 'nothing changed: autosave sends nothing');
 t.wire.data = { title: 'أ', body: '<p>نص جديد</p>' };
+t.run(1000);
+check(t.view.raqamPostState.dirty === true, 'typed: within a second the bar says there are unsaved changes');
 t.run(30000);
 check(t.calls.join() === 'autosave', 'the text changed: autosave asks the server once');
 t.listeners['post-autosaved']({ at: '10:15:00' });
+check(t.view.raqamPostState.dirty === false && t.view.raqamPostState.note.includes('10:15:00'), 'autosaved: the bar says so, with the time');
 t.run(30000);
 check(t.calls.length === 1, 'saved: the same text is not sent again');
 t.wire.data = { title: 'أ', body: '<p>نص أطول</p>' };

@@ -88,7 +88,7 @@ test('a short clip is uploaded from a phone, and a character card is published f
     await pick(page, 'awareness.character_pose_id', 'تشرح');
     await pick(page, 'awareness.awareness_type_code', 'نصيحة');
     await noSideScroll(page, 'card editor');
-    const publish = page.getByRole('button', { name: 'نشر الآن' });
+    const publish = page.getByRole('button', { name: 'نشر', exact: true });
     await publish.scrollIntoViewIfNeeded();
     await publish.click();
     await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');

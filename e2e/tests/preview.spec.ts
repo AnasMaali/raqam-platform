@@ -6,7 +6,7 @@ test('the secret preview link shows a draft without signing in, and stops workin
     await uploadImage(page, 'cover.png', 'صورة');
     const id = await createPost(page, 'خبر', 'خبر قيد الكتابة');
     await fillRequired(page, 'هذا نص المسودة السري.');
-    await page.getByRole('button', { name: 'حفظ التغييرات' }).click();
+    await page.getByRole('button', { name: 'حفظ كمسودة' }).click();
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
     // Ask for a 24-hour link: it appears in a notification.

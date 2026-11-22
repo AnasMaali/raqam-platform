@@ -41,7 +41,8 @@ final class PostForm
         return $schema->components([
             Grid::make(['default' => 1, 'lg' => 3])->schema([
                 Group::make(self::main())->columnSpan(['lg' => 2]),
-                Group::make(self::side())->columnSpan(['lg' => 1]),
+                // On a phone the side column opens up so its «النشر» section can come before the text (theme.css).
+                Group::make(self::side())->columnSpan(['lg' => 1])->extraAttributes(['class' => 'raqam-post-side']),
             ])->columnSpanFull(),
         ]);
     }
@@ -98,7 +99,7 @@ final class PostForm
     private static function side(): array
     {
         return [
-            Section::make('النشر')->schema([
+            Section::make('النشر')->extraAttributes(['class' => 'raqam-post-publish'])->schema([
                 Select::make('status')->label('الحالة')->native(false)->options(Post::STATUSES)->required()->live(),
                 DateTimePicker::make('published_at')->label(fn (Get $get) => $get('status') === 'scheduled' ? 'وقت النشر' : 'تاريخ النشر')
                     ->seconds(false)->native(false)->displayFormat('Y-m-d H:i')->timezone('Asia/Hebron')

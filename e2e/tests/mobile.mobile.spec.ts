@@ -42,7 +42,7 @@ test('an editor can write and publish an item from a phone', async ({ page, app,
     await fillRequired(page, 'نص مكتوب من الهاتف.');
 
     // The publishing buttons are reachable (they may wrap, but must be visible and tappable).
-    const publish = page.getByRole('button', { name: 'نشر الآن' });
+    const publish = page.getByRole('button', { name: 'نشر', exact: true });
     await publish.scrollIntoViewIfNeeded();
     const box = (await publish.boundingBox())!;
     expect(box.height, 'tap target height').toBeGreaterThanOrEqual(32);
