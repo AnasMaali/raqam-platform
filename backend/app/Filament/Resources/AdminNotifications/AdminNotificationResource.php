@@ -7,6 +7,7 @@ use App\Filament\Resources\AdminNotifications\Pages\ListAdminNotifications;
 use App\Livewire\AdminBell;
 use App\Models\AdminNotification;
 use App\Panel\AdminAlerts;
+use App\Panel\AlertText;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -20,6 +21,7 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 /** Every alert of the signed-in admin (the bell's full list, 20.10); nobody sees another admin's. */
 class AdminNotificationResource extends Resource
@@ -77,7 +79,8 @@ class AdminNotificationResource extends Resource
                 TextColumn::make('created_at')->label('الوقت')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
                 TextColumn::make('category')->label('النوع')->badge()->formatStateUsing(fn (string $state) => AdminAlerts::CATEGORIES[$state] ?? $state),
                 TextColumn::make('title')->label('التنبيه')->wrap()->searchable()->weight(fn (AdminNotification $r) => $r->read_at ? null : 'bold'),
-                TextColumn::make('body')->label('التفاصيل')->wrap()->limit(160)->placeholder('—'),
+                TextColumn::make('body')->label('التفاصيل')->wrap()->placeholder('—')
+                    ->formatStateUsing(fn (string $state) => AlertText::html(Str::limit($state, 160))),
             ])
             ->filters([
                 SelectFilter::make('category')->label('النوع')->options(AdminAlerts::CATEGORIES),

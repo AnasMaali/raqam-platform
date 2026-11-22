@@ -139,7 +139,7 @@ final class SystemWatch
         try {
             $time = now('Asia/Hebron')->format('Y-m-d H:i');
             AdminAlerts::raise('system', 'down:'.$part, $title, $effect.' '.$fix, null,
-                fn () => new TemplatedEmail('admin_service_down', ['الخدمة' => $title, 'الوقت' => $time, 'الأثر' => $effect, 'الحل' => $fix]));
+                fn () => new TemplatedEmail('admin_service_down', ['الخدمة' => $title, 'الوقت' => $time, 'الأثر' => $effect, 'الحل' => AlertText::html($fix)->toHtml()]));
         } catch (\Throwable $e) {
             report($e);   // an alert about a failure must not become a failure of its own
         }

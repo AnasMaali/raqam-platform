@@ -1,4 +1,5 @@
-{{-- The bell (20.10). Titles and bodies are escaped like any text. It never polls the server (phase 1 rule). --}}
+{{-- The bell (20.10). Titles and bodies are escaped like any text (a command a body names is code, AlertText). It never
+     polls the server (phase 1 rule). --}}
 <div class="me-2">
     <x-filament::dropdown placement="bottom-end" width="sm" max-height="28rem">
         <x-slot name="trigger">
@@ -17,7 +18,7 @@
                     <span class="block text-xs text-gray-500">{{ $categories[$item->category] ?? '' }} — {{ \Illuminate\Support\Carbon::parse($item->created_at)->timezone('Asia/Hebron')->format('Y-m-d H:i') }}</span>
                     <span @class(['block', 'font-semibold' => ! $item->read_at])>{{ $item->title }}</span>
                     @if ($item->body)
-                        <span class="block text-xs text-gray-500">{{ \Illuminate\Support\Str::limit($item->body, 140) }}</span>
+                        <span class="block text-xs text-gray-500">{{ \App\Panel\AlertText::html(\Illuminate\Support\Str::limit($item->body, 140)) }}</span>
                     @endif
                 </x-filament::dropdown.list.item>
             @empty
