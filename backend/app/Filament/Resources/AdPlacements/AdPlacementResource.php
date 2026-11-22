@@ -45,7 +45,7 @@ class AdPlacementResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'الإعلانات';
 
-    protected static ?int $navigationSort = 71;
+    protected static ?int $navigationSort = 31;
 
     protected static bool $isGloballySearchable = false;
 

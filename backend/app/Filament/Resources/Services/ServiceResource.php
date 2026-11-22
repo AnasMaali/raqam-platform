@@ -60,7 +60,7 @@ class ServiceResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'الخدمات';
 
-    protected static ?int $navigationSort = 75;
+    protected static ?int $navigationSort = 40;
 
     protected static bool $isGloballySearchable = false;
 

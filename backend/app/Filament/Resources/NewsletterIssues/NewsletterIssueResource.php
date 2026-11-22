@@ -46,9 +46,9 @@ class NewsletterIssueResource extends Resource
 
     protected static ?string $navigationLabel = 'النشرات الأسبوعية';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'التواصل';
+    protected static string|\UnitEnum|null $navigationGroup = 'النشرة البريدية';
 
-    protected static ?int $navigationSort = 72;
+    protected static ?int $navigationSort = 10;
 
     protected static bool $isGloballySearchable = false;
 

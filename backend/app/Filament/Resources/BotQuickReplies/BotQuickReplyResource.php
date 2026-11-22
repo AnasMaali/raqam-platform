@@ -42,7 +42,7 @@ class BotQuickReplyResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'الشات بوت';
 
-    protected static ?int $navigationSort = 75;
+    protected static ?int $navigationSort = 77;
 
     protected static bool $isGloballySearchable = false;
 

@@ -43,9 +43,9 @@ class EmailTemplateResource extends Resource
 
     protected static ?string $navigationLabel = 'قوالب الرسائل';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'النظام';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
-    protected static ?int $navigationSort = 80;
+    protected static ?int $navigationSort = 93;
 
     protected static bool $isGloballySearchable = false;
 

@@ -17,6 +17,30 @@ These two belong to deployment, but the site must not go live without them (deci
 
 Both are sign-in parts: they are built and tested step by step, and the launch checklist cannot be closed without them.
 
+## The panel's theme: a Node stage in the image build
+
+The admin panel's look (Raqam's colours, Alexandria, the logos) is a stylesheet built by Vite and Tailwind from
+`backend/resources/css/filament/admin/theme.css` into `backend/public/build`, which is not committed. The image builds it
+in a separate stage and copies only the result, so Node is never in the final image and production never runs a dev
+server:
+
+    FROM node:24-slim AS panel-theme
+    WORKDIR /app
+    COPY backend/package.json backend/package-lock.json ./
+    RUN npm ci --no-fund && npm audit --omit=dev --audit-level=low
+    COPY backend/vite.config.js ./
+    COPY backend/resources ./resources
+    # Filament's own styles are part of the theme: the Composer packages must be there before this step.
+    COPY --from=composer-stage /app/vendor/filament ./vendor/filament
+    COPY backend/app/Filament ./app/Filament
+    COPY backend/app/Livewire ./app/Livewire
+    RUN npm run build
+
+    # in the final stage
+    COPY --from=panel-theme /app/public/build ./public/build
+
+Without `public/build/manifest.json` every page of the panel fails. CI builds it the same way before the tests.
+
 ## Image library (GD) with AVIF
 
 The media library writes every picture as AVIF, WebP and JPEG. A development machine may report AVIF as

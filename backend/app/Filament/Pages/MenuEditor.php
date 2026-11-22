@@ -39,7 +39,7 @@ class MenuEditor extends Page
 
     protected static ?string $navigationLabel = 'قوائم الموقع';
 
-    protected static ?int $navigationSort = 33;
+    protected static ?int $navigationSort = 61;
 
     protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
 

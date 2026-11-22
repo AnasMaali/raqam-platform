@@ -43,9 +43,7 @@ class ContactMessageResource extends Resource
 
     protected static ?string $navigationLabel = 'رسائل «اتصل بنا»';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'التواصل';
-
-    protected static ?int $navigationSort = 70;
+    protected static ?int $navigationSort = 4;
 
     protected static bool $isGloballySearchable = false;
 

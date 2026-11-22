@@ -40,20 +40,21 @@ test('failed jobs older than 30 days are pruned every day', function () {
 
 // ---- the look: Arabic, hosted here, usable on a phone -------------------------------------------
 
-test('the panel font is served from this site, with no CDN anywhere in the page', function () {
+test('the panel\'s theme and font are served from this site, with no CDN anywhere in the page', function () {
     $html = $this->get($this->url.'/login')->assertOk()->getContent();
 
-    expect($html)->toContain('/css/panel-font.css')
+    expect($html)->toContain('/build/assets/theme-')
         ->not->toMatch('~(fonts\.googleapis|fonts\.gstatic|fonts\.bunny|cdn\.jsdelivr|unpkg|cdnjs)~i');
-    expect(file_exists(public_path('css/panel-font.css')))->toBeTrue();
 });
 
-test('every font file the stylesheet names exists on disk', function () {
-    preg_match_all('~url\((/fonts/[^)]+)\)~', file_get_contents(public_path('css/panel-font.css')), $m);
+test('every file the built theme names exists in the build', function () {
+    $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true);
+    $css = file_get_contents(public_path('build/'.$manifest['resources/css/filament/admin/theme.css']['file']));
+    preg_match_all('~url\("?(/build/[^)"]+)"?\)~', $css, $m);
 
     expect($m[1])->not->toBeEmpty();
     foreach ($m[1] as $file) {
-        expect(file_exists(public_path($file)))->toBeTrue("missing {$file}");
+        expect(file_exists(public_path(ltrim($file, '/'))))->toBeTrue("missing {$file}");
     }
 });
 

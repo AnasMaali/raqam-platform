@@ -44,9 +44,9 @@ class CategoryResource extends Resource
 
     protected static ?string $navigationLabel = 'التصنيفات';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 53;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function form(Schema $schema): Schema
     {

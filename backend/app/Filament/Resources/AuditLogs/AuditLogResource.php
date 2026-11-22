@@ -50,9 +50,9 @@ class AuditLogResource extends Resource
 
     protected static ?string $navigationLabel = 'سجل العمليات';
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 95;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'النظام';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
     protected static ?string $recordTitleAttribute = 'id';
 

@@ -70,8 +70,9 @@ class AdminLogin extends Login
             ->autofocus();
     }
 
+    /** The two steps, said before the first one, so the editor expects the code; nothing about any account. */
     public function getSubheading(): string|Htmlable|null
     {
-        return null;
+        return 'بعد كلمة المرور يصلك رمز على بريدك الإلكتروني.';
     }
 }

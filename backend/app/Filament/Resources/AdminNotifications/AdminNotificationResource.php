@@ -40,9 +40,9 @@ class AdminNotificationResource extends Resource
 
     protected static ?string $navigationLabel = 'الإشعارات';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'النظام';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
-    protected static ?int $navigationSort = 79;
+    protected static ?int $navigationSort = 92;
 
     protected static bool $isGloballySearchable = false;
 

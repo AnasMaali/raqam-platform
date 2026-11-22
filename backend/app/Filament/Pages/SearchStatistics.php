@@ -31,7 +31,7 @@ class SearchStatistics extends Page
 
     protected static string|\UnitEnum|null $navigationGroup = 'البحث';
 
-    protected static ?int $navigationSort = 62;
+    protected static ?int $navigationSort = 81;
 
     /** @var array<string, mixed>|null */
     public ?array $data = [];

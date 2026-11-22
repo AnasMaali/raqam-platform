@@ -44,7 +44,7 @@ class BotQuestionResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'الشات بوت';
 
-    protected static ?int $navigationSort = 76;
+    protected static ?int $navigationSort = 78;
 
     protected static bool $isGloballySearchable = false;
 

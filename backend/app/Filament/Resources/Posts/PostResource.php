@@ -50,9 +50,7 @@ class PostResource extends Resource
 
     protected static ?string $navigationLabel = 'المواد';
 
-    protected static ?int $navigationSort = 10;
-
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static ?int $navigationSort = 1;
 
     protected static ?string $recordTitleAttribute = 'title';
 

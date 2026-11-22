@@ -40,9 +40,9 @@ class TagResource extends Resource
 
     protected static ?string $navigationLabel = 'الوسوم';
 
-    protected static ?int $navigationSort = 31;
+    protected static ?int $navigationSort = 52;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function form(Schema $schema): Schema
     {

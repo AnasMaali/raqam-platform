@@ -24,6 +24,7 @@ cd backend
 scripts/qa.sh setup                  # .env.qa, the database, the storage folder, the search key, raqam:install
 scripts/qa.sh admin                  # the QA admin; its password goes to ~/.raqam-qa-login (mode 600), never on screen
 scripts/qa.sh demo --seed=2026       # 2000 posts (raqam:demo --posts=2000)
+npm ci && npm run build              # the panel's theme into public/build (again after a change to it); serve refuses without it
 scripts/qa.sh serve                  # the API and the panel; the panel's address is ADMIN_PATH in .env.qa
 scripts/qa.sh worker                 # the queue: the webhooks to the website, the search index, picture sizes
 scripts/qa.sh site build             # the website, built against the QA API (needs serve running)

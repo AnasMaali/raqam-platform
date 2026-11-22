@@ -33,6 +33,11 @@ colors:
   fall-dark: "#FF8F87"
   breaking-dark: "#FF8F87"
   breaking-surface-dark: "#2A1517"
+  warning: "#8A5700"
+  warning-dark: "#F2B84B"
+  warning-surface: "#FDF3E2"
+  warning-surface-dark: "#271C0A"
+  hint: "#646B79"
 rounded:
   xs: "2px"
   sm: "4px"
@@ -578,6 +583,99 @@ Motion advertises a 4.6 KB start with lazy features; bundled for real, the small
    - No parallax on phones, and no taking over the scroll.
 7. **No endless motion.** The currency strip stands still and is swiped by hand; it is not a marquee. Anything that
    moves on its own for more than 5 seconds has a pause control.
+
+## The panel
+
+The admin panel (Filament, in `backend/`) wears the same identity as the site, tuned for work: it is a tool used every
+day, often from a phone, so it is denser, its sizes are fixed rather than fluid, and every state is plain to see.
+
+### Colours
+
+Filament draws with scales of eleven steps (50 to 950). Each scale is built from the tokens above and pinned to them
+where Filament reads them: step 600 on light pages, 400 on dark ones. The steps between are interpolated in OKLCH. The
+scales live in `backend/app/Filament/PanelTheme.php`; the rest of the theme (type, radii, surfaces, the borders of
+controls) in `backend/resources/css/filament/admin/theme.css`.
+
+| Scale | From | 50 | 400 (dark) | 500 | 600 (light) | 950 |
+|---|---|---|---|---|---|---|
+| `primary` | `brand` | `tint` #EEF2FF | `banner-periwinkle` #89A7FF | #3468FF | `vivid-blue` #124FFF | `tint-dark` #141B2E |
+| `gray` | `ink`, `muted`, `line` | `surface` #F4F6FA | `muted-dark` #A7AEBC | `hint` #646B79 | `muted` #535A68 | `ground-dark` #0B0E14 |
+| `success` | `rise` | #E9F6EF | `rise-dark` #4CC38A | #1A864F | `rise` #0B7A43 | #0C1F16 |
+| `danger` | `fall` | `breaking-surface` #FDEEEC | `fall-dark` #FF8F87 | #CD473E | `fall` #C0322B | `breaking-surface-dark` #2A1517 |
+| `warning` | `warning` | `warning-surface` #FDF3E2 | `warning-dark` #F2B84B | #BE8629 | `warning` #8A5700 | `warning-surface-dark` #271C0A |
+| `info` | the same as `primary` | | | | | |
+
+- `gray` 200 is `line`, 800 is `line-dark`, 900 is `surface-dark`.
+- **`hint` (#646B79)** is the panel's helper text and placeholders on light pages. Filament writes them in step 500, and
+  `line-strong` there would read at 3.76.
+- **Step 500 is the hover of a filled button.** It is set so white text still reaches 4.5 on it, and so Filament, which
+  picks a button's text colour by contrast, keeps white text on the brand blue instead of turning the button pale.
+- **`warning`** is new, for the panel only: a state that needs attention (a missing key, a stopped task). It is amber
+  text on light pages and a light amber on dark ones, never a red.
+- **The cyan is not a state.** `caribbean-blue` is in no scale: it stays the logo's big shape and the loading mark.
+
+**Contrast, measured from `PanelTheme`** (`PanelThemeTest` fails when a pair drops below its ratio, or when this table
+no longer matches the code):
+
+<!-- panel-contrast:start -->
+| Pair | Light | Dark | Needs |
+|---|---|---|---|
+| Text | 19.32 | 17.74 | 4.5 |
+| Secondary text | 6.93 | 7.96 | 4.5 |
+| Helper text and descriptions on the page | 4.95 | 8.67 | 4.5 |
+| A placeholder | 5.36 | 7.96 | 4.5 |
+| Links, a group's name in the sidebar | 5.41 | 8.31 | 4.5 |
+| The open screen in the sidebar | 7.29 | 7.37 | 4.5 |
+| A primary button | 5.85 | 5.85 | 4.5 |
+| A primary button under the pointer | 4.60 | 4.60 | 4.5 |
+| A danger button | 5.63 | 5.63 | 4.5 |
+| A danger button under the pointer | 4.60 | 4.60 | 4.5 |
+| A brand badge | 7.29 | 7.63 | 4.5 |
+| A success badge (rise) | 6.70 | 9.62 | 4.5 |
+| A danger badge (fall) | 6.81 | 11.40 | 4.5 |
+| A warning badge | 7.33 | 9.91 | 4.5 |
+| A warning in text | 6.10 | 10.79 | 4.5 |
+| A control's border on a surface | 3.76 | 3.73 | 3 |
+| A control's border on the page | 3.48 | 4.06 | 3 |
+| The focus ring | 5.85 | 7.63 | 3 |
+<!-- panel-contrast:end -->
+
+- **Controls are seen.** Text fields, selects, checkboxes, radios and a switch's off track are bordered in `line-strong`
+  (3:1 against the page and the surface in both themes, WCAG 1.4.11). A browser test measures the drawn border of every
+  field on a screen in both themes, because the automatic accessibility check does not.
+
+### Type and density
+
+- **Alexandria** everywhere, the site's own file (copied to `backend/resources/fonts/`, kept identical by a test), served
+  by the panel itself. Digits are 0-9; figures are tabular in tables, statistics and page numbers.
+- **Fixed sizes, not fluid:** 14 px for tables, forms and menus with a line height of at least 1.6 (Filament's 24 px
+  lines: 1.71), 16 px for the text of an article being written, 20 and 24 px for headings.
+- **Density:** controls are 36 px high with a pointer and 44 px on a touch screen (`pointer: coarse`), as are buttons and
+  icon buttons. A table row is at least 48 px.
+
+### Surfaces and shapes
+
+- The page is `surface`; a section, a table or a card is `ground` with a `line` hairline and no shadow. One shadow,
+  `shadow-raised`, for what floats: menus, dialogs, slide-overs.
+- Radii: `rounded-sm` (4 px) for buttons and controls, `rounded-md` (8 px) for sections and dialogs, `rounded-xs`
+  (2 px) for badges. Avatars and switches stay round.
+- **The sidebar reads like the directory:** each group opens with a hairline and its name in brand, and the open screen
+  is tinted with a rule on its start side. Screens are ordered by how often an editor needs them: the daily ones on
+  top with no group, the weekly groups next, the rare groups closed at the bottom.
+
+### Brand
+
+- The header logo (`logo-ar-header.svg`, its white version on dark) in the sidebar and the top bar; the vertical logo
+  with the slogan on the sign-in steps; the mark (`mark.svg`) as the favicon. The files are copies of
+  `frontend/public/brand/`, kept identical by a test.
+- The sign-in page: the vertical logo over the heading on `surface`, the card with a hairline, and one line saying that a
+  code follows the password.
+
+### Building it
+
+The theme is built by Vite and Tailwind (`backend/package.json`, `npm ci && npm run build`) into `backend/public/build`,
+which is not committed. CI builds it before the tests; the production image builds it in a separate Node stage and
+copies only `public/build`, so the final image has no Node and production never runs a dev server.
 
 ## Do's and Don'ts
 

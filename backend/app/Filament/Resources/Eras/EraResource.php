@@ -33,9 +33,9 @@ class EraResource extends Resource
 
     protected static ?string $navigationLabel = 'الحقب التاريخية';
 
-    protected static ?int $navigationSort = 34;
+    protected static ?int $navigationSort = 56;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'المحتوى';
+    protected static string|\UnitEnum|null $navigationGroup = 'التصنيفات والأشخاص';
 
     public static function form(Schema $schema): Schema
     {

@@ -42,6 +42,17 @@ artisan() { checked; (cd "$BACKEND" && php artisan --env=qa "$@"); }
 
 random() { openssl rand -hex "$1"; }
 
+# The web root: the real public files, with /storage pointing at the QA storage's public disk (as storage:link would).
+# Made again by every `serve`, so a folder added to public/ later (the panel's theme in public/build) is there too.
+web_root() {
+  mkdir -p "$QA_HOME/public"
+  for entry in "$BACKEND"/public/*; do
+    name="$(basename "$entry")"
+    [ "$name" = storage ] || ln -sfn "$entry" "$QA_HOME/public/$name"
+  done
+  ln -sfn "$QA_HOME/storage/app/public" "$QA_HOME/public/storage"
+}
+
 setup() {
   [ -e "$ENV_FILE" ] && die "backend/.env.qa exists already; nothing was changed (delete it to start again)."
   if [ -n "$(psql -X -d postgres -Atc "SELECT 1 FROM pg_database WHERE datname = '$DB'")" ]; then
@@ -52,13 +63,7 @@ setup() {
   for dir in app/public app/private framework/cache framework/sessions framework/testing framework/views logs; do
     mkdir -p "$QA_HOME/storage/$dir"
   done
-  # The web root: the real public files, with /storage pointing at the QA storage's public disk (as storage:link would).
-  mkdir -p "$QA_HOME/public"
-  for entry in "$BACKEND"/public/*; do
-    name="$(basename "$entry")"
-    [ "$name" = storage ] || ln -sfn "$entry" "$QA_HOME/public/$name"
-  done
-  ln -sfn "$QA_HOME/storage/app/public" "$QA_HOME/public/storage"
+  web_root
 
   # The developer's values never come over: every key is new, every outside service is off.
   umask 077
@@ -121,6 +126,8 @@ demo() {
 
 serve() {
   checked
+  [ -f "$BACKEND/public/build/manifest.json" ] || die "the panel's theme is not built: run \`npm ci && npm run build\` in backend/ first."
+  web_root
   echo "API and panel on http://127.0.0.1:$PORT (the panel's address is ADMIN_PATH in backend/.env.qa)."
   cd "$QA_HOME/public"
   # Several workers: the browser checks load pages side by side, and one PHP process answers one request at a time.

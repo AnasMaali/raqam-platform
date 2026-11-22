@@ -37,9 +37,7 @@ class HomeLayoutEditor extends Page
 
     protected static ?string $navigationLabel = 'ترتيب الرئيسية';
 
-    protected static ?int $navigationSort = 32;
-
-    protected static string|\UnitEnum|null $navigationGroup = 'الموقع';
+    protected static ?int $navigationSort = 3;
 
     /** @var array<string, mixed>|null */
     public ?array $data = [];

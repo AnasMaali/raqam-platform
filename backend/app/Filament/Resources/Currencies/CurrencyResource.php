@@ -56,7 +56,7 @@ class CurrencyResource extends Resource
 
     protected static ?string $navigationLabel = 'العملات';
 
-    protected static ?int $navigationSort = 50;
+    protected static ?int $navigationSort = 70;
 
     protected static string|\UnitEnum|null $navigationGroup = 'الأسعار والطقس';
 

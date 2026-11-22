@@ -40,9 +40,9 @@ class LoginAttemptResource extends Resource
 
     protected static ?string $navigationLabel = 'محاولات الدخول';
 
-    protected static ?int $navigationSort = 91;
+    protected static ?int $navigationSort = 96;
 
-    protected static string|\UnitEnum|null $navigationGroup = 'النظام';
+    protected static string|\UnitEnum|null $navigationGroup = 'الإعدادات والنظام';
 
     public const REASONS = [
         'bad_credentials' => 'بريد أو كلمة مرور خاطئة',
