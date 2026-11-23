@@ -78,22 +78,36 @@ function firstKey(table: string): string {
     return psql(`SELECT ${column} FROM ${table} ORDER BY ${column} LIMIT 1`);
 }
 
-/** The screens to open: each route, with a record of its own for `{record}` (one post of each kind). */
-export function screens(): string[] {
-    const out: string[] = [];
+/**
+ * A screen to open: its address, with a record of its own for `{record}` (one post of each kind), and a key that names it
+ * without a record id (the route, and the kind for a post), so the query budgets survive a rebuilt QA database.
+ */
+export type Screen = { path: string; key: string };
+
+export function screenList(): Screen[] {
+    const out: Screen[] = [];
     for (const route of panelRoutes()) {
         if (NOT_SCREENS.has(route)) continue;
         if (!route.includes('{')) {
-            out.push(route);
+            out.push({ path: route, key: route });
             continue;
         }
         const resource = route.split('/')[1];
-        const ids =
+        const rows =
             resource === 'posts'
-                ? psql("SELECT DISTINCT ON (kind_code) id FROM posts WHERE deleted_at IS NULL ORDER BY kind_code, id").split('\n')
-                : [firstKey(TABLES[resource] ?? resource.replaceAll('-', '_'))];
-        for (const id of ids.filter(Boolean)) out.push(route.replace('{record}', id));
-        if (ids.filter(Boolean).length === 0) out.push(`${route} (no record)`);
+                ? psql("SELECT DISTINCT ON (kind_code) id || ' ' || kind_code FROM posts WHERE deleted_at IS NULL ORDER BY kind_code, id")
+                      .split('\n')
+                      .filter(Boolean)
+                      .map((row) => row.split(' ') as [string, string])
+                      .map(([id, kind]): [string, string] => [id, `${route} (${kind})`])
+                : [firstKey(TABLES[resource] ?? resource.replaceAll('-', '_'))].filter(Boolean).map((id): [string, string] => [id, route]);
+        for (const [id, key] of rows) out.push({ path: route.replace('{record}', id), key });
+        if (rows.length === 0) out.push({ path: `${route} (no record)`, key: `${route} (no record)` });
     }
     return out;
+}
+
+/** The addresses of the screens, for the crawl. */
+export function screens(): string[] {
+    return screenList().map((screen) => screen.path);
 }

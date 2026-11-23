@@ -24,7 +24,9 @@ the number.
 - **The QA budget** (`e2e/qa/query-budget.spec.ts`, project `query-budget` of `playwright.qa.config.ts`): every GET
   endpoint of the API (74, with a post of each kind) and every screen of the panel (88) may make at most the number in
   `e2e/qa/query-budgets.json`. A screen is counted whole: its page and the requests its parts make after it (lazy
-  widgets). The check also fails for a budget left for an endpoint or screen that no longer exists. Each run writes its
+  widgets). A budget is named by its route, and a post's by its kind too, never by a record's id, so the budgets still
+  apply after the QA database is built again. The check also fails for a budget left for an endpoint or screen that no
+  longer exists. Each run writes its
   counts to `e2e/test-results/query-counts.jsonl`; after a deliberate change, `node qa/query-budgets.mjs` (from `e2e/`)
   writes them as the new budgets. A budget is never raised only to make the check pass.
 

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 
 import { expect, test } from '@playwright/test';
 
-import { BACKEND, QA_URL, panel, psql, qaSetting, screens } from './qa-env';
+import { BACKEND, QA_URL, panel, psql, qaSetting, screenList } from './qa-env';
 
 /*
  * The query budget (docs/qa/performance.md): every GET endpoint of the API and every screen of the panel, on the QA
@@ -155,12 +155,12 @@ test.describe('the query budget', () => {
             const count = answer.headers()[COUNT];
             if (count !== undefined && answer.url().startsWith(QA_URL)) total += Number(count);
         });
-        for (const screen of screens()) {
-            if (screen.endsWith('(no record)')) continue;
+        for (const { path, key } of screenList()) {
+            if (path.endsWith('(no record)')) continue;
             total = 0;
-            const answer = await page.goto(panel(screen === '/' ? '' : screen), { waitUntil: 'networkidle' });
-            expect.soft(answer?.status(), `panel ${screen}`).toBe(200);
-            withinBudget(`panel ${screen}`, total);
+            const answer = await page.goto(panel(path === '/' ? '' : path), { waitUntil: 'networkidle' });
+            expect.soft(answer?.status(), `panel ${path}`).toBe(200);
+            withinBudget(`panel ${key}`, total);
         }
         noStaleBudgets('panel ');
     });
