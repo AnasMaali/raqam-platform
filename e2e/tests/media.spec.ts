@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect, panel, signIn } from '../support/fixtures';
 import { file } from '../support/files';
-import { uploadImage } from '../support/panel';
+import { chooseFile, uploadImage } from '../support/panel';
 
 test.describe('media library', () => {
     test('upload a picture, set the focal point, and the copies are made', async ({ page, app, adminPassword }) => {
@@ -54,9 +54,7 @@ test.describe('media library', () => {
             file('report.pdf', 'application/pdf', Buffer.from('MZ\x90\x00 this is a program, not a document')),
         ]) {
             await page.goto(panel('/media-assets/create'));
-            const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByText('تصفح').click()]);
-            await chooser.setFiles(forged);
-            await expect(page.locator('[data-filepond-item-state="processing-complete"]')).toBeVisible({ timeout: 20_000 });
+            await chooseFile(page, forged);
             await page.locator('input[id="form.alt_text"]').fill('ملف مزوّر');
             await page.getByRole('button', { name: 'إضافة', exact: true }).click();
             const refusal = page.locator('.fi-fo-field-wrp-error-message, [data-validation-error]').first();
