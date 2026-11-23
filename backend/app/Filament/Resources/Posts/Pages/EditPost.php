@@ -187,8 +187,9 @@ class EditPost extends EditRecord
         $status = $this->getRecord()->status;
         $save = $this->getSaveFormAction()->label($status === 'draft' ? 'حفظ كمسودة' : 'تحديث')
             ->color($status === 'draft' ? 'gray' : 'primary');
+        // An icon with its name for screen readers, so the buttons keep to one row on a phone.
         $more = fn (Action ...$actions) => ActionGroup::make($actions)->label('المزيد')->icon(Heroicon::OutlinedEllipsisHorizontal)
-            ->button()->color('gray')->tooltip('تغييرات أخرى على الحالة');
+            ->iconButton()->color('gray')->tooltip('المزيد: تغييرات أخرى على الحالة');
 
         return array_values(array_filter([
             Action::make('saveState')->view('filament.post-save-state', fn () => ['status' => Post::STATUSES[$status] ?? $status, 'tone' => $status]),
@@ -199,7 +200,7 @@ class EditPost extends EditRecord
                 'archived' => [$save, $this->publishAction('نشر', 'gray')],
                 default => [$save],
             },
-            // A phone has its own way back; the bar keeps to one line there (theme.css).
+            // A phone has its own way back; there the bar is the state, then one row of buttons (theme.css).
             $this->getCancelFormAction()->extraAttributes(['class' => 'raqam-bar-cancel']),
         ]));
     }

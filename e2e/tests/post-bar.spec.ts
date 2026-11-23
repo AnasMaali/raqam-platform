@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect, signIn } from '../support/fixtures';
 import { afterLivewire, confirmDialog, createPost, fillRequired, publishedNews, uploadImage } from '../support/panel';
 
@@ -35,6 +36,15 @@ test('the bar says when changes are not saved, Ctrl+S saves a draft as a draft, 
     await dialog.dismiss();
 });
 
+/** On a phone the bar has two steady rows: the state, then the buttons, all on one row (and nothing that jumps while typing). */
+async function barRows(page: Page) {
+    const state = (await page.locator('.raqam-save-state').boundingBox())!;
+    const tops = await page.locator('.fi-sc-actions .fi-ac button:visible').evaluateAll((buttons) =>
+        buttons.map((b) => Math.round(b.getBoundingClientRect().top)));
+    expect(new Set(tops).size, `the bar's buttons in one row: ${tops.join(', ')}`).toBe(1);
+    expect(state.y + state.height, 'the state above the buttons').toBeLessThanOrEqual(tops[0] + 1);
+}
+
 test.describe('on a phone', () => {
     test.use({ viewport: { width: 360, height: 780 }, isMobile: true, hasTouch: true });
 
@@ -53,6 +63,7 @@ test.describe('on a phone', () => {
         await expect(publish).toBeInViewport();
         expect((await publish.boundingBox())!.height, 'tap target').toBeGreaterThanOrEqual(44);
         await expect(page.locator('.raqam-bar-cancel')).toBeHidden();
+        await barRows(page);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
         await publish.click();
@@ -64,6 +75,10 @@ test.describe('on a phone', () => {
         // The same page's bar now updates the published item.
         await expect(page.getByRole('button', { name: 'تحديث' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'نشر', exact: true })).toHaveCount(0);
+        // «تحديث» and «المزيد» (an icon, with its name for screen readers) stay on the buttons' row.
+        await expect(page.getByRole('button', { name: 'المزيد' })).toBeVisible();
+        await barRows(page);
+        await page.screenshot({ path: test.info().outputPath('bar-published-360.png') });
     });
 });
 
