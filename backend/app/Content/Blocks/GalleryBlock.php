@@ -68,6 +68,7 @@ final class GalleryBlock extends ContentBlock
         $ids = array_map('intval', $config['media_ids'] ?? []);
         $assets = MediaAsset::query()->publicImages()->whereIn('id', $ids)->get()->keyBy('id');
         $html = app(MediaHtml::class);
+        $html->preload($assets);   // the pictures' variants in one query, not one for each picture
 
         $items = '';
         foreach ($ids as $id) {
