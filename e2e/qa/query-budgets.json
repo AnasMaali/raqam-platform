@@ -73,7 +73,7 @@
     "api weather/{slug}": 5,
     "api weather/cities": 1,
     "api weather/widget": 2,
-    "panel /": 52,
+    "panel /": 55,
     "panel /ad-campaigns": 14,
     "panel /ad-campaigns/1/edit": 20,
     "panel /ad-campaigns/1/report": 16,
