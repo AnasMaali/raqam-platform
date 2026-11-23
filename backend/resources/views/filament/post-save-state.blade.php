@@ -1,7 +1,7 @@
 {{--
     The start of the editor's bar: the item's state as stored, and what has happened to the editor's changes.
-    The editor's script (post-editor.blade.php) compares the form with what was last saved every second and announces
-    it with the window event `raqam-post-state`; the last state is kept on window, because Livewire draws this bar again
+    The editor's script (post-editor.blade.php) compares the form with what was last saved once the editor pauses, and
+    announces it with the window event `raqam-post-state`; the last state is kept on window, because Livewire draws this bar again
     after every request.
 --}}
 <div

@@ -207,3 +207,134 @@
         display: none;
     }
 }
+
+/* A copy of the editor's form kept in this browser, offered back: a warning (the warning badge's colours), raised above the page. */
+.raqam-restore {
+    position: fixed;
+    inset-inline: 1rem;
+    bottom: 1rem;
+    z-index: 60;
+    max-width: 40rem;
+    margin-inline: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.625rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.875rem 1rem;
+    border-radius: var(--radius-xl);
+    border-inline-start: 4px solid var(--color-warning-600);
+    background-color: var(--color-warning-50);
+    color: var(--color-warning-700);
+    box-shadow: var(--shadow-xl);
+    line-height: 1.7;
+}
+
+:root.dark .raqam-restore {
+    border-inline-start-color: var(--color-warning-400);
+    background-color: var(--color-gray-900);
+    color: var(--color-warning-400);
+}
+
+.raqam-restore-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* The session's warning before it ends (session-timeout.blade.php). */
+.raqam-session-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background-color: color-mix(in oklab, var(--color-gray-950) 50%, transparent);
+}
+
+.raqam-session-dialog {
+    width: 100%;
+    max-width: 26.25rem;
+    padding: 1.5rem;
+    border-radius: var(--radius-xl);
+    background-color: var(--color-white);
+    color: var(--color-gray-950);
+    box-shadow: var(--shadow-xl);
+    text-align: start;
+}
+
+:root.dark .raqam-session-dialog {
+    background-color: var(--color-gray-900);
+    color: var(--color-white);
+}
+
+/* The point of a picture that stays in view when it is cropped: a ring seen on light and on dark pictures. */
+.raqam-focal-mark {
+    position: absolute;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.875rem 0 0 -0.875rem;
+    border: 3px solid var(--color-white);
+    border-radius: 9999px;
+    box-shadow: 0 0 0 2px var(--color-gray-950);
+    pointer-events: none;
+}
+
+/* The statistics page's chart and shares. */
+.raqam-stat-problem {
+    color: var(--color-warning-600);
+}
+
+:root.dark .raqam-stat-problem {
+    color: var(--color-warning-400);
+}
+
+.raqam-chart-bar {
+    fill: var(--color-primary-500);
+}
+
+.raqam-chart-line {
+    fill: none;
+    stroke: var(--color-gray-500);
+    stroke-width: 2;
+}
+
+.raqam-legend-bar,
+.raqam-legend-line {
+    display: inline-block;
+    width: 0.75rem;
+    vertical-align: middle;
+}
+
+.raqam-legend-bar {
+    height: 0.75rem;
+    border-radius: 2px;
+    background-color: var(--color-primary-500);
+}
+
+.raqam-legend-line {
+    height: 2px;
+    background-color: var(--color-gray-500);
+}
+
+.raqam-share-track {
+    height: 0.4rem;
+    border-radius: 0.2rem;
+    background-color: color-mix(in oklab, var(--color-gray-500) 20%, transparent);
+}
+
+.raqam-share-fill {
+    height: 100%;
+    border-radius: 0.2rem;
+    background-color: var(--color-primary-500);
+}
+
+.raqam-more-link {
+    font-size: 0.8rem;
+    color: var(--color-primary-600);
+}
+
+:root.dark .raqam-more-link {
+    color: var(--color-primary-400);
+}

@@ -134,12 +134,9 @@
     role="alertdialog"
     aria-modal="true"
     aria-labelledby="session-timeout-title"
-    style="position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);padding:16px"
+    class="raqam-session-backdrop"
 >
-    <div
-        :style="document.documentElement.classList.contains('dark') ? 'background:#18181b;color:#fafafa' : 'background:#fff;color:#18181b'"
-        style="max-width:420px;width:100%;border-radius:12px;padding:24px;box-shadow:0 20px 40px rgba(0,0,0,.3);text-align:start"
-    >
+    <div class="raqam-session-dialog">
         <h2 id="session-timeout-title" style="margin:0 0 8px;font-size:18px;font-weight:600">ستنتهي جلستك قريباً</h2>
         <p style="margin:0 0 16px">لا يوجد نشاط منذ فترة. سيتم تسجيل خروجك خلال <strong dir="ltr" x-text="clock"></strong> إن لم تؤكد وجودك.</p>
         <x-filament::button x-ref="stay" x-on:click="stay()" style="width:100%">أنا هون</x-filament::button>

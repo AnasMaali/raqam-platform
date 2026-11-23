@@ -18,14 +18,20 @@ const localStorage = {
 
 function openTab({ draft = true, serverAt = 1_699_999_000, data = { title: 'أ', body: '<p>ب</p>' } } = {}) {
     const timers = [];
+    let nextId = 1;
     const listeners = {};
+    const events = {};
+    const hooks = {};
     const calls = [];
+    let reads = 0;
     const wire = {
-        data,
         autosave: () => { calls.push('autosave'); return Promise.resolve(); },
         $get: (key) => wire[key],
         $set: (key, value) => { calls.push(['set', key]); wire[key] = value; },
     };
+    // Every look at the whole form is counted: the script must not read a long article over and over.
+    let form = data;
+    Object.defineProperty(wire, 'data', { get: () => { reads++; return form; }, set: (v) => { form = v; }, enumerable: true });
     const view = {
         localStorage,
         Livewire: {
@@ -38,12 +44,15 @@ function openTab({ draft = true, serverAt = 1_699_999_000, data = { title: 'أ',
                 { name: 'filament.livewire.notifications', $wire: new Proxy({}, { get: () => () => {} }) },
             ],
             on: (name, cb) => { listeners[name] = cb; },
+            hook: (name, cb) => { hooks[name] = cb; },
         },
+        addEventListener: (name, cb) => { (events[name] ??= []).push(cb); },
     };
     const context = vm.createContext({
         window: view, Date: fakeDate, JSON, Math, Number, String,
-        setTimeout: (fn) => { timers.push(fn); return timers.length; },
-        setInterval: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+        setTimeout: (fn, ms = 0) => { timers.push({ id: nextId, fn, ms, once: true }); return nextId++; },
+        clearTimeout: (id) => { const i = timers.findIndex((t) => t.once && t.id === id); if (i >= 0) timers.splice(i, 1); },
+        setInterval: (fn, ms) => { timers.push({ id: nextId, fn, ms, once: false }); return nextId++; },
     });
     // The page bakes the server's time and the draft flag into the script; the simulation changes them per tab.
     const src = source.replace(/^\(|\)$/g, '')
@@ -51,10 +60,16 @@ function openTab({ draft = true, serverAt = 1_699_999_000, data = { title: 'أ',
         .replace(/draft: (true|false)/, 'draft: ' + draft);
     const tab = vm.runInContext('(' + src + ')', context);
     tab.init();
-    const intervals = timers.filter((t) => typeof t === 'object');
+    const intervals = timers.filter((t) => !t.once);
+    // The editor does something on the page (a key, a click, a change, ...): the listeners on window hear it.
+    const fire = (name = 'input') => (events[name] ?? []).forEach((cb) => cb({ type: name }));
     return {
-        tab, wire, calls, listeners, intervals, view,
+        tab, wire, calls, listeners, intervals, view, hooks, events, fire,
+        reads: () => reads,
         run: (ms) => intervals.filter((t) => t.ms === ms).forEach((t) => t.fn()),
+        // The editor stops typing: the waiting look (300 ms) runs.
+        pause: () => { const due = timers.filter((t) => t.once && t.ms <= 300); due.forEach((t) => timers.splice(timers.indexOf(t), 1)); due.forEach((t) => t.fn()); return due.length; },
+        type: (value) => { wire.data = value; fire('input'); },
     };
 }
 
@@ -64,26 +79,46 @@ const KEY = 'raqam:post:1:42';
 
 // --- a draft being typed
 let t = openTab();
-check(t.intervals.length === 3 && t.intervals.map((i) => i.ms).sort((a, b) => a - b).join() === '1000,2000,30000', 'three timers: the bar\'s state each second, a 2 s local copy and a 30 s autosave');
+check(t.intervals.length === 1 && t.intervals[0].ms === 30000, 'one timer only, the 30 s autosave: nothing looks at the form every second');
+check(['input', 'change', 'click', 'keyup'].every((n) => t.events[n]?.length === 1) && typeof t.hooks.commit === 'function', 'it listens for input, change, click, keys and the server\'s round trips');
 check(t.view.raqamPostState?.dirty === false, 'nothing typed yet: the bar says there is nothing unsaved');
 t.run(30000);
 check(t.calls.length === 0, 'nothing changed: autosave sends nothing');
-t.wire.data = { title: 'أ', body: '<p>نص جديد</p>' };
-t.run(1000);
-check(t.view.raqamPostState.dirty === true, 'typed: within a second the bar says there are unsaved changes');
+let before = t.reads();
+t.pause();
+check(t.reads() === before, 'nothing happens: nothing reads the form');
+t.type({ title: 'أ', body: '<p>ن</p>' });
+for (let i = 0; i < 40; i++) t.type({ title: 'أ', body: '<p>نص جديد ' + i + '</p>' });
+check(t.view.raqamPostState.dirty === false && t.reads() === before, 'while typing nothing is read yet: the look waits for a pause');
+check(t.pause() === 1, 'forty keys leave one waiting look, not forty');
+check(t.reads() === before + 1, 'and that look reads the form once, for the bar and the local copy together');
+check(t.view.raqamPostState.dirty === true, 'typed: after the pause the bar says there are unsaved changes');
 t.run(30000);
 check(t.calls.join() === 'autosave', 'the text changed: autosave asks the server once');
 t.listeners['post-autosaved']({ at: '10:15:00' });
 check(t.view.raqamPostState.dirty === false && t.view.raqamPostState.note.includes('10:15:00'), 'autosaved: the bar says so, with the time');
 t.run(30000);
 check(t.calls.length === 1, 'saved: the same text is not sent again');
-t.wire.data = { title: 'أ', body: '<p>نص أطول</p>' };
+t.type({ title: 'أ', body: '<p>نص أطول</p>' });
 t.run(30000);
 check(t.calls.length === 2, 'changed again: sent again');
 
+// --- a value set by the server (an uploaded picture) is noticed after its round trip
+t = openTab();
+t.wire.data = { title: 'أ', body: '<p>ب</p>', cover: 7 };
+let done;
+t.hooks.commit({ succeed: (cb) => { done = cb; } });
+done();
+t.pause();
+check(t.view.raqamPostState.dirty === true, 'a round trip that changed the form is noticed too');
+t.wire.data = { title: 'أ', body: '<p>ب</p>' };
+t.fire('change');
+t.pause();
+check(t.view.raqamPostState.dirty === false, 'and changing it back clears the bar again');
+
 // --- a request is not repeated for the same text, and a published item is never asked for
 t = openTab();
-t.wire.data = { title: 'أ', body: '<p>تعديل لم يُحفظ</p>' };
+t.type({ title: 'أ', body: '<p>تعديل لم يُحفظ</p>' });
 t.run(30000); t.run(30000); t.run(30000);
 check(t.calls.length === 1, 'the same unsaved text is sent once, not every 30 seconds (that would keep the session alive for ever)');
 t.listeners['post-autosave-failed']({ message: 'x' });
@@ -98,23 +133,23 @@ check(t.calls.length === 0, 'once the item is saved as published, autosave stops
 
 // --- the local copy
 t = openTab();
-t.run(2000);
+t.fire('click'); t.pause();
 check(!store.has(KEY), 'unchanged: no local copy is written');
-t.wire.data = { title: 'ع', body: '<p>كتبت شيئاً</p>' };
-t.run(2000);
+t.type({ title: 'ع', body: '<p>كتبت شيئاً</p>' });
+t.pause();
 const copy = JSON.parse(store.get(KEY));
 check(copy.data.title === 'ع' && copy.at === now, 'a change is copied to the browser with the time');
 t.listeners['post-saved']();
 check(!store.has(KEY), 'a successful save removes the local copy');
-t.run(2000);
+t.fire('keyup'); t.pause();
 check(!store.has(KEY), 'and the saved text is not copied again');
 
 // --- a published item is never autosaved, but still copied
 t = openTab({ draft: false });
-t.wire.data = { title: 'منشور', body: '<p>تعديل</p>' };
+t.type({ title: 'منشور', body: '<p>تعديل</p>' });
 t.run(30000);
 check(t.calls.length === 0, 'a published item is never autosaved');
-t.run(2000);
+t.pause();
 check(store.has(KEY), 'but its unsaved edits are still copied to the browser');
 store.clear();
 
@@ -124,6 +159,8 @@ t = openTab({ serverAt: now / 1000 - 100 });
 check(t.tab.offer?.data.title === 'من النسخة', 'a copy newer than the server is offered back');
 t.tab.restore();
 check(t.calls.some((c) => c[0] === 'set' && c[1] === 'data') && t.wire.data.title === 'من النسخة' && t.tab.offer === null, 'restoring puts it in the form');
+t.pause();
+check(t.view.raqamPostState.dirty === true, 'and the bar then says it is not saved yet');
 t.tab.dismiss();
 check(!store.has(KEY), 'dismissing removes it');
 
@@ -146,9 +183,9 @@ check(t.tab.offer === null, 'a copy identical to the form is not offered');
 // --- storage trouble must not hurt
 localStorage.full = true;
 t = openTab();
-t.wire.data = { title: 'ممتلئ', body: '' };
+t.type({ title: 'ممتلئ', body: '' });
 let threw = false;
-try { t.run(2000); } catch (e) { threw = true; }
+try { t.pause(); } catch (e) { threw = true; }
 check(!threw, 'a full or blocked storage does not break anything');
 localStorage.full = false;
 

@@ -633,7 +633,7 @@ no longer matches the code):
 | A brand badge | 7.29 | 7.63 | 4.5 |
 | A success badge (rise) | 6.70 | 9.62 | 4.5 |
 | A danger badge (fall) | 6.81 | 11.40 | 4.5 |
-| A warning badge | 7.33 | 9.91 | 4.5 |
+| A warning badge, the banner offering a browser copy back | 7.33 | 9.91 | 4.5 |
 | A warning in text | 6.10 | 10.79 | 4.5 |
 | A control's border on a surface | 3.76 | 3.73 | 3 |
 | A control's border on the page | 3.48 | 4.06 | 3 |

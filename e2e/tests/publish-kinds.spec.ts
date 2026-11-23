@@ -1,5 +1,5 @@
 import { test, expect, signIn } from '../support/fixtures';
-import { createPost, pick, save, uploadImage, writeBody } from '../support/panel';
+import { confirmDialog, createPost, pick, save, uploadImage, writeBody } from '../support/panel';
 import { seed } from '../support/seed';
 
 type Kind = {
@@ -102,7 +102,7 @@ for (const kind of kinds) {
         await kind.facts?.(page);
 
         await page.getByRole('button', { name: 'نشر', exact: true }).click();
-        await page.getByRole('button', { name: 'تأكيد' }).click();
+        await confirmDialog(page, 'نشر');
         await expect(page.getByText('تم الحفظ')).toBeVisible();
 
         expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('published');

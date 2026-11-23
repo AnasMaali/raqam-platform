@@ -12,6 +12,9 @@ use App\Models\Guest;
 use App\Models\Organization;
 use App\Models\Post;
 use App\Models\User;
+use App\Support\PalestineTime;
+use Carbon\CarbonImmutable;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -50,8 +53,11 @@ function barButtons(Post $post): array
     $page = edit($post)->instance();
     $out = [];
     foreach ((fn () => $this->getFormActions())->call($page) as $action) {
-        if ($action->getName() !== 'saveState') {
-            $out[$action->getName()] = (string) $action->getLabel();
+        // The rarer changes of state wait in «المزيد»: listed in their place, after the buttons before it.
+        foreach ($action instanceof ActionGroup ? $action->getActions() : [$action] as $one) {
+            if ($one->getName() !== 'saveState') {
+                $out[$one->getName()] = (string) $one->getLabel();
+            }
         }
     }
 
@@ -128,13 +134,13 @@ test('what was saved comes back into the form: authors, tags, gallery, guests, k
         ->and(array_values($loaded->get('data.guests'))[0]['role_code'])->toBe('host');
 });
 
-test('publishing from the form needs the cover, the text and the category, with the message under the field', function () {
+test('publishing needs the cover, the text and the category, with the message under the field', function () {
     $post = newPost();
 
-    edit($post)->fillForm(['status' => 'published', 'body' => '<p>نص</p>', 'category_id' => $this->energy])
-        ->call('save')->assertHasErrors(['data.cover_media_id']);
-    edit($post)->fillForm(['status' => 'published', 'cover_media_id' => $this->cover->id, 'category_id' => $this->energy, 'body' => ''])
-        ->call('save')->assertHasErrors(['data.body']);
+    edit($post)->fillForm(['body' => '<p>نص</p>', 'category_id' => $this->energy])
+        ->callAction(barAction('publishNow'))->assertHasErrors(['data.cover_media_id']);
+    edit($post)->fillForm(['cover_media_id' => $this->cover->id, 'category_id' => $this->energy, 'body' => ''])
+        ->callAction(barAction('publishNow'))->assertHasErrors(['data.body']);
 
     expect($post->fresh()->status)->toBe('draft');
 });
@@ -167,27 +173,16 @@ test('the quick publish button is not offered for an item that is already publis
     edit($post->fresh())->assertActionDoesNotExist(barAction('publishNow'));
 });
 
-test('scheduling from the form needs a future time and publishes through the queue', function () {
+test('the time typed to schedule is Palestine time, as the label says, is stored as UTC and shown back as typed', function () {
     $post = newPost();
-    $data = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled'];
 
-    edit($post)->fillForm($data + ['published_at' => now()->subDay()->format('Y-m-d H:i:s')])->call('save')->assertHasErrors(['data.published_at']);
-
-    edit($post)->fillForm($data + ['published_at' => now()->addDay()->format('Y-m-d H:i:s')])->call('save')->assertHasNoFormErrors();
-    expect($post->fresh()->status)->toBe('scheduled');
-});
-
-test('the time typed in the editor is Palestine time, as the label says, and is stored as UTC', function () {
-    $post = newPost();
-    $data = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled'];
-
-    // 14 January 12:00 in Palestine (UTC+2 in winter) is 10:00 UTC. The form value is "what the person typed".
-    edit($post)->fillForm($data + ['published_at' => '2030-01-14 12:00:00'])->call('save')->assertHasNoFormErrors();
+    // 14 January 12:00 in Palestine (UTC+2 in winter) is 10:00 UTC.
+    edit($post)->fillForm(['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id])
+        ->callAction(barAction('schedule'), ['at' => '2030-01-14 12:00'])->assertHasNoFormErrors()
+        ->assertSet('data.published_at', '2030-01-14 12:00:00');   // the same page, after the save
 
     expect($post->fresh()->published_at->utc()->format('Y-m-d H:i'))->toBe('2030-01-14 10:00');
-
-    // And it is shown back as it was typed.
-    edit($post->fresh())->assertSet('data.published_at', '2030-01-14 12:00:00');
+    edit($post->fresh())->assertSet('data.published_at', '2030-01-14 12:00:00');   // and opened again
 });
 
 test('breaking news from the quick action sets an end time and saves', function () {
@@ -394,24 +389,131 @@ test('a draft\'s bar publishes, schedules or keeps it a draft, and Ctrl+S only s
     edit($post)->assertActionDoesNotExist('publishNow');   // no longer in the header
 });
 
-test('a published item is updated, a scheduled one updated or published at once, an archived one updated or published again', function () {
+test('a published item is updated, unpublished or archived; a scheduled one updated, published at once, moved or unscheduled; an archived one updated or published again', function () {
     $published = newPost('news', 'منشور');
     app(PostSaver::class)->save($published, ['title' => 'منشور', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'published'], $this->admin->id);
-    expect(barButtons($published->fresh()))->toBe(['save' => 'تحديث', 'cancel' => 'إلغاء']);
+    expect(barButtons($published->fresh()))->toBe(['save' => 'تحديث', 'unpublish' => 'إلغاء النشر', 'archive' => 'أرشفة', 'cancel' => 'إلغاء']);
 
     $scheduled = newPost('news', 'مجدول');
     app(PostSaver::class)->save($scheduled, ['title' => 'مجدول', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled', 'published_at' => now()->addDay()->format('Y-m-d H:i:s')], $this->admin->id);
-    expect(barButtons($scheduled->fresh()))->toBe(['save' => 'تحديث', 'publishNow' => 'نشر الآن', 'cancel' => 'إلغاء']);
+    expect(barButtons($scheduled->fresh()))->toBe(['save' => 'تحديث', 'publishNow' => 'نشر الآن', 'schedule' => 'تغيير الموعد…', 'unschedule' => 'إلغاء الجدولة', 'cancel' => 'إلغاء']);
 
     app(PostSaver::class)->save($published->fresh(), ['title' => 'منشور', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'archived'], $this->admin->id);
     expect(barButtons($published->fresh()))->toBe(['save' => 'تحديث', 'publishNow' => 'نشر', 'cancel' => 'إلغاء']);
 });
 
-test('a draft\'s save button says what it will do when the state above it is changed', function () {
-    $post = newPost();
+test('the state is read only on the page: it changes through the bar alone', function () {
+    edit(newPost())->assertFormFieldIsDisabled('status');
 
-    edit($post)->fillForm(['status' => 'scheduled'])->assertActionHasLabel(barAction('save'), 'حفظ')
-        ->fillForm(['status' => 'draft'])->assertActionHasLabel(barAction('save'), 'حفظ كمسودة');
+    $scheduled = newPost('news', 'مجدول');
+    app(PostSaver::class)->save($scheduled, ['title' => 'مجدول', 'body' => '<p>n</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id, 'status' => 'scheduled', 'published_at' => now()->addDay()->format('Y-m-d H:i:s')], $this->admin->id);
+    edit($scheduled->fresh())->assertFormFieldIsDisabled('status')->assertFormFieldIsDisabled('published_at');
+});
+
+test('a save that still carries another state is refused by the server, whatever the page sent', function () {
+    $draft = newPost('news', 'مسودة مكتملة');
+    $complete = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id];
+
+    // The read-only select forced in the request, then Ctrl+S: refused, nothing published.
+    edit($draft)->fillForm($complete)->set('data.status', 'published')->call('save')->assertHasErrors(['data.status']);
+    expect($draft->fresh()->status)->toBe('draft');
+    // The same through another button that saves (عاجل): still refused.
+    edit($draft)->fillForm($complete)->set('data.status', 'published')->callAction('breaking', ['hours' => 1]);
+    expect($draft->fresh()->status)->toBe('draft');
+
+    $published = newPost('news', 'منشور');
+    app(PostSaver::class)->save($published, ['title' => 'منشور', ...$complete, 'status' => 'published'], $this->admin->id);
+    edit($published->fresh())->set('data.status', 'draft')->call('save')->assertHasErrors(['data.status']);
+    expect($published->fresh()->status)->toBe('published');
+
+    // A scheduled item's time forced in the request does not move it.
+    $scheduled = newPost('news', 'مجدول');
+    $at = now()->addDay()->startOfMinute();
+    app(PostSaver::class)->save($scheduled, ['title' => 'مجدول', ...$complete, 'status' => 'scheduled', 'published_at' => $at->format('Y-m-d H:i:s')], $this->admin->id);
+    edit($scheduled->fresh())->set('data.published_at', now('Asia/Hebron')->addMinutes(5)->format('Y-m-d H:i:s'))->call('save')->assertHasNoFormErrors();
+    expect($scheduled->fresh()->published_at->equalTo($at))->toBeTrue();
+
+    // A plain save of the same state goes through.
+    edit($published->fresh())->fillForm(['title' => 'منشور معدّل'])->call('save')->assertHasNoFormErrors();
+    expect($published->fresh())->title->toBe('منشور معدّل')->status->toBe('published');
+});
+
+test('a published item is unpublished or archived, a scheduled one unscheduled, each confirming with its title', function () {
+    $complete = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id];
+    $post = newPost('news', 'خبر الميناء');
+    app(PostSaver::class)->save($post, ['title' => 'خبر الميناء', ...$complete, 'status' => 'published'], $this->admin->id);
+
+    edit($post->fresh())->mountAction(barAction('unpublish'))->assertMountedActionModalSee('إلغاء النشر «خبر الميناء»');
+    edit($post->fresh())->callAction(barAction('unpublish'))->assertHasNoFormErrors()->assertSeeHtml('wire:key="post-bar-draft"');
+    expect($post->fresh()->status)->toBe('draft');
+
+    app(PostSaver::class)->save($post->fresh(), ['title' => 'خبر الميناء', ...$complete, 'status' => 'published'], $this->admin->id);
+    edit($post->fresh())->mountAction(barAction('archive'))->assertMountedActionModalSee('أرشفة «خبر الميناء»');
+    edit($post->fresh())->callAction(barAction('archive'))->assertHasNoFormErrors();
+    expect($post->fresh()->status)->toBe('archived');
+
+    $scheduled = newPost('news', 'خبر الغد');
+    app(PostSaver::class)->save($scheduled, ['title' => 'خبر الغد', ...$complete, 'status' => 'scheduled', 'published_at' => now()->addDay()->format('Y-m-d H:i:s')], $this->admin->id);
+    edit($scheduled->fresh())->mountAction(barAction('unschedule'))->assertMountedActionModalSee('إلغاء الجدولة «خبر الغد»');
+    edit($scheduled->fresh())->callAction(barAction('unschedule'))->assertHasNoFormErrors();
+    expect($scheduled->fresh()->status)->toBe('draft');
+
+    // «تغيير الموعد…» moves it, and it stays scheduled.
+    app(PostSaver::class)->save($scheduled->fresh(), ['title' => 'خبر الغد', ...$complete, 'status' => 'scheduled', 'published_at' => now()->addDay()->format('Y-m-d H:i:s')], $this->admin->id);
+    $later = now('Asia/Hebron')->addDays(3)->setTime(9, 30);
+    edit($scheduled->fresh())->callAction(barAction('schedule'), ['at' => $later->format('Y-m-d H:i')])->assertHasNoFormErrors();
+    expect($scheduled->fresh())->status->toBe('scheduled')->and($scheduled->fresh()->published_at->equalTo($later))->toBeTrue();
+});
+
+/** The next time Palestine moves its clocks in the given month (3 = forward, 10 = back), from the time-zone database. */
+function nextPalestineClockChange(int $month): CarbonImmutable
+{
+    $zone = new DateTimeZone('Asia/Hebron');
+    foreach ($zone->getTransitions(now()->getTimestamp(), now()->addYears(2)->getTimestamp()) as $i => $t) {
+        $at = CarbonImmutable::createFromTimestampUTC($t['ts']);
+        if ($i > 0 && (int) $at->format('n') === $month) {
+            return $at;
+        }
+    }
+    throw new RuntimeException('no clock change found');
+}
+
+test('scheduling across the night the clocks go forward (March): the time is the one typed, and a skipped time is refused', function () {
+    $change = nextPalestineClockChange(3);   // e.g. 00:00 UTC, when 02:00 becomes 03:00
+    $before = $change->subHours(1)->setTimezone('Asia/Hebron');   // still winter time
+    $after = $change->addMinutes(90)->setTimezone('Asia/Hebron');   // summer time
+    $complete = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id];
+
+    foreach ([$before, $after] as $typed) {
+        $post = newPost('news', 'مجدول '.$typed->format('H:i'));
+        $page = edit($post)->fillForm($complete)->callAction(barAction('schedule'), ['at' => $typed->format('Y-m-d H:i')])->assertHasNoFormErrors()
+            ->assertSet('data.published_at', $typed->format('Y-m-d H:i:00'));
+        expect($post->fresh()->published_at->utc()->format('Y-m-d H:i'))->toBe($typed->utc()->format('Y-m-d H:i'));
+        edit($post->fresh())->assertSet('data.published_at', $typed->format('Y-m-d H:i:00'));
+    }
+
+    $post = newPost('news', 'وقت غير موجود');
+    // The clock jumps from the hour before the summer hour to it: half past the hour in between is never read.
+    $summer = $change->setTimezone('Asia/Hebron');
+    $wallClock = $summer->format('Y-m-d').' '.sprintf('%02d:30', (int) $summer->format('H') - 1);
+    expect(PalestineTime::fromTyped($wallClock))->toBeNull();
+    edit($post)->fillForm($complete)->callAction(barAction('schedule'), ['at' => $wallClock])->assertHasActionErrors(['at']);
+    expect($post->fresh()->status)->toBe('draft');
+});
+
+test('scheduling across the night the clocks go back (October): the time shown after saving is the time typed', function () {
+    $change = nextPalestineClockChange(10);   // e.g. 23:00 UTC, when 02:00 summer becomes 01:00 winter
+    $complete = ['body' => '<p>نص</p>', 'category_id' => $this->energy, 'cover_media_id' => $this->cover->id];
+
+    foreach (['before' => $change->subHours(2), 'twice' => $change->addMinutes(30), 'after' => $change->addHours(2)] as $name => $moment) {
+        $typed = $moment->setTimezone('Asia/Hebron')->format('Y-m-d H:i');
+        $post = newPost('news', 'مجدول '.$name);
+        edit($post)->fillForm($complete)->callAction(barAction('schedule'), ['at' => $typed])->assertHasNoFormErrors()
+            ->assertSet('data.published_at', $typed.':00');
+        edit($post->fresh())->assertSet('data.published_at', $typed.':00');
+        // In the hour lived twice the second one is meant, on winter time (PalestineTime).
+        expect($post->fresh()->published_at->utc()->format('Y-m-d H:i'))->toBe($moment->utc()->format('Y-m-d H:i'), $name);
+    }
 });
 
 test('«جدولة…» asks for the time and schedules the draft with the current text; a time in the past is refused', function () {

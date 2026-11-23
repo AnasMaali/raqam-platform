@@ -11,7 +11,9 @@ use App\Filament\Concerns\SavesSeoMeta;
 use App\Filament\Resources\Posts\PostResource;
 use App\Models\Post;
 use App\Seo\SeoMetaSaver;
+use App\Support\PalestineTime;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
@@ -40,6 +42,14 @@ class EditPost extends EditRecord
     }
 
     protected static string $resource = PostResource::class;
+
+    /**
+     * The state a bar button asked for (and its time, for scheduling), while that button's save runs. A plain save
+     * keeps the stored state.
+     *
+     * @var array{status: string, published_at?: Carbon|null}|null
+     */
+    private ?array $stateChange = null;
 
     /** The item's state when the save began: a save that changes it opens the page again (afterSave). */
     private ?string $statusBeforeSave = null;
@@ -85,6 +95,19 @@ class EditPost extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        $post = $this->getRecord();
+        $change = $this->stateChange;
+
+        // One way to change the state: the bar's buttons, each confirming with the item's title. «الحالة» is read only on
+        // this page, and a save that still carries another state (a forced request) is refused, not quietly applied.
+        if ($change === null && (string) ($this->data['status'] ?? $post->status) !== $post->status) {
+            throw ValidationException::withMessages(['data.status' => 'تتغيّر الحالة من أزرار الشريط أسفل الصفحة فقط.']);
+        }
+        $data['status'] = $change['status'] ?? $post->status;
+        if ($change !== null && array_key_exists('published_at', $change)) {
+            $data['published_at'] = $change['published_at'];
+        }
+
         $data = $this->takeSeo($data);
         $data['gallery'] = array_values(array_filter(array_map(fn ($item) => ((array) $item)['media_id'] ?? null, (array) ($data['gallery'] ?? []))));
         $data['guests'] = array_values((array) ($data['guests'] ?? []));
@@ -151,23 +174,31 @@ class EditPost extends EditRecord
     public static bool $formActionsAreSticky = true;
 
     /**
-     * The bar under the form, by the item's state as stored: a draft is published, scheduled or kept as a draft; a
-     * scheduled, published or archived item is updated, and the first and last can also go live at once. Ctrl+S is
-     * always the save button, so it never publishes. The bar starts with what has happened to the editor's changes.
+     * The bar under the form, by the item's state as stored, and the only place the state changes:
+     *   - a draft is published, scheduled or kept as a draft;
+     *   - a scheduled item is updated, published at once, given another time or taken back to a draft;
+     *   - a published item is updated, taken back to a draft or archived;
+     *   - an archived item is updated or published again.
+     * Each change of state confirms with the item's title. Ctrl+S is always the save button, which keeps the state, so it
+     * never publishes. The bar starts with what has happened to the editor's changes; the rarer changes wait in «المزيد».
      */
     protected function getFormActions(): array
     {
         $status = $this->getRecord()->status;
-        $save = $this->getSaveFormAction()
-            ->label(fn () => $status !== 'draft' ? 'تحديث' : (($this->data['status'] ?? 'draft') === 'draft' ? 'حفظ كمسودة' : 'حفظ'))
+        $save = $this->getSaveFormAction()->label($status === 'draft' ? 'حفظ كمسودة' : 'تحديث')
             ->color($status === 'draft' ? 'gray' : 'primary');
+        $more = fn (Action ...$actions) => ActionGroup::make($actions)->label('المزيد')->icon(Heroicon::OutlinedEllipsisHorizontal)
+            ->button()->color('gray')->tooltip('تغييرات أخرى على الحالة');
 
         return array_values(array_filter([
             Action::make('saveState')->view('filament.post-save-state', fn () => ['status' => Post::STATUSES[$status] ?? $status, 'tone' => $status]),
-            $status === 'draft' ? $this->publishAction('نشر', 'primary') : null,
-            $status === 'draft' ? $this->scheduleAction() : null,
-            $save,
-            in_array($status, ['scheduled', 'archived'], true) ? $this->publishAction($status === 'archived' ? 'نشر' : 'نشر الآن', 'gray') : null,
+            ...match ($status) {
+                'draft' => [$this->publishAction('نشر', 'primary'), $this->scheduleAction('جدولة…'), $save],
+                'scheduled' => [$save, $this->publishAction('نشر الآن', 'gray'), $more($this->scheduleAction('تغيير الموعد…'), $this->toDraftAction('unschedule', 'إلغاء الجدولة', 'تُحفظ التعديلات وتعود المادة مسودة، فلا تُنشر في موعدها.'))],
+                'published' => [$save, $more($this->toDraftAction('unpublish', 'إلغاء النشر', 'تُحفظ التعديلات وتعود المادة مسودة، فتختفي من الموقع حتى تُنشر من جديد.'), $this->archiveAction())],
+                'archived' => [$save, $this->publishAction('نشر', 'gray')],
+                default => [$save],
+            },
             // A phone has its own way back; the bar keeps to one line there (theme.css).
             $this->getCancelFormAction()->extraAttributes(['class' => 'raqam-bar-cancel']),
         ]));
@@ -178,24 +209,48 @@ class EditPost extends EditRecord
         return parent::getFormActionsContentComponent()->extraAttributes(['wire:key' => 'post-bar-'.$this->getRecord()->status]);
     }
 
-    private function publishAction(string $label, string $color): Action
+    /** A change of state: a confirmation that names the item, whose button says what it does. */
+    private function stateAction(string $name, string $label, string $heading, string $description): Action
     {
-        return Action::make('publishNow')->label($label)->icon(Heroicon::OutlinedPaperAirplane)->color($color)
-            ->requiresConfirmation()->modalHeading(fn () => 'نشر «'.$this->getRecord()->title.'»')
-            ->modalDescription('تُحفظ التعديلات وتُنشر المادة فوراً.')
-            ->action(fn (Action $action) => $this->saveFromAction($action, ['status' => 'published'], 'تعذّر النشر'));
+        return Action::make($name)->label($label)->requiresConfirmation()
+            ->modalHeading(fn () => $heading.' «'.$this->getRecord()->title.'»')->modalDescription($description)
+            ->modalSubmitActionLabel($label);
     }
 
-    private function scheduleAction(): Action
+    private function publishAction(string $label, string $color): Action
     {
-        return Action::make('schedule')->label('جدولة…')->icon(Heroicon::OutlinedClock)->color('gray')
+        return $this->stateAction('publishNow', $label, 'نشر', 'تُحفظ التعديلات وتُنشر المادة فوراً.')
+            ->icon(Heroicon::OutlinedPaperAirplane)->color($color)
+            ->action(fn (Action $action) => $this->changeState($action, ['status' => 'published'], 'تعذّر النشر'));
+    }
+
+    private function toDraftAction(string $name, string $label, string $description): Action
+    {
+        return $this->stateAction($name, $label, $label, $description)->icon(Heroicon::OutlinedArrowUturnRight)->color('gray')
+            ->action(fn (Action $action) => $this->changeState($action, ['status' => 'draft'], 'تعذّر '.$label));
+    }
+
+    private function archiveAction(): Action
+    {
+        return $this->stateAction('archive', 'أرشفة', 'أرشفة', 'تُحفظ التعديلات وتُؤرشف المادة: يبقى رابطها يعمل، وتختفي من القوائم وخريطة الموقع.')
+            ->icon(Heroicon::OutlinedArchiveBox)->color('gray')
+            ->action(fn (Action $action) => $this->changeState($action, ['status' => 'archived'], 'تعذّرت الأرشفة'));
+    }
+
+    private function scheduleAction(string $label): Action
+    {
+        return Action::make('schedule')->label($label)->icon(Heroicon::OutlinedClock)->color('gray')
             ->modalHeading(fn () => 'جدولة «'.$this->getRecord()->title.'»')
-            // No timezone() here: the value goes into the form as typed (Palestine time), and the form's own date field
-            // turns it into UTC once, on save. With timezone() it would be turned twice.
+            // The time is typed in Palestine time and turned into UTC once, in changeState (PalestineTime::fromTyped).
             ->schema([DateTimePicker::make('at')->label('وقت النشر')->seconds(false)->native(false)->displayFormat('Y-m-d H:i')
-                ->required()->helperText('بتوقيت فلسطين، بعد دقيقة من الآن على الأقل.')])
+                ->required()->helperText('بتوقيت فلسطين، بعد دقيقة من الآن على الأقل.')
+                ->rule(fn () => function (string $attribute, mixed $value, \Closure $fail) {
+                    if (is_string($value) && PalestineTime::fromTyped($value) === null) {
+                        $fail('هذا الوقت غير موجود بتوقيت فلسطين: تتقدّم الساعة ساعةً تلك الليلة. اختر وقتاً بعدها.');
+                    }
+                })])
             ->modalDescription('تُحفظ التعديلات وتُنشر المادة تلقائياً في هذا الوقت.')->modalSubmitActionLabel('جدولة')
-            ->action(fn (array $data, Action $action) => $this->saveFromAction($action, ['status' => 'scheduled', 'published_at' => $data['at']], 'تعذّرت الجدولة'));
+            ->action(fn (array $data, Action $action) => $this->changeState($action, ['status' => 'scheduled', 'published_at' => PalestineTime::fromTyped((string) $data['at'])], 'تعذّرت الجدولة'));
     }
 
     protected function getHeaderActions(): array
@@ -274,6 +329,23 @@ class EditPost extends EditRecord
             // The reason was already shown (a notification from the content rules); only the dialog is left.
             $this->data = array_merge($this->data, $before);
             $action->cancel();
+        }
+    }
+
+    /**
+     * Saves the form with the state a bar button asked for. The state is not a form value on this page (one way to change
+     * it), so it travels beside the form, only for this save.
+     *
+     * @param  array{status: string, published_at?: Carbon|null}  $change
+     */
+    private function changeState(Action $action, array $change, string $failedTitle): void
+    {
+        $this->stateChange = $change;
+
+        try {
+            $this->saveFromAction($action, [], $failedTitle);
+        } finally {
+            $this->stateChange = null;
         }
     }
 

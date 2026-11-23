@@ -47,7 +47,7 @@ test('an editor can write and publish an item from a phone', async ({ page, app,
     const box = (await publish.boundingBox())!;
     expect(box.height, 'tap target height').toBeGreaterThanOrEqual(32);
     await publish.click();
-    const confirm = page.getByRole('button', { name: 'تأكيد' });
+    const confirm = page.locator('.fi-modal-window:visible').getByRole('button', { name: 'نشر', exact: true });
     await expect(confirm).toBeVisible();
     await afterLivewire(page, () => confirm.click(), 'callMountedAction');
 

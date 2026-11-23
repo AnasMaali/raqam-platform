@@ -113,3 +113,27 @@ test('the built theme declares Alexandria from this site and Raqam\'s radii', fu
         ->toContain('--radius-xl:.5rem')
         ->not->toMatch('~url\("?https?://~');
 });
+
+/** A colour written as a value: #hex (not an HTML entity like &#8592;), a colour function, or a named white or black. */
+const PANEL_HAND_COLOUR = '~(?<![&\w])#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|(?:color|background|fill|stroke|border)[\w-]*\s*:\s*(?:white|black)\b~i';
+
+test('no colour is written by hand in the panel: its views use the theme\'s classes, and the theme writes colours only as tokens', function () {
+    $offenders = [];
+    foreach (['filament', 'livewire'] as $folder) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(resource_path("views/{$folder}"), FilesystemIterator::SKIP_DOTS)) as $file) {
+            foreach (file($file->getPathname()) as $n => $line) {
+                if (preg_match(PANEL_HAND_COLOUR, $line)) {
+                    $offenders[] = str_replace(resource_path().'/', '', $file->getPathname()).':'.($n + 1);
+                }
+            }
+        }
+    }
+    // In theme.css a colour may only be the value of a token (--raqam-line: …, a shadow), so it is set in one place.
+    foreach (file(resource_path('css/filament/admin/theme.css')) as $n => $line) {
+        if (preg_match(PANEL_HAND_COLOUR, $line) && ! preg_match('~^\s*--[\w-]+\s*:~', $line)) {
+            $offenders[] = 'css/filament/admin/theme.css:'.($n + 1);
+        }
+    }
+
+    expect($offenders)->toBe([]);
+});

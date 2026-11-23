@@ -20,7 +20,7 @@
 @endphp
 <div style="display:grid;gap:1.5rem;grid-template-columns:minmax(0,1fr)" data-statistics>
     @if ($r['problem'])
-        <p style="color:var(--warning-600,#b45309);font-size:.875rem">{{ $r['problem'] }}</p>
+        <p class="raqam-stat-problem" style="font-size:.875rem">{{ $r['problem'] }}</p>
     @endif
 
     <div style="{{ $tiles }}">
@@ -46,19 +46,19 @@
                 @foreach ($days as $i => $d)
                     @php $x = $pad + $step * $i + ($step - $bar) / 2; $top = $y($d['page_views']); @endphp
                     <rect x="{{ round($x, 1) }}" y="{{ round($top, 1) }}" width="{{ round($bar, 1) }}" height="{{ round($h - $pad - $top, 1) }}" rx="2"
-                          style="fill:var(--primary-500,#f59e0b)" data-day="{{ $d['date'] }}"><title>{{ $d['date'] }}: {{ $d['page_views'] }} مشاهدة، {{ $d['visitors'] }} زائر</title></rect>
+                          class="raqam-chart-bar" data-day="{{ $d['date'] }}"><title>{{ $d['date'] }}: {{ $d['page_views'] }} مشاهدة، {{ $d['visitors'] }} زائر</title></rect>
                     @if ($i % $labelEvery === 0)
                         <text x="{{ round($pad + $step * ($i + 0.5), 1) }}" y="{{ $h - 6 }}" text-anchor="middle" style="font-size:10px;fill:currentColor;opacity:.7">{{ substr($d['date'], 5) }}</text>
                     @endif
                 @endforeach
                 @if ($count > 1)
-                    <polyline points="{{ $line }}" style="fill:none;stroke:var(--gray-500,#6b7280);stroke-width:2" />
+                    <polyline points="{{ $line }}" class="raqam-chart-line" />
                 @endif
                 <text x="{{ $pad }}" y="14" style="font-size:10px;fill:currentColor;opacity:.7">{{ number_format($max) }}</text>
             </svg>
             <figcaption style="display:flex;gap:1rem;font-size:.8rem;opacity:.8;margin-top:.5rem">
-                <span><span style="display:inline-block;width:.75rem;height:.75rem;background:var(--primary-500,#f59e0b);border-radius:2px"></span> مشاهدات الصفحات</span>
-                <span><span style="display:inline-block;width:.75rem;height:2px;background:var(--gray-500,#6b7280);vertical-align:middle"></span> الزوار</span>
+                <span><span class="raqam-legend-bar"></span> مشاهدات الصفحات</span>
+                <span><span class="raqam-legend-line"></span> الزوار</span>
                 @if ($r['live'])<span>اليوم يُحسب لحظياً؛ الأيام السابقة كما خُزّنت.</span>@endif
             </figcaption>
             <details style="margin-top:.5rem;font-size:.85rem">
@@ -81,7 +81,7 @@
                 @forelse ($rows as $row)
                     <div style="margin-bottom:.6rem" data-row="{{ $row['code'] }}">
                         <div style="display:flex;justify-content:space-between;font-size:.875rem"><span>{{ $row['name'] }}</span><span dir="ltr">{{ number_format($row['count']) }} · {{ $row['share'] }}%</span></div>
-                        <div style="height:.4rem;border-radius:.2rem;background:rgba(127,127,127,.2)"><div style="height:100%;border-radius:.2rem;width:{{ (float) $row['share'] }}%;background:var(--primary-500,#f59e0b)"></div></div>
+                        <div class="raqam-share-track"><div class="raqam-share-fill" style="width:{{ (float) $row['share'] }}%"></div></div>
                     </div>
                 @empty
                     <p style="font-size:.875rem;opacity:.7">{{ $empty }}</p>
@@ -154,7 +154,7 @@
                 <strong>البحث</strong>
                 <div style="font-size:.875rem">عمليات البحث: <span dir="ltr">{{ number_format($m['search']['searches']) }}</span> — بلا نتائج: <span dir="ltr">{{ number_format($m['search']['zero']) }}</span></div>
                 @if ($m['search']['top'] !== [])<div style="font-size:.8rem;opacity:.75">الأكثر: {{ implode('، ', $m['search']['top']) }}</div>@endif
-                <a href="{{ \App\Filament\Pages\SearchStatistics::getUrl() }}" style="font-size:.8rem;color:var(--primary-600,#d97706)">إحصائيات البحث ←</a>
+                <a href="{{ \App\Filament\Pages\SearchStatistics::getUrl() }}" class="raqam-more-link">إحصائيات البحث ←</a>
             </div>
             <div data-module="ads">
                 <strong>الإعلانات</strong>
@@ -188,6 +188,6 @@
                 @endforeach
             </table>
         @endif
-        <a href="{{ \App\Filament\Resources\NotFoundPaths\NotFoundPathResource::getUrl() }}" style="font-size:.8rem;color:var(--primary-600,#d97706)">كل الصفحات غير الموجودة ←</a>
+        <a href="{{ \App\Filament\Resources\NotFoundPaths\NotFoundPathResource::getUrl() }}" class="raqam-more-link">كل الصفحات غير الموجودة ←</a>
     </x-filament::section>
 </div>

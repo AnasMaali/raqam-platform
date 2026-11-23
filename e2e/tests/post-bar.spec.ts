@@ -1,5 +1,5 @@
 import { test, expect, signIn } from '../support/fixtures';
-import { afterLivewire, createPost, fillRequired, uploadImage } from '../support/panel';
+import { afterLivewire, confirmDialog, createPost, fillRequired, publishedNews, uploadImage } from '../support/panel';
 
 /*
  * The bar under the editor's form (panel phase 3): it stays on screen, it says whether the editor's changes are saved,
@@ -57,7 +57,7 @@ test.describe('on a phone', () => {
 
         await publish.click();
         await expect(page.locator('.fi-modal-window').getByText('نشر «خبر من شاشة صغيرة»')).toBeVisible();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+        await confirmDialog(page, 'نشر');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
         expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('published');
 
@@ -65,4 +65,21 @@ test.describe('on a phone', () => {
         await expect(page.getByRole('button', { name: 'تحديث' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'نشر', exact: true })).toHaveCount(0);
     });
+});
+
+test('a published item goes back to a draft from «المزيد», after a confirmation that names it', async ({ page, app, adminPassword }) => {
+    await signIn(page, app, adminPassword);
+    await uploadImage(page, 'cover.png', 'صورة');
+    const id = await publishedNews(page, 'خبر يعود مسودة');
+
+    // The state is not a field to change on the page: the bar is the one way.
+    await expect(page.locator('.raqam-save-state')).toContainText('منشور');
+    await page.getByRole('button', { name: 'المزيد' }).click();
+    await page.getByRole('menuitem', { name: 'إلغاء النشر' }).click();
+    await expect(page.locator('.fi-modal-window:visible')).toContainText('إلغاء النشر «خبر يعود مسودة»');
+    await confirmDialog(page, 'إلغاء النشر');
+
+    expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('draft');
+    await expect(page.locator('.raqam-save-state')).toContainText('مسودة');
+    await expect(page.getByRole('button', { name: 'نشر', exact: true })).toBeVisible();
 });

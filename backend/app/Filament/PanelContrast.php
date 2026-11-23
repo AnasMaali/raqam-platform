@@ -30,7 +30,7 @@ final class PanelContrast
         ['A brand badge', 4.5, ['primary.700', 'primary.50'], ['primary.400', 'gray.900']],
         ['A success badge (rise)', 4.5, ['success.700', 'success.50'], ['success.300', 'gray.900']],
         ['A danger badge (fall)', 4.5, ['danger.700', 'danger.50'], ['danger.200', 'gray.900']],
-        ['A warning badge', 4.5, ['warning.700', 'warning.50'], ['warning.400', 'gray.900']],
+        ['A warning badge, the banner offering a browser copy back', 4.5, ['warning.700', 'warning.50'], ['warning.400', 'gray.900']],
         ['A warning in text', 4.5, ['warning.600', 'white'], ['warning.400', 'gray.950']],
         ['A control\'s border on a surface', 3.0, ['line-strong', 'white'], ['line-strong', 'gray.900']],
         ['A control\'s border on the page', 3.0, ['line-strong', 'gray.50'], ['line-strong', 'gray.950']],
