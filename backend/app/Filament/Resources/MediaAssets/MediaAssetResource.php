@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MediaAssets;
 
+use App\Filament\Actions\Destructive;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Forms\Components\FocalPoint;
@@ -152,7 +153,7 @@ class MediaAssetResource extends Resource
             ])
             // Each picture goes through the trash rules: one still used is kept (21.17).
             ->toolbarActions([
-                BulkAction::make('trashSelected')->label('نقل المحدد إلى السلة')->icon(Heroicon::OutlinedTrash)->color('danger')
+                Destructive::quiet(BulkAction::make('trashSelected'))->label('نقل المحدد إلى السلة')->icon(Heroicon::OutlinedTrash)
                     ->requiresConfirmation()->deselectRecordsAfterCompletion()
                     ->action(function (Collection $records) {
                         $done = $kept = 0;
@@ -177,8 +178,8 @@ class MediaAssetResource extends Resource
 
     public static function trashAction(): Action
     {
-        return Action::make('trash')
-            ->label('نقل إلى السلة')->icon(Heroicon::OutlinedTrash)->color('danger')
+        return Destructive::quiet(Action::make('trash'))
+            ->label('نقل إلى السلة')->icon(Heroicon::OutlinedTrash)
             ->visible(fn (MediaAsset $record) => ! $record->trashed())
             ->requiresConfirmation()
             ->action(function (MediaAsset $record) {
@@ -195,8 +196,8 @@ class MediaAssetResource extends Resource
 
     public static function purgeAction(): Action
     {
-        return Action::make('purge')
-            ->label('حذف نهائي')->icon(Heroicon::OutlinedXCircle)->color('danger')
+        return Destructive::quiet(Action::make('purge'))
+            ->label('حذف نهائي')->icon(Heroicon::OutlinedXCircle)
             ->visible(fn (MediaAsset $record) => $record->trashed())
             ->requiresConfirmation()->modalDescription('يُحذف الملف ونسخه نهائياً ولا يمكن استرجاعه.')
             ->action(function (MediaAsset $record) {

@@ -111,7 +111,8 @@ test('the post deleted in the panel: its page is gone (404), and so is it from t
     expect(post.id, 'the post of the first test').toBeGreaterThan(0);
     await page.goto(panel(`/posts/${post.id}/edit`));
     await page.getByRole('button', { name: 'نقل إلى السلة' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'تأكيد' }).click();
+    // The confirmation's red button says what it does.
+    await page.locator('.fi-modal-window:visible').getByRole('button', { name: 'نقل إلى السلة' }).click();
     await page.waitForURL(/\/posts\/?(\?.*)?$/);
 
     await expect.poll(async () => (await site(post.path)).status, { ...soon, message: 'its page' }).toBe(404);

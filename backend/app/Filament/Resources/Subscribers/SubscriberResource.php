@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Subscribers;
 
+use App\Filament\Actions\Destructive;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Subscribers\Pages\ListSubscribers;
 use App\Models\Subscriber;
@@ -73,12 +74,12 @@ class SubscriberResource extends Resource
                 SelectFilter::make('source_placement')->label('المكان')->options(Subscriber::PLACEMENTS),
             ])
             ->recordActions([
-                Action::make('delete')->label('حذف')->icon('heroicon-o-trash')->color('danger')->requiresConfirmation()
+                Destructive::quiet(Action::make('delete'))->label('حذف')->icon('heroicon-o-trash')->requiresConfirmation()
                     ->modalDescription('يُحذف المشترك وإثبات موافقته نهائياً من عندنا ومن Brevo.')
                     ->action(fn (Subscriber $record) => app(Subscribers::class)->delete($record->id, auth()->id())),
             ])
             ->toolbarActions([
-                BulkAction::make('delete')->label('حذف المحدد')->icon('heroicon-o-trash')->color('danger')->requiresConfirmation()
+                Destructive::quiet(BulkAction::make('delete'))->label('حذف المحدد')->icon('heroicon-o-trash')->requiresConfirmation()
                     ->modalDescription('يُحذف المشتركون المحددون نهائياً من عندنا ومن Brevo.')
                     ->action(fn (Collection $records) => $records->each(fn (Subscriber $s) => app(Subscribers::class)->delete($s->id, auth()->id()))),
             ]);

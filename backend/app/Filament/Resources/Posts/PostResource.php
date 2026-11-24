@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Posts;
 
 use App\Content\PostRuleViolation;
 use App\Content\PostSaver;
+use App\Filament\Actions\Destructive;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Resources\Posts\Pages\CreatePost;
@@ -102,7 +103,7 @@ class PostResource extends Resource
                 BulkActionGroup::make([
                     self::bulk('archive', 'أرشفة', 'archived'),
                     self::bulk('unpublish', 'إلغاء النشر (مسودة)', 'draft'),
-                    BulkAction::make('trash')->label('نقل إلى السلة')->color('danger')->requiresConfirmation()->deselectRecordsAfterCompletion()
+                    Destructive::quiet(BulkAction::make('trash'))->label('نقل إلى السلة')->requiresConfirmation()->deselectRecordsAfterCompletion()
                         ->action(function (Collection $records) {
                             $records->each(fn (Post $post) => app(PostSaver::class)->trash($post));
                             Notification::make()->success()->title('نُقلت '.$records->count().' إلى السلة.')->send();

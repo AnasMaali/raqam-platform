@@ -71,6 +71,7 @@ class HomeLayoutEditor extends Page
     {
         return $schema->statePath('data')->components([
             Repeater::make('blocks')->label('أجزاء الصفحة الرئيسية')->hiddenLabel()
+                ->deleteAction(fn (Action $action) => $action->color('gray')->tooltip('إزالة هذا الجزء من الرئيسية'))
                 ->schema([
                     TextInput::make('id')->hidden()->dehydratedWhenHidden(),
                     Select::make('block_type')->label('النوع')->native(false)->required()->live()->options(HomeLayout::TYPES),

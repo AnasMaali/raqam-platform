@@ -6,6 +6,7 @@ use App\Content\PostPreview;
 use App\Content\PostRuleViolation;
 use App\Content\PostSaver;
 use App\Content\Subtypes\SubtypeRegistry;
+use App\Filament\Actions\Destructive;
 use App\Filament\Concerns\ReportsPostRuleViolations;
 use App\Filament\Concerns\SavesSeoMeta;
 use App\Filament\Resources\Posts\PostResource;
@@ -257,11 +258,11 @@ class EditPost extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('breaking')->label('عاجل')->icon(Heroicon::OutlinedBolt)->color('danger')
+            Action::make('breaking')->label('عاجل')->icon(Heroicon::OutlinedBolt)->color('gray')
                 ->schema([Select::make('hours')->label('مدة العاجل')->native(false)->options([1 => 'ساعة', 3 => '3 ساعات', 6 => '6 ساعات', 12 => '12 ساعة', 24 => '24 ساعة'])->default(3)->required()])
                 ->modalDescription('تُحفظ التعديلات ويظهر الخبر في شريط العاجل حتى انتهاء المدة.')->modalSubmitActionLabel('جعله عاجلاً')
                 ->action(fn (array $data, Action $action) => $this->saveFromAction($action, ['breaking_until' => now('Asia/Hebron')->addHours((int) $data['hours'])->format('Y-m-d H:i:s')], 'تعذّر جعل الخبر عاجلاً')),
-            Action::make('preview')->label('معاينة')->icon(Heroicon::OutlinedEye)
+            Action::make('preview')->label('معاينة')->icon(Heroicon::OutlinedEye)->color('gray')
                 ->schema([Select::make('hours')->label('مدة صلاحية الرابط')->native(false)->options(PostPreview::HOURS)->default(48)->required()])
                 ->modalDescription('رابط سري يفتح المادة كما هي الآن، على الكمبيوتر أو الجوال، دون تسجيل دخول. لا تشاركه إلا مع من يجب أن يراها.')->modalSubmitActionLabel('إنشاء الرابط')
                 ->action(function (array $data) {
@@ -297,7 +298,7 @@ class EditPost extends EditRecord
                     $this->dispatch('post-saved');
                     Notification::make()->success()->title('استُرجعت النسخة.')->send();
                 }),
-            Action::make('trash')->label('نقل إلى السلة')->icon(Heroicon::OutlinedTrash)->color('danger')
+            Destructive::quiet(Action::make('trash'))->label('نقل إلى السلة')->icon(Heroicon::OutlinedTrash)
                 ->requiresConfirmation()->modalDescription('تبقى في السلة 90 يوماً ويمكن استرجاعها.')
                 ->action(function () {
                     app(PostSaver::class)->trash($this->getRecord());
