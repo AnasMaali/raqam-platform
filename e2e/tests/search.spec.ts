@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 import { test, expect, panel, signIn } from '../support/fixtures';
 import { startMeili, type Meili } from '../support/meili';
-import { afterLivewire, createPost, fillRequired, pick, publishedNews, save, uploadImage } from '../support/panel';
+import { afterLivewire, confirmDialog, createPost, fillRequired, pick, publishedNews, save, uploadImage } from '../support/panel';
 
 // Search (decision 10), through the editor and the panel as an editor uses them, and through the API the site calls.
 // The site's search page belongs to the frontend phase; here the browser makes the same request the site's server will.
@@ -112,8 +112,8 @@ test.describe('search on the engine', () => {
         await pick(page, 'awareness.character_id', 'المستشار');
         await pick(page, 'awareness.character_pose_id', 'تشرح');
         await pick(page, 'awareness.awareness_type_code', 'نصيحة');
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
+        await confirmDialog(page, 'نشر');
         await until(page.request, app.url, 'الأعياد', card, true);
 
         const visibility = async (shown: boolean) => {

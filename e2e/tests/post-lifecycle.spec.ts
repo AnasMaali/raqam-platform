@@ -1,5 +1,5 @@
 import { test, expect, panel, signIn } from '../support/fixtures';
-import { afterLivewire, fillRequired, pick, publishedNews, save, uploadImage, createPost } from '../support/panel';
+import { afterLivewire, fillRequired, publishedNews, save, uploadImage, createPost } from '../support/panel';
 
 test.beforeEach(async ({ page, app, adminPassword }) => {
     await signIn(page, app, adminPassword);
@@ -92,7 +92,10 @@ test('scheduling: it stays hidden until its time, then the publisher puts it liv
     const id = await createPost(page, 'خبر', 'خبر مجدول للاختبار');
     await fillRequired(page);
 
-    await pick(page, 'status', 'مجدول');
+    // The state changes from the bar only: «جدولة…» asks for the time in its own dialog.
+    await page.getByRole('button', { name: 'جدولة…' }).click();
+    const dialog = page.locator('.fi-modal-window:visible');
+    await expect(dialog).toContainText('جدولة «خبر مجدول للاختبار»');
     // The editor says the time is Palestine time. The picker has no seconds, so "now + 3 minutes" lands 2 to 3 minutes
     // ahead: always past the one-minute minimum, even after the time it takes to fill in the form.
     const target = await page.evaluate(() => {
@@ -101,15 +104,16 @@ test('scheduling: it stays hidden until its time, then the publisher puts it liv
         return Object.fromEntries(parts.map((x) => [x.type, x.value]));
     });
     const when = `${target.year}-${target.month}-${target.day} ${target.hour}:${target.minute}`;
-    await page.locator('input[id="form.published_at"]').click();
-    const panel = page.locator('[id="form.published_at-panel"]');
+    await dialog.locator('input[id$=".at"]').click();
+    const panel = dialog.locator('[id$=".at-panel"]');
     await panel.locator(`[data-date="${target.year}-${target.month}-${target.day}"]`).click();
     await panel.getByLabel('الساعة').fill(String(Number(target.hour)));
     await panel.getByLabel('الدقيقة').fill(String(Number(target.minute)));
     await panel.getByLabel('الدقيقة').blur();
     await page.waitForTimeout(800);   // the time fields apply after a short pause
-    await page.keyboard.press('Escape');
-    await save(page);
+    await dialog.getByRole('heading').first().click();   // closes the picker, not the dialog
+    await afterLivewire(page, () => dialog.getByRole('button', { name: 'جدولة', exact: true }).click(), 'callMountedAction');
+    await expect(page.locator('.fi-modal-window:visible')).toHaveCount(0);
 
     expect(app.sql(`SELECT status FROM posts WHERE id = ${id}`)).toBe('scheduled');
     expect((await page.request.get(api(app, `/posts/${id}`))).status()).toBe(404);   // not public yet

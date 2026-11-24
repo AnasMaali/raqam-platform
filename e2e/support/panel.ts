@@ -54,9 +54,15 @@ export async function afterLivewire(page: Page, trigger: () => Promise<unknown>,
     await answered;
 }
 
+/** Presses the open confirmation's own button, which says what it does («نشر», «أرشفة», …), and waits for its answer. */
+export async function confirmDialog(page: Page, label: string) {
+    await afterLivewire(page, () => page.locator('.fi-modal-window:visible').getByRole('button', { name: label, exact: true }).click(), 'callMountedAction');
+}
+
 export async function save(page: Page) {
     // The toast of an earlier save may still be on screen, so wait for this save's own answer, not for the toast.
-    await afterLivewire(page, () => page.getByRole('button', { name: 'حفظ التغييرات' }).click(), 'save');
+    // The form's one submit button: «حفظ التغييرات» on most screens, «تحديث» or «حفظ كمسودة» in the post editor's bar.
+    await afterLivewire(page, () => page.locator('.fi-sc-actions button[type="submit"]').first().click(), 'save');
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 }
 
@@ -67,8 +73,8 @@ export async function publishedNews(page: Page, title: string, body = 'نص ال
     await writeBody(page, body);
     await pick(page, 'category_id', 'محلي (نابلس)');
     await pick(page, 'cover_media_id', 'cover.png', 'cover');
-    await page.getByRole('button', { name: 'نشر الآن' }).click();
-    await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
+    await page.getByRole('button', { name: 'نشر', exact: true }).click();
+    await confirmDialog(page, 'نشر');
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
     return id;
 }

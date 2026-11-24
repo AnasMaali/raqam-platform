@@ -42,12 +42,12 @@ test('an editor can write and publish an item from a phone', async ({ page, app,
     await fillRequired(page, 'نص مكتوب من الهاتف.');
 
     // The publishing buttons are reachable (they may wrap, but must be visible and tappable).
-    const publish = page.getByRole('button', { name: 'نشر الآن' });
+    const publish = page.getByRole('button', { name: 'نشر', exact: true });
     await publish.scrollIntoViewIfNeeded();
     const box = (await publish.boundingBox())!;
     expect(box.height, 'tap target height').toBeGreaterThanOrEqual(32);
     await publish.click();
-    const confirm = page.getByRole('button', { name: 'تأكيد' });
+    const confirm = page.locator('.fi-modal-window:visible').getByRole('button', { name: 'نشر', exact: true });
     await expect(confirm).toBeVisible();
     await afterLivewire(page, () => confirm.click(), 'callMountedAction');
 

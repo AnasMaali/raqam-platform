@@ -1,5 +1,5 @@
 import { test, expect, panel, signIn } from '../support/fixtures';
-import { afterLivewire, createPost, fillRequired, pick, save, uploadImage } from '../support/panel';
+import { afterLivewire, confirmDialog, createPost, fillRequired, pick, save, uploadImage } from '../support/panel';
 
 const api = (app: { url: string }) => `${app.url}/api/v1`;
 
@@ -80,13 +80,13 @@ test.describe('awareness characters and cards', () => {
         await fillRequired(page, 'نصيحة اليوم: ادّخر جزءاً من دخلك.');
         await pick(page, 'awareness.character_id', 'المستشار');
         await pick(page, 'awareness.awareness_type_code', 'نصيحة');
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
+        await confirmDialog(page, 'نشر');
         expect(app.sql(`SELECT status FROM posts WHERE id = ${card}`)).toBe('draft');
 
         await pick(page, 'awareness.character_pose_id', 'تشرح');
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
+        await confirmDialog(page, 'نشر');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
         expect(app.sql(`SELECT status FROM posts WHERE id = ${card}`)).toBe('published');
 
@@ -99,8 +99,8 @@ test.describe('awareness characters and cards', () => {
         await fillRequired(page, 'نص الخبر.');
         await page.getByText('بطاقات توعية مرتبطة').click();
         await pick(page, 'awareness_cards', 'ادّخر قبل أن تنفق', 'ادّخر');
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
+        await confirmDialog(page, 'نشر');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
         const detail = await (await page.request.get(`${api(app)}/posts/${news}`)).json();
@@ -126,8 +126,8 @@ test.describe('video on an item', () => {
         const id = await createPost(page, 'خبر', 'خبر مع فيديو');
         await fillRequired(page, 'نص الخبر.');
         await pick(page, 'primary_video_id', 'حلقة الاقتصاد', 'حلقة');
-        await page.getByRole('button', { name: 'نشر الآن' }).click();
-        await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+        await page.getByRole('button', { name: 'نشر', exact: true }).click();
+        await confirmDialog(page, 'نشر');
         await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
         expect(app.sql(`SELECT primary_video_id FROM posts WHERE id = ${id}`)).toBe(String(video));

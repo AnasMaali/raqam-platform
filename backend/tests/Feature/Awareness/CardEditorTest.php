@@ -7,6 +7,7 @@ use App\Jobs\GenerateMediaVariants;
 use App\Media\MediaUploader;
 use App\Models\Character;
 use App\Models\User;
+use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -37,8 +38,8 @@ test('the card editor picks the character, then one of its poses, and publishes 
 
     $page = Livewire::test(EditPost::class, ['record' => $card->id])
         ->fillForm(['awareness.character_id' => $this->a->id, 'awareness.character_pose_id' => $poseOfA, 'awareness.awareness_type_code' => 'advice',
-            'body' => '<p>ادّخر قبل أن تنفق</p>', 'cover_media_id' => $this->cover->id, 'status' => 'published'])
-        ->call('save')->assertHasNoFormErrors();
+            'body' => '<p>ادّخر قبل أن تنفق</p>', 'cover_media_id' => $this->cover->id])
+        ->callAction(TestAction::make('publishNow')->schemaComponent('form-actions', schema: 'content'))->assertHasNoFormErrors();
 
     expect(DB::table('awareness_cards')->where('post_id', $card->id)->value('character_pose_id'))->toBe($poseOfA)->and($card->refresh()->status)->toBe('published');
 
@@ -50,8 +51,8 @@ test('a card cannot be published with the character chosen but no pose', functio
     $card = app(PostSaver::class)->create('awareness', 'نصيحة اليوم', auth()->id());
 
     Livewire::test(EditPost::class, ['record' => $card->id])
-        ->fillForm(['awareness.character_id' => $this->a->id, 'awareness.awareness_type_code' => 'advice', 'body' => '<p>x</p>', 'cover_media_id' => $this->cover->id, 'status' => 'published'])
-        ->call('save');
+        ->fillForm(['awareness.character_id' => $this->a->id, 'awareness.awareness_type_code' => 'advice', 'body' => '<p>x</p>', 'cover_media_id' => $this->cover->id])
+        ->callAction(TestAction::make('publishNow')->schemaComponent('form-actions', schema: 'content'))->assertHasErrors(['data.awareness.character_pose_id']);
 
     expect($card->refresh()->status)->toBe('draft')->and(DB::table('awareness_cards')->count())->toBe(0);
 });

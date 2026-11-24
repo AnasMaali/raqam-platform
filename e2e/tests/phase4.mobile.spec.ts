@@ -1,7 +1,7 @@
 import { test, expect, panel, signIn } from '../support/fixtures';
 import { file } from '../support/files';
 import { mp4 } from '../support/clips';
-import { afterLivewire, createPost, fillRequired, pick, uploadImage } from '../support/panel';
+import { afterLivewire, confirmDialog, createPost, fillRequired, pick, uploadImage } from '../support/panel';
 
 // The video and awareness screens on a phone (the "mobile" project: a Pixel 7, 412 px wide).
 
@@ -88,10 +88,10 @@ test('a short clip is uploaded from a phone, and a character card is published f
     await pick(page, 'awareness.character_pose_id', 'تشرح');
     await pick(page, 'awareness.awareness_type_code', 'نصيحة');
     await noSideScroll(page, 'card editor');
-    const publish = page.getByRole('button', { name: 'نشر الآن' });
+    const publish = page.getByRole('button', { name: 'نشر', exact: true });
     await publish.scrollIntoViewIfNeeded();
     await publish.click();
-    await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click(), 'callMountedAction');
+    await confirmDialog(page, 'نشر');
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
     expect(app.sql(`SELECT status FROM posts WHERE id = ${card}`)).toBe('published');

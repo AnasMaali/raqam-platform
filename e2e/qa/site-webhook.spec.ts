@@ -71,7 +71,7 @@ test('a post published in the panel is on the site, on its home page and in its 
     await editor.pressSequentially('نص خبر الفحص، يُنشر من اللوحة ويُحذف بعدها.', { delay: 5 });
     await pick(page, 'category_id', 'محلي (نابلس)');
     await pick(page, 'cover_media_id', cover, cover.replace(/\.\w+$/, ''));
-    await page.getByRole('button', { name: 'نشر الآن' }).click();
+    await page.getByRole('button', { name: 'نشر', exact: true }).click();
     await afterLivewire(page, () => page.getByRole('button', { name: 'تأكيد' }).click());
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
@@ -91,7 +91,7 @@ test('its address changed in the panel: the old one moves to the new one with a 
     const field = page.locator('input[id="form.slug"]');
     await field.fill(slug);
     await afterLivewire(page, () => field.blur());
-    await afterLivewire(page, () => page.getByRole('button', { name: 'حفظ التغييرات' }).click(), 'save');
+    await afterLivewire(page, () => page.getByRole('button', { name: 'تحديث' }).click(), 'save');
     await expect(page.getByText('تم الحفظ').first()).toBeVisible();
 
     post.path = `/news/${post.id}/${slug}`;

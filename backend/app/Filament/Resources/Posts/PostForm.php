@@ -41,7 +41,8 @@ final class PostForm
         return $schema->components([
             Grid::make(['default' => 1, 'lg' => 3])->schema([
                 Group::make(self::main())->columnSpan(['lg' => 2]),
-                Group::make(self::side())->columnSpan(['lg' => 1]),
+                // On a phone the side column opens up so its «النشر» section can come before the text (theme.css).
+                Group::make(self::side())->columnSpan(['lg' => 1])->extraAttributes(['class' => 'raqam-post-side']),
             ])->columnSpanFull(),
         ]);
     }
@@ -98,13 +99,16 @@ final class PostForm
     private static function side(): array
     {
         return [
-            Section::make('النشر')->schema([
-                Select::make('status')->label('الحالة')->native(false)->options(Post::STATUSES)->required()->live(),
+            Section::make('النشر')->extraAttributes(['class' => 'raqam-post-publish'])->schema([
+                // Read only: the state changes through the bar's buttons alone (EditPost), and the server refuses any other way.
+                Select::make('status')->label('الحالة')->native(false)->options(Post::STATUSES)->disabled()
+                    ->helperText('تتغيّر من أزرار الشريط أسفل الصفحة.'),
                 DateTimePicker::make('published_at')->label(fn (Get $get) => $get('status') === 'scheduled' ? 'وقت النشر' : 'تاريخ النشر')
                     ->seconds(false)->native(false)->displayFormat('Y-m-d H:i')->timezone('Asia/Hebron')
+                    // A scheduled item's time is a change of when it goes live: «تغيير الموعد…» in the bar.
+                    ->disabled(fn (?Post $record) => $record?->status === 'scheduled')
                     ->visible(fn (Get $get) => in_array($get('status'), ['scheduled', 'published', 'archived'], true))
-                    ->required(fn (Get $get) => $get('status') === 'scheduled')
-                    ->helperText(fn (Get $get) => $get('status') === 'scheduled' ? 'يُنشر تلقائياً في هذا الوقت (بتوقيت فلسطين).' : 'اتركه كما هو للحفاظ على تاريخ النشر.'),
+                    ->helperText(fn (Get $get) => $get('status') === 'scheduled' ? 'يُنشر تلقائياً في هذا الوقت (بتوقيت فلسطين). يتغيّر من «تغيير الموعد…» في الشريط.' : 'اتركه كما هو للحفاظ على تاريخ النشر.'),
                 Toggle::make('is_featured')->label('مادة مميزة'),
                 DateTimePicker::make('breaking_until')->label('عاجل حتى')->seconds(false)->native(false)->displayFormat('Y-m-d H:i')->timezone('Asia/Hebron')
                     ->helperText('اتركه فارغاً إن لم تكن عاجلة. يسقط العاجل تلقائياً عند هذا الوقت.'),

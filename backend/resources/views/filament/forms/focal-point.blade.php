@@ -24,7 +24,7 @@
                 <span
                     x-show="point && point.x !== null && point.x !== undefined"
                     x-bind:style="point ? `left: ${point.x * 100}%; top: ${point.y * 100}%` : ''"
-                    style="position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; border: 3px solid #fff; border-radius: 9999px; box-shadow: 0 0 0 2px #111; pointer-events: none;"
+                    class="raqam-focal-mark"
                 ></span>
             </div>
             <p style="margin-top: .5rem; font-size: .875rem;">
