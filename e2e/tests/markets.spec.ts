@@ -157,6 +157,7 @@ test('when the bank fails three times the last good rates stay, and the home say
     markets.answers.boiTime = new Date(Date.now() - 60_000).toISOString();
     await app.artisanAsync(['currency:fetch']);
     await page.reload();
+    await page.locator('[data-system] > section > .fi-section-header').click();
     // The warning is gone; the alert stays in the history (bell and the home's alerts card) until it is read.
     await expect(page.locator('.fi-main').getByText(/فشل 3 مرات متتالية \(/)).toHaveCount(0);
     await expect(page.locator('.fi-main').getByText('الموقع يعرض آخر أسعار صحيحة')).toHaveCount(0);
