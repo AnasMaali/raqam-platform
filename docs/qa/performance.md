@@ -38,6 +38,10 @@ the number.
   each part, not growth: the growth tests (`ApiQueryGrowthTest`) show that more pictures in a gallery, more related
   items, more awareness cards among them and more posts in a "read also" block add no query.
 
+  A list of the panel costs one query more when it has rows than when it is empty (the page does not ask for the rows of
+  an empty list): the notifications screen counts 12 with the QA admin's six notifications and 11 with none, the
+  redirects list 11 with none and 12 with some. The six rows are read in one query, so the count does not grow with them.
+
   ```sh
   cd e2e && npx playwright test -c playwright.qa.config.ts --project=query-budget
   ```
