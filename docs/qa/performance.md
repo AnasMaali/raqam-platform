@@ -30,6 +30,14 @@ the number.
   counts to `e2e/test-results/query-counts.jsonl`; after a deliberate change, `node qa/query-budgets.mjs` (from `e2e/`)
   writes them as the new budgets. A budget is never raised only to make the check pass.
 
+- **The sample.** The API's post budgets count one post of each kind: the newest live one of the QA data, made with
+  `raqam:demo --seed=2026 --posts=2000`. `e2e/qa/query-sample.json` records those posts and their parts, and the check
+  stops if the data is not that sample. A count differs from kind to kind because the sample posts differ: the news
+  (no related items, no blocks) is the plainest, 18; the opinion has 3 related items and a "read also" block, 22; the
+  report has a gallery of 4 pictures, an awareness card in its text and a related item, 32. These are fixed costs of
+  each part, not growth: the growth tests (`ApiQueryGrowthTest`) show that more pictures in a gallery, more related
+  items, more awareness cards among them and more posts in a "read also" block add no query.
+
   ```sh
   cd e2e && npx playwright test -c playwright.qa.config.ts --project=query-budget
   ```

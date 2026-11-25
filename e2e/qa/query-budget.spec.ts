@@ -51,12 +51,22 @@ const NOT_COUNTED: Record<string, string> = {
 const api = (path: string) => `${QA_URL}/api/v1/${path}`;
 const first = (rows: string) => rows.split('\n').filter(Boolean)[0];
 
-/** A live post of each kind (the API's own rule: published, due, not deleted). */
-const postsByKind = () =>
-    psql("SELECT DISTINCT ON (kind_code) kind_code || ' ' || id FROM posts WHERE status = 'published' AND published_at <= now() AND deleted_at IS NULL ORDER BY kind_code, id DESC")
+/**
+ * The post counted for each kind: the newest live one (the API's own rule: published, due, not deleted). The QA data is
+ * made with a fixed seed, so these are the same posts every time; `query-sample.json` records them with their parts
+ * (docs/qa/performance.md), and a run on other data stops here instead of comparing counts of other posts.
+ */
+const postsByKind = () => {
+    const rows = psql("SELECT DISTINCT ON (kind_code) kind_code || ' ' || id FROM posts WHERE status = 'published' AND published_at <= now() AND deleted_at IS NULL ORDER BY kind_code, id DESC")
         .split('\n')
         .filter(Boolean)
         .map((row) => row.split(' ') as [string, string]);
+    const sample = JSON.parse(readFileSync(new URL('./query-sample.json', import.meta.url).pathname, 'utf8')) as { seed: number; posts: number; sample: Record<string, { id: number }> };
+    const found = Object.fromEntries(rows.map(([kind, id]) => [kind, Number(id)]));
+    const wanted = Object.fromEntries(Object.entries(sample.sample).map(([kind, part]) => [kind, part.id]));
+    expect(found, `the QA data is not the documented sample: build it with raqam:demo --seed=${sample.seed} --posts=${sample.posts}`).toEqual(wanted);
+    return rows;
+};
 
 /** The address of each route to count, with a real record of the QA database for each part in braces. */
 async function addresses(get: (path: string) => Promise<unknown>): Promise<[string, string][]> {

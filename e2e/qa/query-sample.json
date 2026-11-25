@@ -1,0 +1,105 @@
+{
+    "seed": 2026,
+    "posts": 2000,
+    "sample": {
+        "awareness": {
+            "id": 1908,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "episode": {
+            "id": 1917,
+            "related": 0,
+            "guests": 3,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "history": {
+            "id": 1780,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "infographic": {
+            "id": 1959,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "initiative": {
+            "id": 1872,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "news": {
+            "id": 2000,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "opinion": {
+            "id": 1820,
+            "related": 3,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 1
+        },
+        "product": {
+            "id": 1994,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 3,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "report": {
+            "id": 1996,
+            "related": 1,
+            "guests": 0,
+            "galleryItems": 0,
+            "galleryBlocks": 1,
+            "awarenessBlocks": 1,
+            "readAlsoBlocks": 0
+        },
+        "roundtable": {
+            "id": 1717,
+            "related": 0,
+            "guests": 4,
+            "galleryItems": 0,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        },
+        "story": {
+            "id": 1987,
+            "related": 0,
+            "guests": 0,
+            "galleryItems": 3,
+            "galleryBlocks": 0,
+            "awarenessBlocks": 0,
+            "readAlsoBlocks": 0
+        }
+    }
+}
