@@ -226,3 +226,19 @@ test('a file used as the logo cannot be trashed', function () {
 
     expect(fn () => app(MediaTrash::class)->trash($logo))->toThrow(MediaInUse::class);
 });
+
+test('a card cuts a long file name in its middle, never in its extension, and keeps a size reading «21 KB» in an Arabic line', function () {
+    $isolated = fn (string $name) => "\u{2068}{$name}\u{2069}";
+
+    expect(MediaAssetResource::shortName('short.png'))->toBe($isolated('short.png'))
+        ->and(MediaAssetResource::shortName(str_repeat('a', MediaAssetResource::NAME_LENGTH - 4).'.png'))->toBe($isolated(str_repeat('a', MediaAssetResource::NAME_LENGTH - 4).'.png'))
+        ->and(MediaAssetResource::shortName('banner-between_sections-mobile.jpg'))->toBe($isolated('banner-between_s…-mobile.jpg'))
+        ->and(MediaAssetResource::shortName('صورة طويلة جدا من مؤتمر غرفة تجارة نابلس.webp'))->toBe($isolated('صورة طويلة جدا …ة نابلس.webp'))
+        // No extension (or a dot far from the end): the name is cut in its middle all the same.
+        ->and(MediaAssetResource::shortName('a-very-long-name-without-any-extension-at-all'))->toBe($isolated('a-very-long-name-w…on-at-all'))
+        ->and(MediaAssetResource::ltr('21 KB'))->toBe("\u{2066}21 KB\u{2069}");
+
+    foreach (['banner-between_sections-mobile.jpg', 'a-very-long-name-without-any-extension-at-all', str_repeat('ب', 80).'.jpeg'] as $name) {
+        expect(mb_strlen(MediaAssetResource::shortName($name)) - 2)->toBe(MediaAssetResource::NAME_LENGTH);
+    }
+});

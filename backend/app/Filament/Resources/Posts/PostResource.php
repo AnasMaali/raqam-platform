@@ -65,6 +65,9 @@ class PostResource extends Resource
         return $table
             ->modifyQueryUsing(fn (Builder $query) => $query->with(['cover.variants', 'category']))
             ->defaultSort('updated_at', 'desc')
+            // On a phone each post is one row: the picture and the title, then a line with the rest (theme.css).
+            ->stackedOnMobile()
+            ->extraAttributes(['class' => 'raqam-posts-list'])
             ->columns([
                 ImageColumn::make('cover')->label('')->state(fn (Post $record) => MediaThumb::url($record->cover))->imageHeight('2.5rem')
                     ->extraImgAttributes(['alt' => '', 'loading' => 'lazy', 'style' => 'object-fit:cover;border-radius:.25rem']),
