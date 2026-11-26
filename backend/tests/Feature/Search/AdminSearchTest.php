@@ -1,9 +1,12 @@
 <?php
 
 use App\Filament\Pages\SearchStatistics;
+use App\Filament\Resources\AuditLogs\AuditLogResource;
 use App\Filament\Resources\Authors\AuthorResource;
 use App\Filament\Resources\MediaAssets\MediaAssetResource;
 use App\Filament\Resources\Posts\PostResource;
+use App\Filament\Resources\Tags\TagResource;
+use App\Filament\Resources\Videos\VideoResource;
 use App\Models\User;
 use App\Search\SearchStats;
 use App\Search\SearchStatsReport;
@@ -95,4 +98,59 @@ test('the search box of the panel answers with those results', function () {
     insertPost(['title' => 'أسعار الذهب اليوم']);
 
     Livewire::test(GlobalSearch::class)->set('search', 'اسعار')->assertSee('أسعار الذهب اليوم');
+});
+
+/** A YouTube video in the library: the title YouTube gave, and the one the site shows instead when there is one. */
+function searchVideo(string $youtubeTitle, ?string $shownTitle = null): int
+{
+    static $n = 0;
+    $id = DB::table('videos')->insertGetId(['source' => 'youtube', 'display_title' => $shownTitle]);
+    DB::table('youtube_videos')->insert(['video_id' => $id, 'youtube_id' => 'abcdefghij'.(++$n % 10), 'source_title' => $youtubeTitle]);
+
+    return $id;
+}
+
+test('tags and videos are found too, whatever the hamza or ta marbuta; the audit log is not searched', function () {
+    DB::table('tags')->insert(['name_ar' => 'الطاقة المتجددة', 'slug' => 'renewables']);
+    searchVideo('مقابلة عن أسعار الذهب');
+    searchVideo('Gold prices interview', 'لقاء عن الذهب في نابلس');
+    $titles = fn (string $resource, string $q) => $resource::getGlobalSearchResults($q)->map(fn ($r) => (string) $r->title)->all();
+
+    expect($titles(TagResource::class, 'الطاقه'))->toBe(['الطاقة المتجددة'])
+        ->and($titles(VideoResource::class, 'اسعار'))->toBe(['مقابلة عن أسعار الذهب'])                 // by the title YouTube gave
+        ->and($titles(VideoResource::class, 'نابلس'))->toBe(['لقاء عن الذهب في نابلس'])                // by the title the site shows
+        ->and($titles(VideoResource::class, 'gold'))->toBe(['لقاء عن الذهب في نابلس'])                  // the shown title stands for it
+        ->and(TagResource::canGloballySearch())->toBeTrue()->and(VideoResource::canGloballySearch())->toBeTrue()
+        ->and(AuditLogResource::canGloballySearch())->toBeFalse();
+
+    Livewire::test(GlobalSearch::class)->set('search', 'الطاقه')->assertSee('الطاقة المتجددة')
+        ->set('search', 'نابلس')->assertSee('لقاء عن الذهب في نابلس');
+});
+
+test('a member of the team without the right to tags or videos finds neither, and cannot open their screens', function () {
+    $this->artisan('permissions:install')->assertSuccessful();
+    DB::table('feature_flags')->insertOrIgnore(['key' => 'multi_admin', 'description_ar' => 'أكثر من مستخدم وأدوار لفريق الإدارة', 'is_enabled' => true]);
+    DB::table('feature_flags')->where('key', 'multi_admin')->update(['is_enabled' => true]);
+    $role = DB::table('roles')->insertGetId(['code' => 'writer', 'name_ar' => 'كاتب']);
+    DB::table('role_permissions')->insert(['role_id' => $role, 'permission_id' => DB::table('permissions')->where('code', 'posts.manage')->value('id')]);
+    $writer = User::factory()->bareStaff()->create();
+    DB::table('user_roles')->insert(['user_id' => $writer->id, 'role_id' => $role]);
+
+    DB::table('tags')->insert(['name_ar' => 'الطاقة المتجددة', 'slug' => 'renewables']);
+    searchVideo('لقاء عن الطاقة');
+    insertPost(['title' => 'الطاقة في نابلس']);
+
+    $this->actingAs($writer);
+    expect(TagResource::canGloballySearch())->toBeFalse()->and(VideoResource::canGloballySearch())->toBeFalse()
+        ->and(PostResource::canGloballySearch())->toBeTrue();
+    Livewire::test(GlobalSearch::class)->set('search', 'الطاقه')
+        ->assertSee('الطاقة في نابلس')->assertDontSee('الطاقة المتجددة')->assertDontSee('لقاء عن الطاقة');
+    $this->get(TagResource::getUrl())->assertForbidden();
+    $this->get(VideoResource::getUrl())->assertForbidden();
+
+    // Given the right, the same member finds them.
+    foreach (['taxonomy.manage', 'videos.manage'] as $code) {
+        DB::table('role_permissions')->insert(['role_id' => $role, 'permission_id' => DB::table('permissions')->where('code', $code)->value('id')]);
+    }
+    Livewire::test(GlobalSearch::class)->set('search', 'الطاقه')->assertSee('الطاقة المتجددة')->assertSee('لقاء عن الطاقة');
 });

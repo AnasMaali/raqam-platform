@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Tags;
 
 use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
+use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Forms\SeoSection;
 use App\Filament\Resources\Tags\Pages\CreateTag;
 use App\Filament\Resources\Tags\Pages\EditTag;
@@ -24,11 +25,12 @@ use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /** Free tags (decision 4.4). Normally they are typed into the post form; this screen tidies them up. */
 class TagResource extends Resource
 {
-    use HasNumericRecordKey;
+    use HasNumericRecordKey, NormalizedGlobalSearch;
 
     protected static ?string $model = Tag::class;
 
@@ -80,6 +82,19 @@ class TagResource extends Resource
                 EditAction::make()->label('تعديل'),
                 DeleteAction::make()->label('حذف')->modalDescription('يُزال الوسم من كل المواد التي تستعمله.'),
             ]);
+    }
+
+    protected static ?string $recordTitleAttribute = 'name_ar';
+
+    /** The tags' screens, and their place in the quick search, for whoever may manage them. */
+    public static function canViewAny(): bool
+    {
+        return Gate::allows('taxonomy.manage') && parent::canViewAny();
+    }
+
+    protected static function globalSearchText(): string
+    {
+        return 'tags.search_name';
     }
 
     public static function getPages(): array

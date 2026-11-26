@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Videos;
 
 use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
+use App\Filament\Concerns\NormalizedGlobalSearch;
 use App\Filament\Forms\MediaSelect;
 use App\Filament\Resources\Videos\Pages\CreateVideo;
 use App\Filament\Resources\Videos\Pages\EditVideo;
@@ -34,8 +35,10 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\HtmlString;
 
 /**
@@ -44,7 +47,7 @@ use Illuminate\Support\HtmlString;
  */
 class VideoResource extends Resource
 {
-    use HasNumericRecordKey;
+    use HasNumericRecordKey, NormalizedGlobalSearch;
 
     protected static ?string $model = Video::class;
 
@@ -181,6 +184,37 @@ class VideoResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->withoutGlobalScopes([SoftDeletingScope::class]);
+    }
+
+    /** A video is found by the title the site shows or the one YouTube gave (Video::title()). */
+    protected static ?string $recordTitleAttribute = 'display_title';
+
+    /** The video library's screens, and its place in the quick search, for whoever may manage videos. */
+    public static function canViewAny(): bool
+    {
+        return Gate::allows('videos.manage') && parent::canViewAny();
+    }
+
+    protected static function globalSearchText(): string
+    {
+        return "normalize_ar(concat_ws(' ', videos.display_title, (SELECT y.source_title FROM youtube_videos y WHERE y.video_id = videos.id)))";
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with('youtube');
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        /** @var Video $record */
+        return $record->title();
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        /** @var Video $record */
+        return ['المصدر' => $record->isYoutube() ? 'يوتيوب' : 'مقطع'];
     }
 
     public static function getPages(): array

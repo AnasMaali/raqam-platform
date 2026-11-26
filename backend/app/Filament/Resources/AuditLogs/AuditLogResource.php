@@ -56,6 +56,9 @@ class AuditLogResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'id';
 
+    /** Not in the quick search: an editor looking for an item or a person found the log's rows there, noise to them. */
+    protected static bool $isGloballySearchable = false;
+
     public const ACTIONS = [
         'create' => 'إضافة',
         'update' => 'تعديل',
