@@ -40,7 +40,8 @@ the number.
 
   A list of the panel costs one query more when it has rows than when it is empty (the page does not ask for the rows of
   an empty list): the notifications screen counts 12 with the QA admin's six notifications and 11 with none, the
-  redirects list 11 with none and 12 with some. The six rows are read in one query, so the count does not grow with them.
+  redirects list 12 with the demo's three redirects and 11 with none. The rows are read in one query, so the count does
+  not grow with them. The redirect lookup's budget is counted on one of those redirects (a 301), not on a missing one.
 
   ```sh
   cd e2e && npx playwright test -c playwright.qa.config.ts --project=query-budget

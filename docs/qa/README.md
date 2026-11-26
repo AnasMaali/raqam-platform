@@ -57,7 +57,7 @@ pointed at the local stand-in (`e2e/qa/stand-in.mjs`, [resilience.md](resilience
   - chat conversations, answered and not;
   - the last 90 days of statistics: page views (each day's hold the posts' own), visitors by source and by device,
     events, searches (some finding nothing), ad views and clicks on the days each campaign ran, service contacts,
-    video plays, and missing pages.
+    video plays, and missing pages (three of them dealt with, each with the redirect made for it).
 
 Every e-mail address is `@example.org`, and every phone number is in the range kept for fiction (`+1 555 555 01xx`).
 Statistics already in the database (the site's own counts) are kept as they are. `--remove` takes away only the

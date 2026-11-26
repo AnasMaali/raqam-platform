@@ -140,7 +140,7 @@
     "panel /posts/{record}/edit (roundtable)": 44,
     "panel /posts/{record}/edit (story)": 43,
     "panel /posts/create": 11,
-    "panel /redirects": 11,
+    "panel /redirects": 12,
     "panel /search-statistics": 13,
     "panel /sections": 11,
     "panel /sections/{record}/edit": 11,

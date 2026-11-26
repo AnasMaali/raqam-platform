@@ -31,6 +31,7 @@ class DemoManifest
         'search_terms' => 'id',
         'service_contact_clicks_daily' => "service_id || '|' || channel || '|' || stat_date",
         'not_found_paths' => 'path',
+        'redirects' => 'id',
         'home_blocks' => 'id',
         'menu_items' => 'id',
         'faqs' => 'id',

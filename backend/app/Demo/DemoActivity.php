@@ -53,6 +53,9 @@ final class DemoActivity
     /** Addresses readers asked for that do not exist. */
     private const MISSING = ['/news/old', '/ar/home', '/wp-login.php', '/category/sport', '/podcast/episode-1', '/currency', '/weather/nablus', '/about-us', '/contact-us', '/news/12/old-title', '/feed.xml', '/sitemap_index.xml'];
 
+    /** The missing addresses an editor dealt with: a redirect to where the reader meant to go. */
+    private const REDIRECTED = ['/news/old' => '/', '/podcast/episode-1' => '/podcast', '/contact-us' => '/contact'];
+
     private const PATHS = ['/', '/currencies', '/weather', '/services', '/podcast', '/contact', '/advertise', '/video'];
 
     private CarbonImmutable $today;
@@ -279,14 +282,17 @@ final class DemoActivity
 
     private function missingPages(): void
     {
-        $rows = [];
-        foreach (self::MISSING as $i => $path) {
+        $rows = $redirects = [];
+        foreach (self::MISSING as $path) {
             $first = $this->moment($this->rng->getInt(10, self::DAYS - 1));
             $last = $this->after($first, 3600, 9 * 86400);
-            // One in four was dealt with (a redirect made) after it was last asked for.
-            $rows[] = ['path' => $path, 'hits' => $this->rng->getInt(1, 400), 'first_seen_at' => $first, 'last_seen_at' => $last, 'resolved_at' => $i % 4 === 0 ? $last : null];
+            // Some were dealt with after they were last asked for: the redirect made then is there too.
+            $to = self::REDIRECTED[$path] ?? null;
+            $rows[] = ['path' => $path, 'hits' => $this->rng->getInt(1, 400), 'first_seen_at' => $first, 'last_seen_at' => $last, 'resolved_at' => $to ? $last : null];
+            $to && $redirects[] = ['from_path' => $path, 'to_path' => $to, 'status_code' => 301, 'created_by' => $this->userId, 'created_at' => $last];
         }
         $this->insert('not_found_paths', $rows);
+        $this->insert('redirects', $redirects);
     }
 
     /** Rows that are already there (the site's own counts, a search somebody made) stay as they are. */

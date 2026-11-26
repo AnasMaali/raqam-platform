@@ -248,7 +248,10 @@ test('the readers\' side: subscribers, messages, chat conversations and 90 days 
         ->and(DB::table('ad_stats_daily')->whereColumn('clicks', '>', 'impressions')->count())->toBe(0)
         ->and(DB::table('service_contact_clicks_daily')->count())->toBeGreaterThan(0)
         ->and(DB::table('video_plays_daily')->count())->toBeGreaterThan(0)
-        ->and(DB::table('not_found_paths')->count())->toBe(12);
+        ->and(DB::table('not_found_paths')->count())->toBe(12)
+        // A missing address an editor dealt with has its redirect, to a page that is there.
+        ->and(DB::table('redirects')->orderBy('from_path')->pluck('to_path', 'from_path')->all())->toBe(['/contact-us' => '/contact', '/news/old' => '/', '/podcast/episode-1' => '/podcast'])
+        ->and(DB::table('not_found_paths')->whereNotNull('resolved_at')->orderBy('path')->pluck('path')->all())->toBe(['/contact-us', '/news/old', '/podcast/episode-1']);
 });
 
 test('statistics the site counted itself stay as they are, and stay when the demo is removed', function () {
@@ -316,7 +319,7 @@ test('removing the demo gives the database back as raqam:install left it', funct
         'advertisers', 'ad_campaigns', 'house_ads', 'character_poses', 'menu_items', 'faqs', 'exchange_rates', 'weather_observations', 'weather_forecasts',
         'subscribers', 'contact_messages', 'bot_conversations', 'bot_messages', 'site_stats_daily', 'traffic_sources_daily', 'device_stats_daily',
         'event_stats_daily', 'search_terms', 'search_stats_daily', 'post_views_daily', 'ad_stats_daily', 'service_contact_clicks_daily',
-        'video_plays_daily', 'not_found_paths'] as $table) {
+        'video_plays_daily', 'not_found_paths', 'redirects'] as $table) {
         expect(DB::table($table)->count())->toBe(0, "{$table} is empty again");
     }
     expect(Storage::disk('media_local_public')->allFiles())->toBe([])->and(is_file($this->manifestPath))->toBeFalse();

@@ -89,6 +89,7 @@ async function addresses(get: (path: string) => Promise<unknown>): Promise<[stri
     const services = (await get('services')) as { data: { groups: { services: { slug: string }[] }[] } };
     const service = services.data.groups.flatMap((g) => g.services)[0]?.slug;
     const moved = first(psql('SELECT from_path FROM redirects ORDER BY id LIMIT 1'));
+    if (!moved) throw new Error('No QA record for the API route redirects/lookup: the QA data has no redirect (raqam:demo makes three).');
     const e = encodeURIComponent;
 
     const out: [string, string][] = [];
