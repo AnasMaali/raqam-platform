@@ -24,9 +24,24 @@ the number.
 - **The QA budget** (`e2e/qa/query-budget.spec.ts`, project `query-budget` of `playwright.qa.config.ts`): every GET
   endpoint of the API (74, with a post of each kind) and every screen of the panel (88) may make at most the number in
   `e2e/qa/query-budgets.json`. A screen is counted whole: its page and the requests its parts make after it (lazy
-  widgets). The check also fails for a budget left for an endpoint or screen that no longer exists. Each run writes its
+  widgets). A budget is named by its route, and a post's by its kind too, never by a record's id, so the budgets still
+  apply after the QA database is built again. The check also fails for a budget left for an endpoint or screen that no
+  longer exists. Each run writes its
   counts to `e2e/test-results/query-counts.jsonl`; after a deliberate change, `node qa/query-budgets.mjs` (from `e2e/`)
   writes them as the new budgets. A budget is never raised only to make the check pass.
+
+- **The sample.** The API's post budgets count one post of each kind: the newest live one of the QA data, made with
+  `raqam:demo --seed=2026 --posts=2000`. `e2e/qa/query-sample.json` records those posts and their parts, and the check
+  stops if the data is not that sample. A count differs from kind to kind because the sample posts differ: the news
+  (no related items, no blocks) is the plainest, 18; the opinion has 3 related items and a "read also" block, 22; the
+  report has a gallery of 4 pictures, an awareness card in its text and a related item, 32. These are fixed costs of
+  each part, not growth: the growth tests (`ApiQueryGrowthTest`) show that more pictures in a gallery, more related
+  items, more awareness cards among them and more posts in a "read also" block add no query.
+
+  A list of the panel costs one query more when it has rows than when it is empty (the page does not ask for the rows of
+  an empty list): the notifications screen counts 12 with the QA admin's six notifications and 11 with none, the
+  redirects list 12 with the demo's three redirects and 11 with none. The rows are read in one query, so the count does
+  not grow with them. The redirect lookup's budget is counted on one of those redirects (a 301), not on a missing one.
 
   ```sh
   cd e2e && npx playwright test -c playwright.qa.config.ts --project=query-budget

@@ -86,6 +86,41 @@ test('a round table with more guests', function () {
     sameQueriesWithMore("posts/{$post}", fn (int $i) => DB::table('post_guests')->insert(['post_id' => $post, 'guest_id' => growthGuest($i), 'role_code' => 'guest', 'sort_order' => $i + 1]));
 });
 
+test('an article with more pictures in a gallery in its text', function () {
+    $post = growthPost('report');
+    $pictures = [];
+    sameQueriesWithMore("posts/{$post}", function (int $i) use ($post, &$pictures) {
+        $pictures[] = $media = insertMedia();
+        DB::table('media_variants')->insert([
+            ['media_id' => $media, 'variant' => 'md', 'format' => 'webp', 'path' => "test/{$media}_md.webp", 'width' => 720, 'height' => 540, 'size_bytes' => 100],
+            ['media_id' => $media, 'variant' => 'md', 'format' => 'jpeg', 'path' => "test/{$media}_md.jpg", 'width' => 720, 'height' => 540, 'size_bytes' => 100],
+        ]);
+        $config = htmlspecialchars(json_encode(['media_ids' => $pictures]), ENT_QUOTES);
+        DB::table('posts')->where('id', $post)->update(['body' => "<p>نص</p><div data-type=\"customBlock\" data-id=\"gallery\" data-config=\"{$config}\"></div>"]);
+    });
+});
+
+test('an article with more related items', function () {
+    $post = growthPost('opinion');
+    sameQueriesWithMore("posts/{$post}", fn (int $i) => DB::table('post_related')->insert(['post_id' => $post, 'related_post_id' => growthPost('news'), 'sort_order' => $i + 1]));
+});
+
+test('an article with more awareness cards among its related items', function () {
+    $post = growthPost('report');
+    $pose = DB::table('character_poses')->where('character_id', growthCharacter(0))->value('id');
+    sameQueriesWithMore("posts/{$post}", fn (int $i) => DB::table('post_related')->insert(['post_id' => $post, 'related_post_id' => growthCard($pose), 'sort_order' => $i + 1]));
+});
+
+test('an article with more posts in its "read also" block', function () {
+    $post = growthPost('report');
+    $ids = [];
+    sameQueriesWithMore("posts/{$post}", function (int $i) use ($post, &$ids) {
+        $ids[] = growthPost('news');
+        $config = htmlspecialchars(json_encode(['post_ids' => $ids]), ENT_QUOTES);
+        DB::table('posts')->where('id', $post)->update(['body' => "<p>نص</p><div data-type=\"customBlock\" data-id=\"read-also\" data-config=\"{$config}\"></div>"]);
+    });
+});
+
 test('a page of many lists (the home page) reads the kinds and the view-count switch once, and asks nothing for no categories', function () {
     $presenter = app(Presenter::class);
     $section = Post::query()->whereKey([growthPost('roundtable', fn (int $p) => DB::table('roundtable_sessions')->insert(['post_id' => $p, 'kind_code' => 'roundtable', 'held_on' => '2026-10-01']))])->get();
