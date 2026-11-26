@@ -552,3 +552,18 @@ test('after publishing from the bar, the same page\'s bar is the published item\
         ->assertSeeHtml('wire:key="post-bar-published"')->assertDontSeeHtml('wire:key="post-bar-draft"')
         ->assertActionDoesNotExist(barAction('publishNow'))->assertActionHasLabel(barAction('save'), 'تحديث');
 });
+
+test('the list marks «عاجل» and «مميز» with a badge only when they are so, and says nothing for the others', function () {
+    $breaking = newPost('news', 'خبر عاجل');
+    $featured = newPost('news', 'خبر مميز');
+    $plain = newPost('news', 'خبر عادي');
+    DB::table('posts')->where('id', $breaking->id)->update(['is_featured' => false, 'breaking_until' => now()->addHour()]);
+    DB::table('posts')->where('id', $featured->id)->update(['is_featured' => true, 'breaking_until' => null]);
+    DB::table('posts')->where('id', $plain->id)->update(['is_featured' => false, 'breaking_until' => now()->subHour()]);   // its breaking time is over
+
+    Livewire::test(ListPosts::class)
+        ->assertTableColumnStateSet('breaking', 'عاجل', $breaking->id)->assertTableColumnStateSet('is_featured', null, $breaking->id)
+        ->assertTableColumnStateSet('breaking', null, $featured->id)->assertTableColumnStateSet('is_featured', 'مميز', $featured->id)
+        // Nothing stands for «no»: the cell is empty (the old mark read a hidden «لا» aloud on every row).
+        ->assertTableColumnStateSet('breaking', null, $plain->id)->assertTableColumnStateSet('is_featured', null, $plain->id);
+});
