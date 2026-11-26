@@ -2,12 +2,40 @@ import { expect, type Page } from '@playwright/test';
 import { panel } from './fixtures';
 import { file, png } from './files';
 
+type FilePayload = { name: string; mimeType: string; buffer: Buffer };
+
+/**
+ * Puts a file in the page's upload field (its «تصفح» link) and waits until FilePond says the file is processed: it reached
+ * the server and the form holds it.
+ *
+ * Not the item's `data-filepond-item-state`: FilePond writes that from its animation loop. On a busy machine the loop runs
+ * at a few frames a second, so the attribute can still say «processing» long after the upload ended (measured under load:
+ * processed at 13.8 s, the attribute still «processing» at 22 s). FilePond also waits about 100 frames before it starts an
+ * upload (1.7 s at 60 frames a second, 9.4 s at 10), so an upload's time follows the frame rate, not the server.
+ */
+export async function chooseFile(page: Page, upload: FilePayload, timeout = 20_000) {
+    await page.evaluate(() => {
+        const w = window as unknown as { raqamUpload?: string };
+        delete w.raqamUpload;
+        document.addEventListener(
+            'FilePond:processfile',
+            (event) => {
+                const error = (event as CustomEvent<{ error?: { main?: string; sub?: string } | null }>).detail?.error;
+                w.raqamUpload = error ? `${error.main ?? 'error'}: ${error.sub ?? ''}` : 'ok';
+            },
+            { capture: true, once: true },
+        );
+    });
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByText('تصفح').click()]);
+    await chooser.setFiles(upload);
+    const done = await page.waitForFunction(() => (window as unknown as { raqamUpload?: string }).raqamUpload, null, { timeout });
+    expect(await done.jsonValue(), 'FilePond processed the file').toBe('ok');
+}
+
 /** Uploads a picture through the media library screen, as an editor does, and returns the new asset's id. */
 export async function uploadImage(page: Page, name = 'cover.png', alt = 'صورة اختبار', size: [number, number] = [1200, 800]): Promise<number> {
     await page.goto(panel('/media-assets/create'));
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByText('تصفح').click()]);
-    await chooser.setFiles(file(name, 'image/png', png(...size)));
-    await expect(page.locator('[data-filepond-item-state="processing-complete"]')).toBeVisible({ timeout: 20_000 });
+    await chooseFile(page, file(name, 'image/png', png(...size)));
     await page.locator('input[id="form.alt_text"]').fill(alt);
     await page.getByRole('button', { name: 'إضافة', exact: true }).click();
     await page.waitForURL(/media-assets\/\d+\/edit/);

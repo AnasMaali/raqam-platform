@@ -1,7 +1,7 @@
 import { test, expect, panel, signIn } from '../support/fixtures';
 import { file } from '../support/files';
 import { mp4 } from '../support/clips';
-import { afterLivewire, confirmDialog, createPost, fillRequired, pick, uploadImage } from '../support/panel';
+import { afterLivewire, chooseFile, confirmDialog, createPost, fillRequired, pick, uploadImage } from '../support/panel';
 
 // The video and awareness screens on a phone (the "mobile" project: a Pixel 7, 412 px wide).
 
@@ -70,9 +70,7 @@ test('a short clip is uploaded from a phone, and a character card is published f
 
     await page.goto(panel('/videos/create'));
     await pick(page, 'source', 'مقطع قصير من الجهاز (MP4)');
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByText('تصفح').click()]);
-    await chooser.setFiles(file('clip.mp4', 'video/mp4', mp4(3, true)));
-    await expect(page.locator('[data-filepond-item-state="processing-complete"]')).toBeVisible({ timeout: 30_000 });
+    await chooseFile(page, file('clip.mp4', 'video/mp4', mp4(3, true)), 30_000);
     await page.locator('input[id="form.upload_title"]').fill('لقطة من الجوال');
     await noSideScroll(page, 'upload form');
     await page.getByRole('button', { name: 'إضافة', exact: true }).click();

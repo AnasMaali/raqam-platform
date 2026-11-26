@@ -3,14 +3,12 @@ import { join } from 'node:path';
 import { test, expect, panel, signIn } from '../support/fixtures';
 import { file } from '../support/files';
 import { mp4, probe, probeBytes } from '../support/clips';
-import { pick } from '../support/panel';
+import { chooseFile, pick } from '../support/panel';
 
 async function chooseClip(page: import('@playwright/test').Page, upload: { name: string; mimeType: string; buffer: Buffer }, title: string) {
     await page.goto(panel('/videos/create'));
     await pick(page, 'source', 'مقطع قصير من الجهاز (MP4)');
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.getByText('تصفح').click()]);
-    await chooser.setFiles(upload);
-    await expect(page.locator('[data-filepond-item-state="processing-complete"]')).toBeVisible({ timeout: 30_000 });
+    await chooseFile(page, upload, 30_000);
     await page.locator('input[id="form.upload_title"]').fill(title);
     await page.getByRole('button', { name: 'إضافة', exact: true }).click();
 }
