@@ -13,22 +13,46 @@ use Illuminate\Support\Facades\DB;
  */
 final class PanelAlerts
 {
-    /** @return list<string> */
+    /** @return list<string> every warning: what the editors act on, then the system's */
     public static function all(): array
     {
-        $alerts = [];
+        return [...self::editorial(), ...self::system()];
+    }
 
+    /**
+     * What the editors act on, shown to everyone at the top of the home: a video used in posts that YouTube no longer
+     * shows, a campaign ending within three days (13.9).
+     *
+     * @return list<string>
+     */
+    public static function editorial(): array
+    {
+        return [...self::unavailableVideos(), ...AdAlerts::ending()];
+    }
+
+    /**
+     * The system's state, for whoever holds «settings.manage», in the home's system section: the server's picture
+     * formats, an outside source that failed three times in a row and has not answered since (11.3, 12.3), the
+     * YouTube quota.
+     *
+     * @return list<string>
+     */
+    public static function system(): array
+    {
+        $alerts = [];
         // Development machines may lack AVIF; a production image without it serves heavier pictures.
         if (app()->isProduction() && ! app(ImageProcessor::class)->canEncode('avif')) {
             $alerts[] = 'صيغة AVIF غير مدعومة على هذا السيرفر، فالصور تُقدَّم بـ WebP وJPEG فقط وبحجم أكبر. صورة Docker لازم يكون فيها GD مبني مع libavif.';
         }
+        if (app(YouTubeQuota::class)->nearLimit()) {
+            $alerts[] = 'استُهلك جزء كبير من حصة يوتيوب اليومية ('.app(YouTubeQuota::class)->used().' وحدة)؛ قد يتوقف جلب البيانات التلقائي حتى الغد.';
+        }
 
-        // An outside source that failed three times in a row and has not answered since (11.3, 12.3); campaigns ending within three days (13.9).
-        return [...$alerts, ...ProviderAlerts::current(), ...self::videoAlerts(), ...AdAlerts::ending()];
+        return [...$alerts, ...ProviderAlerts::current()];
     }
 
     /** @return list<string> */
-    private static function videoAlerts(): array
+    private static function unavailableVideos(): array
     {
         $alerts = [];
         $reasons = ['private' => 'صار خاصاً', 'removed' => 'حُذف من يوتيوب'];
@@ -42,10 +66,6 @@ final class PanelAlerts
                 ->distinct()->limit(5)->pluck('posts.title')->all();
             $alerts[] = 'الفيديو «'.($video->display_title ?: $video->source_title).'» '.$reasons[$video->availability].' على يوتيوب'
                 .($uses === [] ? '.' : ' وهو مستخدم في: '.implode('، ', $uses).'.').' بدّله أو أزله من المواد.';
-        }
-
-        if (app(YouTubeQuota::class)->nearLimit()) {
-            $alerts[] = 'استُهلك جزء كبير من حصة يوتيوب اليومية ('.app(YouTubeQuota::class)->used().' وحدة)؛ قد يتوقف جلب البيانات التلقائي حتى الغد.';
         }
 
         return $alerts;

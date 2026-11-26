@@ -189,7 +189,7 @@ test('the home shows the new messages and the unread alerts', function () {
     contactMessage(['name' => 'سامي', 'subject' => 'إعلان']);
     AdminAlerts::raise('system', 'disk', 'مساحة السيرفر قاربت على النفاد');
 
-    Livewire::test(Dashboard::class)->assertSee('رسائل جديدة (1)')->assertSee('سامي — إعلان')->assertSee('التنبيهات (1 غير مقروءة)')->assertSee('مساحة السيرفر قاربت على النفاد');
+    Livewire::test(Dashboard::class)->assertSee('رسائل جديدة (1)')->assertSeeInOrder(['إعلان', 'سامي'])->assertSee('التنبيهات (1 غير مقروءة)')->assertSee('مساحة السيرفر قاربت على النفاد');
 });
 
 test('the e-mail connection reads its state from the log: unknown, working, failing', function () {

@@ -67,7 +67,7 @@ test('the page declares a mobile viewport', function () {
 test('the dashboard has its cards and says where each one gets its numbers', function () {
     $this->actingAs($this->admin)->followingRedirects()->get($this->url)->assertOk()
         ->assertSee('زيارات اليوم')->assertSee('الأكثر قراءة')->assertSee('رسائل جديدة')
-        ->assertSee('حملات إعلانية فعّالة')->assertSee('حالة الربط الخارجي')->assertSee('التنبيهات');
+        ->assertSee('حملات إعلانية فعّالة')->assertSee('حالة النظام')->assertSee('التنبيهات')->assertSee('مسودات قيد العمل')->assertSee('يُنشر قريباً');
 });
 
 test('the menu links the settings, the switches and the audit log', function () {

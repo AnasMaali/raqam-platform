@@ -24,7 +24,7 @@ function states(): array
 test('the home shows every outside connection: currencies, weather, YouTube, search and e-mail', function () {
     $page = $this->get(Dashboard::getUrl())->assertOk();
 
-    foreach (['حالة الربط الخارجي', 'العملات', 'الطقس', 'يوتيوب', 'البحث', 'البريد', 'بنك إسرائيل'] as $text) {
+    foreach (['حالة النظام', 'العملات', 'الطقس', 'يوتيوب', 'البحث', 'البريد', 'بنك إسرائيل'] as $text) {
         $page->assertSee($text);
     }
     expect(states())->toBe(['العملات' => 'unknown', 'الطقس' => 'off', 'يوتيوب' => 'off', 'البحث' => 'off', 'البريد' => 'off', 'النشرة (Brevo)' => 'off']);

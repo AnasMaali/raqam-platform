@@ -26,6 +26,8 @@ test('currencies, the manual-rate dialog, weather cities and the home fit a phon
     await noSideScroll(page, 'weather cities');
 
     await page.goto(panel(''));
-    await expect(page.getByText('حالة الربط الخارجي')).toBeVisible();
+    // The system's state is the home's last section, closed until it is opened.
+    await page.locator('[data-system] > section > .fi-section-header').click();
+    await expect(page.getByText('الطقس — ').first()).toBeVisible();
     await noSideScroll(page, 'home with the connection status');
 });

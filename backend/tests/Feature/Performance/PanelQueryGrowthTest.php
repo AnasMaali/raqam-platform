@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Pages\Dashboard;
 use App\Filament\Pages\HomeLayoutEditor;
 use App\Filament\Pages\MenuEditor;
 use App\Filament\Resources\Characters\Pages\ListCharacters;
@@ -75,6 +76,15 @@ function panelPost(int $i): int
 
     return insertPost(publishedPostValues(['cover_media_id' => $cover, 'title' => "خبر للوحة {$i}", 'slug' => "خبر-للوحة-{$i}"]));
 }
+
+test('the home, with more drafts, scheduled items and new messages', function () {
+    // At most five of each are listed: 1 then 4 keeps every list growing.
+    sameScreenQueriesWithMore('home', fn () => Livewire::test(Dashboard::class)->assertOk(), function (int $i) {
+        insertPost(['kind_code' => 'news', 'status' => 'draft', 'title' => "مسودة {$i}", 'slug' => "مسودة-{$i}"]);
+        insertPost(publishedPostValues(['status' => 'scheduled', 'published_at' => now()->addDays($i + 1), 'title' => "مجدول {$i}", 'slug' => "مجدول-{$i}"]));
+        DB::table('contact_messages')->insert(['name' => "زائر {$i}", 'email' => "v{$i}@example.com", 'subject' => "سؤال {$i}", 'message' => 'نص الرسالة']);
+    }, first: 1, more: 3);
+});
 
 test('the list of posts, with more posts', function () {
     sameScreenQueriesWithMore('posts', fn () => Livewire::test(ListPosts::class)->assertOk(), fn (int $i) => panelPost($i));

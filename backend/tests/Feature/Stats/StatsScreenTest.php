@@ -241,7 +241,7 @@ test('the home shows today\'s visits and the most read today', function () {
     siteHit(['type' => 'view', 'path' => "/news/{$post}/x", 'post_id' => $post]);
 
     $this->get(Dashboard::getUrl())->assertOk()->assertSee('زيارات اليوم')->assertSee('مشاهدات الصفحات: 1')
-        ->assertSee('الأكثر قراءة اليوم هنا — 1')->assertDontSee('تظهر مع مرحلة الإحصائيات');
+        ->assertSeeInOrder(['الأكثر قراءة اليوم هنا', '1 قراءة'])->assertDontSee('تظهر مع مرحلة الإحصائيات');
 });
 
 test('the screens are for signed-in staff only', function () {
