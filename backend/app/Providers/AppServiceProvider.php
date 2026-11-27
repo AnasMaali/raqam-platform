@@ -33,6 +33,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
 use Illuminate\Console\Events\ScheduledTaskFinished;
 use Illuminate\Database\Console\WipeCommand;
+use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Http\Request;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\DB;
@@ -156,6 +157,8 @@ class AppServiceProvider extends ServiceProvider
         // The admin team's permissions (2.7) answer every ability written as a permission code (`posts.manage`); any
         // other ability is left to the rest of the gate.
         Gate::before(fn ($user, string $ability) => PermissionCatalog::exists($ability) ? app(Access::class)->can($user instanceof User ? $user : null, $ability) : null);
+        // A role written inside a transaction that is then undone was never given: forget what was read meanwhile.
+        Event::listen(TransactionRolledBack::class, fn () => Access::forget());
 
         // A job that gave up or a scheduled task that failed reaches the admins (20.4).
         Queue::failing(fn (JobFailed $event) => SystemFailures::job($event));

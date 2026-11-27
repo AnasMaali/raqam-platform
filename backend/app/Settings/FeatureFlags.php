@@ -2,6 +2,7 @@
 
 namespace App\Settings;
 
+use App\Access\Access;
 use App\Ads\AdBoard;
 use App\Ads\AdPlacements;
 use App\Models\FeatureFlag;
@@ -55,6 +56,10 @@ final class FeatureFlags
                     SiteProfile::changed('feature');
                 }
             });
+            // Who may do what depends on the team's roles switch; the answers kept for this request go with it.
+            if ($flag->key === 'multi_admin') {
+                Access::forget();
+            }
         } catch (QueryException $e) {
             if ($e->getCode() === '23514') {
                 throw new FeatureFlagRefused($this->explain($flag, $enabled));
