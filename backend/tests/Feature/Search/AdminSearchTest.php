@@ -1,5 +1,6 @@
 <?php
 
+use App\Access\Access;
 use App\Filament\Pages\SearchStatistics;
 use App\Filament\Resources\AuditLogs\AuditLogResource;
 use App\Filament\Resources\Authors\AuthorResource;
@@ -152,5 +153,6 @@ test('a member of the team without the right to tags or videos finds neither, an
     foreach (['taxonomy.manage', 'videos.manage'] as $code) {
         DB::table('role_permissions')->insert(['role_id' => $role, 'permission_id' => DB::table('permissions')->where('code', $code)->value('id')]);
     }
+    Access::forget();   // the next request
     Livewire::test(GlobalSearch::class)->set('search', 'الطاقه')->assertSee('الطاقة المتجددة')->assertSee('لقاء عن الطاقة');
 });

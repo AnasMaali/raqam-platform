@@ -84,6 +84,9 @@ Values read once for a whole answer are kept on the request (`App\Support\Reques
 `request()->attributes`), never in a static property or on a long-lived object, so they end with the request even on a
 server that keeps the application between requests. A queue worker runs all its jobs on one request object:
 `Queue::before` empties the memo before each job (and only the memo), so no job sees what an earlier one read.
+The admin team's permissions are kept the same way (`App\Access\Access`): the sidebar and the quick search ask whether
+the admin may see each screen, and each answer costs one query per request, not one per question. A role given or
+taken through the service, the `multi_admin` switch moved or a transaction rolled back forgets them at once.
 (A test's application keeps its controllers from one request to the next: the growth tests forget them before each
 count, as a new request on the server would.)
 

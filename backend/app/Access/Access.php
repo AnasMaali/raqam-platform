@@ -5,6 +5,8 @@ namespace App\Access;
 use App\Auth\AdminAudit;
 use App\Models\User;
 use App\Settings\FeatureFlags;
+use App\Support\RequestMemo;
+use Closure;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -16,10 +18,24 @@ use Illuminate\Support\Facades\DB;
  *
  * Only a live, active staff account holds any permission. The last active admin cannot lose the admin role (nobody would
  * be left to give it back). Every role given or taken is written to the audit log.
+ *
+ * The database's answers are kept on the request (RequestMemo, emptied before each queued job too), so the sidebar,
+ * the quick search and every screen can ask as often as they like for the price of one question per user and role or
+ * permission. Whatever changes them in the same request forgets them: a role given or taken here, the `multi_admin`
+ * switch moved, a transaction rolled back. The account's own state (staff, active, not deleted) is never kept: it is
+ * read from the record each time.
  */
 final class Access
 {
     public const ADMIN = 'admin';
+
+    private const MEMO = 'access';
+
+    /** Drops every kept answer: the next question asks the database again. */
+    public static function forget(): void
+    {
+        RequestMemo::forget(self::MEMO);
+    }
 
     public function can(?User $user, string $permission): bool
     {
@@ -30,10 +46,10 @@ final class Access
             return true;
         }
 
-        return FeatureFlags::on('multi_admin') && DB::table('user_roles as ur')
+        return $this->multiAdmin() && self::kept("grant:{$user->id}:{$permission}", fn () => DB::table('user_roles as ur')
             ->join('role_permissions as rp', 'rp.role_id', '=', 'ur.role_id')
             ->join('permissions as p', 'p.id', '=', 'rp.permission_id')
-            ->where('ur.user_id', $user->id)->where('p.code', $permission)->exists();
+            ->where('ur.user_id', $user->id)->where('p.code', $permission)->exists());
     }
 
     /**
@@ -46,8 +62,8 @@ final class Access
             return false;
         }
 
-        return FeatureFlags::on('multi_admin')
-            ? DB::table('user_roles')->where('user_id', $user->id)->exists()
+        return $this->multiAdmin()
+            ? self::kept("any-role:{$user->id}", fn () => DB::table('user_roles')->where('user_id', $user->id)->exists())
             : $this->hasRole($user->id, self::ADMIN);
     }
 
@@ -63,8 +79,25 @@ final class Access
 
     public function hasRole(int $userId, string $role): bool
     {
-        return DB::table('user_roles as ur')->join('roles as r', 'r.id', '=', 'ur.role_id')
-            ->where('ur.user_id', $userId)->where('r.code', $role)->exists();
+        return self::kept("role:{$userId}:{$role}", fn () => DB::table('user_roles as ur')->join('roles as r', 'r.id', '=', 'ur.role_id')
+            ->where('ur.user_id', $userId)->where('r.code', $role)->exists());
+    }
+
+    private function multiAdmin(): bool
+    {
+        return self::kept('multi_admin', fn () => FeatureFlags::on('multi_admin'));
+    }
+
+    /** @param  Closure(): bool  $read */
+    private static function kept(string $key, Closure $read): bool
+    {
+        $answers = RequestMemo::get(self::MEMO, []);
+        if (! array_key_exists($key, $answers)) {
+            $answers[$key] = $read();
+            RequestMemo::put(self::MEMO, $answers);
+        }
+
+        return $answers[$key];
     }
 
     /** @throws AccessRefused */
@@ -74,6 +107,7 @@ final class Access
         if ($role !== self::ADMIN && ! FeatureFlags::on('multi_admin')) {
             throw new AccessRefused('أدوار فريق الإدارة غير مفعّلة؛ الدور الوحيد المتاح هو «مدير المنصة».');
         }
+        self::forget();
         try {
             $added = DB::transaction(fn () => DB::table('user_roles')->insertOrIgnore(['user_id' => $user->id, 'role_id' => $roleId]));
         } catch (QueryException $e) {
@@ -90,6 +124,7 @@ final class Access
     /** @throws AccessRefused */
     public function revoke(User $user, string $role, ?User $actor = null): void
     {
+        self::forget();
         $removed = DB::transaction(function () use ($user, $role) {
             $roleId = DB::table('roles')->where('code', $role)->value('id');
             if ($roleId === null) {

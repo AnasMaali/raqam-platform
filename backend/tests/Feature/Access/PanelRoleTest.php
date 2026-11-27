@@ -32,6 +32,7 @@ test('who may enter: admin yes; no role no; another role only once multi_admin i
         ->and($access->mayEnterPanel($inactive))->toBeFalse()->and($access->mayEnterPanel($customer))->toBeFalse();
 
     DB::table('feature_flags')->where('key', 'multi_admin')->update(['is_enabled' => true]);
+    Access::forget();   // switched behind the service's back: seen from the next request on
     expect($access->mayEnterPanel($editor))->toBeTrue()->and($access->mayEnterPanel($bare))->toBeFalse()->and($access->mayEnterPanel($inactive))->toBeFalse();
 });
 
