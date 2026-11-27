@@ -30,7 +30,7 @@ for (const width of [1440, 360]) {
     test.describe(`at ${width} px`, () => {
         test.use({ viewport: { width, height: 900 } });
 
-        test('a post\'s publish time and an audit row\'s time read 2026-11-21 21:18, not the other way round', async ({ page, app, adminPassword }) => {
+        test('a post\'s publish time reads 2026-11-21 21:18 and an audit row\'s time keeps its seconds, not the other way round', async ({ page, app, adminPassword }) => {
             await signIn(page, app, adminPassword);
             const id = await createPost(page, 'خبر', 'خبر منشور');
             // 19:18 UTC is 21:18 in Palestine in November (UTC+2). A draft may hold a planned time; the list shows it.
@@ -41,13 +41,13 @@ for (const width of [1440, 360]) {
             await expect(published).toBeVisible();
             expect(await drawnLeftToRight(published)).toBe('2026-11-21 21:18');
 
-            // The audit log: its time, whatever it is, in the same shape and order as the database gives it in Palestine time.
-            const expected = app.sql(`SELECT to_char(occurred_at AT TIME ZONE 'Asia/Hebron', 'YYYY-MM-DD HH24:MI') FROM audit_log ORDER BY occurred_at DESC, id DESC LIMIT 1`).trim();
+            // The audit log, a security record: its time with seconds, in the same order as the database gives it in Palestine time.
+            const expected = app.sql(`SELECT to_char(occurred_at AT TIME ZONE 'Asia/Hebron', 'YYYY-MM-DD HH24:MI:SS') FROM audit_log ORDER BY occurred_at DESC, id DESC LIMIT 1`).trim();
             await page.goto(panel('/audit-logs'));
             const occurred = page.locator('.fi-ta-cell-occurred-at .raqam-date').first();
             await expect(occurred).toBeVisible();
             const read = await drawnLeftToRight(occurred);
-            expect(read).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}$/);
+            expect(read).toMatch(/^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$/);
             expect(read).toBe(expected);
             // One line: never cut at a hyphen or the space.
             const lines = await occurred.evaluate((e) => e.getClientRects().length);
