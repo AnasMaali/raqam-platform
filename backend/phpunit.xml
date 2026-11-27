@@ -26,6 +26,7 @@
         <env name="OPENWEATHER_API_KEY" value=""/>
         <env name="OPENWEATHER_API_BASE" value=""/>
         <env name="MEILISEARCH_KEY" value=""/>
+        <env name="SENTRY_DSN" value=""/>
         <env name="INDEXNOW_KEY" value=""/>
         <env name="INDEXNOW_ENDPOINT" value=""/>
         <env name="MEILISEARCH_PREFIX" value="raqam_test_"/>

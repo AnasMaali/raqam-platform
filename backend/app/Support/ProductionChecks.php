@@ -134,6 +134,12 @@ final class ProductionChecks
             }
         }
 
+        // Error reports go to Sentry's EU region only (launch preparation): a DSN elsewhere is refused, not ignored quietly.
+        $sentry = (string) config('raqam.sentry.dsn');
+        if ($sentry !== '' && ! ErrorReports::isEu($sentry)) {
+            $failures[] = 'SENTRY_DSN must be an https DSN in Sentry\'s EU region (*'.ErrorReports::EU_HOST.').';
+        }
+
         return $failures;
     }
 

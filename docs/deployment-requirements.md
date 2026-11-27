@@ -340,3 +340,20 @@ Into a **new** database, never over the one in use, so a bad copy changes nothin
 
 **The monthly drill:** steps 2 to 4 into a scratch database on the server (or on staging). Write down the time and
 the size, then drop the scratch database. A drill never renames anything.
+
+## Error reports (Sentry)
+
+The back end and the site's Node server send their unhandled errors to Sentry. There is no browser SDK; the build fails if
+the browser bundle mentions Sentry.
+
+- **Off without `SENTRY_DSN`.** Set it in the back end's and the site's environment, the project's DSN from Sentry's
+  **EU region** (`https://…@o….ingest.de.sentry.io/…`). Any other DSN is ignored, and the back end refuses to start
+  with one in production. `SENTRY_ENVIRONMENT` (production / staging) and `SENTRY_RELEASE` (the deployed commit) are
+  optional.
+- **Errors only.** There is no tracing, profiling, logs or metrics. Breadcrumbs only name the job or command that ran.
+- **Cleaned before sending.** The back end uses `App\Support\ErrorReports`, the site `src/lib/server/error-reports.ts`.
+  A report holds no user, cookies, headers, body, query string or frame variables. The panel's address becomes
+  `[panel]`. Every secret in the configuration or environment, and key-like query parameters, become `[hidden]`.
+  E-mail and IP addresses become `[email]` / `[ip]`.
+- In Sentry's project settings, also keep **"Prevent storing of IP addresses"** and the default data scrubbers on.
+

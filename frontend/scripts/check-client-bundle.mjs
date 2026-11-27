@@ -1,10 +1,11 @@
-// Fails when the browser bundle could carry the site token: run after `next build`.
+// Fails when the browser bundle could carry the site token, or any of Sentry (error reports are the server's only): run
+// after `next build`.
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const root = new URL("../.next/static/", import.meta.url).pathname;
 const token = process.env.API_SITE_TOKEN?.trim();
-const needles = ["API_SITE_TOKEN", "X-Raqam-Site-Token", "x-raqam-site-token"];
+const needles = ["API_SITE_TOKEN", "X-Raqam-Site-Token", "x-raqam-site-token", "@sentry/", "sentry.io", "SENTRY_DSN"];
 if (token) needles.push(token);
 
 async function* files(dir) {
@@ -30,7 +31,7 @@ if (scanned === 0) {
   process.exit(1);
 }
 if (hits.length > 0) {
-  console.error("The browser bundle mentions the site token:\n" + hits.join("\n"));
+  console.error("The browser bundle mentions the site token or Sentry:\n" + hits.join("\n"));
   process.exit(1);
 }
 console.log(`Browser bundle clean (${scanned} files, token value ${token ? "checked" : "not set"}).`);
