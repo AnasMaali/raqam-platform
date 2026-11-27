@@ -41,11 +41,11 @@ function auditRow(array $values, array $changes = []): int
 // ---- reading -------------------------------------------------------------------------------------------
 
 test('a row shows who, when (Palestine time), from where (device and HMAC only) and every field before and after', function () {
-    $id = auditRow(['actor_user_id' => $this->admin->id, 'subject_table' => 'posts', 'subject_id' => 12, 'occurred_at' => '2026-10-20 09:30:00+00',
+    $id = auditRow(['actor_user_id' => $this->admin->id, 'subject_table' => 'posts', 'subject_id' => 12, 'occurred_at' => '2026-10-20 09:30:07+00',
         'ip_hash' => TrackingHash::of('198.51.100.7'), 'user_agent' => PERSON_AGENT], ['title' => ['قديم', 'جديد'], 'status' => ['draft', 'published']]);
 
     Livewire::test(ViewAuditLog::class, ['record' => $id])
-        ->assertSee('<bdi dir="ltr" class="raqam-date">2026-10-20 12:30</bdi>', false)->assertSee('المدير')->assertSee('المواد #12')->assertSee('Chrome — Android')
+        ->assertSee('<bdi dir="ltr" class="raqam-date">2026-10-20 12:30:07</bdi>', false)->assertSee('المدير')->assertSee('المواد #12')->assertSee('Chrome — Android')
         ->assertSee(substr(TrackingHash::of('198.51.100.7'), 0, 16))->assertDontSee('198.51.100.7')
         ->assertSee('قديم')->assertSee('جديد')->assertSee('draft')->assertSee('published');
     Livewire::test(ListAuditLogs::class)->assertSee('المواد #12')->assertSee('Chrome — Android');
@@ -165,15 +165,15 @@ test('the sign-in attempts: time, e-mail, result in words, the device by its bro
     $device = hash('sha256', 'device-1');
     DB::table('user_devices')->insert(['user_id' => $this->admin->id, 'device_hash' => $device, 'user_agent' => DESKTOP_AGENT]);
     DB::table('login_attempts')->insert([
-        ['email' => 'admin@raqam.example', 'user_id' => $this->admin->id, 'succeeded' => true, 'failure_reason' => null, 'device_hash' => $device, 'ip_hash' => TrackingHash::of('198.51.100.7'), 'attempted_at' => '2026-10-20 09:00:00+00'],
+        ['email' => 'admin@raqam.example', 'user_id' => $this->admin->id, 'succeeded' => true, 'failure_reason' => null, 'device_hash' => $device, 'ip_hash' => TrackingHash::of('198.51.100.7'), 'attempted_at' => '2026-10-20 09:00:42+00'],
         ['email' => 'admin@raqam.example', 'user_id' => $this->admin->id, 'succeeded' => false, 'failure_reason' => 'bad_code', 'device_hash' => hash('sha256', 'new'), 'ip_hash' => null, 'attempted_at' => '2026-10-20 08:00:00+00'],
         ['email' => 'stranger@example.com', 'user_id' => null, 'succeeded' => false, 'failure_reason' => 'bad_credentials', 'device_hash' => null, 'ip_hash' => TrackingHash::of('203.0.113.4'), 'attempted_at' => '2026-10-19 08:00:00+00'],
     ]);
 
     Livewire::test(ListLoginAttempts::class)->assertOk()
-        ->assertSee('<bdi dir="ltr" class="raqam-date">2026-10-20 12:00</bdi>', false)->assertSee('نجح')->assertSee('رمز خاطئ')->assertSee('بريد أو كلمة مرور خاطئة')
+        ->assertSee('<bdi dir="ltr" class="raqam-date">2026-10-20 12:00:42</bdi>', false)->assertSee('نجح')->assertSee('رمز خاطئ')->assertSee('بريد أو كلمة مرور خاطئة')
         ->assertSee('Chrome — Windows')->assertSee('جهاز لم يُعتمد بعد')->assertSee('جهاز غير معروف')
-        ->assertDontSee('198.51.100.7')->assertSeeInOrder(['2026-10-20 12:00', '2026-10-20 11:00', '2026-10-19 11:00']);
+        ->assertDontSee('198.51.100.7')->assertSeeInOrder(['2026-10-20 12:00:42', '2026-10-20 11:00:00', '2026-10-19 11:00:00']);
 });
 
 test('the sign-in attempts can be searched and filtered by result, reason, period and address', function () {

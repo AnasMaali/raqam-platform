@@ -80,7 +80,7 @@ class LoginAttemptResource extends Resource
                 ->whereColumn('user_devices.user_id', 'login_attempts.user_id')->whereColumn('user_devices.device_hash', 'login_attempts.device_hash')->limit(1)]))
             ->defaultSort('attempted_at', 'desc')
             ->columns([
-                PanelDate::of(TextColumn::make('attempted_at')->label('الوقت'))->sortable(),
+                PanelDate::withSeconds(TextColumn::make('attempted_at')->label('الوقت'))->sortable(),
                 TextColumn::make('email')->label('البريد')->searchable()->extraAttributes(['dir' => 'ltr']),
                 TextColumn::make('succeeded')->label('النتيجة')->badge()
                     ->state(fn (LoginAttempt $r) => $r->succeeded ? 'نجح' : (self::REASONS[$r->failure_reason] ?? 'فشل'))

@@ -1,6 +1,7 @@
 <?php
 
 use App\Filament\Resources\AuditLogs\Pages\ListAuditLogs;
+use App\Filament\Resources\LoginAttempts\Pages\ListLoginAttempts;
 use App\Filament\Resources\NewsletterIssues\Pages\ListNewsletterIssues;
 use App\Filament\Resources\Posts\Pages\ListPosts;
 use App\Models\User;
@@ -14,7 +15,7 @@ use Livewire\Livewire;
 uses(RefreshDatabase::class);
 
 /*
- * Every date and time in the panel (PanelDate): Palestine time, 2026-11-21 21:18, digits 0-9, one left-to-right run
+ * Every date and time in the panel (PanelDate): Palestine time, 2026-11-21 21:18 (with seconds only in the security records), digits 0-9, one left-to-right run
  * inside the Arabic page so its parts keep their order. Its order on screen is read in a browser (panel-dates.spec.ts).
  */
 
@@ -40,6 +41,15 @@ test('HTML: one left-to-right run; text: the same run between the isolates, neve
         ->and(PanelDate::text(null))->toBeNull();
 });
 
+test('the security records\' variant: the same zone, shape and run, with seconds', function () {
+    App::setLocale('ar');
+
+    expect(PanelDate::format('2026-11-21 19:18:05+00', seconds: true))->toBe('2026-11-21 21:18:05')
+        ->and(PanelDate::format('2026-07-01 12:05:59.9+00', seconds: true))->toBe('2026-07-01 15:05:59')
+        ->and(PanelDate::html('2026-11-21 19:18:05+00', seconds: true)->toHtml())->toBe('<bdi dir="ltr" class="raqam-date">2026-11-21 21:18:05</bdi>')
+        ->and(PanelDate::format(null, seconds: true))->toBeNull();
+});
+
 test('a calendar day keeps its date: no time added, not moved to another day', function () {
     expect(PanelDate::day('2026-11-21')->toHtml())->toBe('<bdi dir="ltr" class="raqam-date">2026-11-21</bdi>')
         ->and(PanelDate::day(null))->toBeNull();
@@ -51,8 +61,12 @@ test('the lists draw their times through it', function () {
 
     expect(Livewire::test(ListPosts::class)->html())->toContain('<bdi dir="ltr" class="raqam-date">2026-11-21 21:18</bdi>');
 
-    DB::table('audit_log')->insert(['occurred_at' => '2026-07-01 12:05:00+00', 'actor_user_id' => auth()->id(), 'action' => 'login']);
-    expect(Livewire::test(ListAuditLogs::class)->html())->toContain('<bdi dir="ltr" class="raqam-date">2026-07-01 15:05</bdi>');
+    // The security records keep their seconds.
+    DB::table('audit_log')->insert(['occurred_at' => '2026-07-01 12:05:09+00', 'actor_user_id' => auth()->id(), 'action' => 'login']);
+    expect(Livewire::test(ListAuditLogs::class)->html())->toContain('<bdi dir="ltr" class="raqam-date">2026-07-01 15:05:09</bdi>');
+
+    DB::table('login_attempts')->insert(['email' => 'someone@raqam.example', 'succeeded' => false, 'failure_reason' => 'bad_credentials', 'attempted_at' => '2026-07-01 12:05:09+00']);
+    expect(Livewire::test(ListLoginAttempts::class)->html())->toContain('<bdi dir="ltr" class="raqam-date">2026-07-01 15:05:09</bdi>');
 });
 
 test('the newsletter\'s weeks show their first day as a date', function () {
@@ -84,4 +98,27 @@ test('no screen of the panel formats a date or a time of its own: each goes thro
     }
 
     expect($offenders)->toBe([]);
+});
+
+test('only the security records show seconds: the audit log (list and details) and the sign-in attempts', function () {
+    $allowed = [
+        'app/Filament/Resources/AuditLogs/AuditLogResource.php' => 2,       // the list's column and the details' entry
+        'app/Filament/Resources/LoginAttempts/LoginAttemptResource.php' => 1,
+    ];
+    $found = [];
+    foreach (['app', 'resources/views'] as $dir) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(base_path($dir), FilesystemIterator::SKIP_DOTS)) as $file) {
+            $path = str_replace(base_path().'/', '', $file->getPathname());
+            if ($path === 'app/Panel/PanelDate.php') {
+                continue;
+            }
+            $uses = preg_match_all('~PanelDate::withSeconds\(|seconds:\s*true|FORMAT_SECONDS~', file_get_contents($file->getPathname()));
+            if ($uses > 0) {
+                $found[$path] = $uses;
+            }
+        }
+    }
+    ksort($found);
+
+    expect($found)->toBe($allowed);
 });

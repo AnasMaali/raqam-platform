@@ -107,7 +107,7 @@ class AuditLogResource extends Resource
     {
         return $schema->components([
             Section::make('العملية')->columns(['default' => 1, 'md' => 2])->schema([
-                PanelDate::of(TextEntry::make('occurred_at')->label('الوقت (بتوقيت فلسطين)')),
+                PanelDate::withSeconds(TextEntry::make('occurred_at')->label('الوقت (بتوقيت فلسطين)')),
                 TextEntry::make('action')->label('النوع')->formatStateUsing(fn (string $state) => self::ACTIONS[$state] ?? $state),
                 TextEntry::make('actor.name')->label('المستخدم')->placeholder('النظام'),
                 TextEntry::make('subject_table')->label('العنصر')
@@ -137,7 +137,7 @@ class AuditLogResource extends Resource
             ->defaultSort('occurred_at', 'desc')
             ->searchPlaceholder('ابحث: مستخدم، عنصر، رقم، حقل، قيمة قبل أو بعد')
             ->columns([
-                PanelDate::of(TextColumn::make('occurred_at')->label('الوقت'))->sortable(),
+                PanelDate::withSeconds(TextColumn::make('occurred_at')->label('الوقت'))->sortable(),
                 TextColumn::make('actor.name')->label('المستخدم')->placeholder('النظام')
                     ->searchable(query: fn (Builder $query, string $search) => self::search($query, $search)),
                 TextColumn::make('action')->label('النوع')->badge()

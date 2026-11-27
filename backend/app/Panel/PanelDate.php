@@ -21,17 +21,20 @@ final class PanelDate
 
     public const FORMAT = 'Y-m-d H:i';
 
+    /** Security records only (the audit log, sign-in attempts): the same shape with seconds, see withSeconds(). */
+    public const FORMAT_SECONDS = 'Y-m-d H:i:s';
+
     /** The bare text (for a file name, a sentence built elsewhere); null for no time. */
-    public static function format(mixed $time): ?string
+    public static function format(mixed $time, bool $seconds = false): ?string
     {
         // format(), not translatedFormat(): the digits stay 0-9 whatever the application's locale.
-        return blank($time) ? null : Carbon::parse($time)->setTimezone(self::ZONE)->format(self::FORMAT);
+        return blank($time) ? null : Carbon::parse($time)->setTimezone(self::ZONE)->format($seconds ? self::FORMAT_SECONDS : self::FORMAT);
     }
 
     /** For HTML: one left-to-right run that does not wrap (theme.css `.raqam-date`). */
-    public static function html(mixed $time): ?HtmlString
+    public static function html(mixed $time, bool $seconds = false): ?HtmlString
     {
-        $text = self::format($time);
+        $text = self::format($time, $seconds);
 
         return $text === null ? null : new HtmlString('<bdi dir="ltr" class="raqam-date">'.e($text).'</bdi>');
     }
@@ -71,5 +74,20 @@ final class PanelDate
     public static function of(TextColumn|TextEntry $component): TextColumn|TextEntry
     {
         return $component->formatStateUsing(fn (mixed $state) => self::html($state));
+    }
+
+    /**
+     * The same as of(), with seconds (2026-11-21 21:18:05): only for the security records, the audit log (its list and
+     * its details) and the sign-in attempts, where the order of events a second apart matters. Every other screen
+     * shows minutes; PanelDateTest holds the list of screens allowed to use it.
+     *
+     * @template T of TextColumn|TextEntry
+     *
+     * @param  T  $component
+     * @return T
+     */
+    public static function withSeconds(TextColumn|TextEntry $component): TextColumn|TextEntry
+    {
+        return $component->formatStateUsing(fn (mixed $state) => self::html($state, seconds: true));
     }
 }
