@@ -66,6 +66,16 @@ return [
         'query_log' => env('QUERY_REPORT_LOG'),
     ],
 
+    /*
+    | Who may name the visitor (24.2, App\Http\Middleware\TrustedProxies): the platform's own reverse proxy (addresses or
+    | ranges, comma-separated; never `*`) and, with TRUST_CLOUDFLARE=1 (the same switch as the site's), Cloudflare's
+    | ranges in config/cloudflare.php.
+    */
+    'proxies' => [
+        'local' => env('TRUSTED_LOCAL_PROXIES') ?: '127.0.0.1,::1',
+        'trust_cloudflare' => (bool) env('TRUST_CLOUDFLARE', false),
+    ],
+
     'api' => [
         'site_token' => env('API_SITE_TOKEN'),
         'limit' => 120,

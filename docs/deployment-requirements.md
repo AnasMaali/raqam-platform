@@ -10,12 +10,24 @@ These two belong to deployment, but the site must not go live without them (deci
 1. **Turnstile on the admin sign-in** (24.9). The public forms already check Turnstile on the server; the panel's sign-in
    must too, so a script that knows the admin e-mail cannot try passwords or lock the account (today the limits are 5 a
    minute per address and e-mail, 20 an hour per e-mail, 30 an hour per address).
-2. **Trusted proxies set to Cloudflare's ranges** (24.2). Behind Cloudflare every request reaches the server from a
-   Cloudflare address. Until Laravel trusts exactly those ranges, `request()->ip()` is Cloudflare's, so every limit keyed
-   by the visitor's address (sign-in, API, search, forms, the ad click link) counts all visitors together. The ranges come
-   from Cloudflare's published list; the origin must also refuse connections from anywhere else.
+2. **Trusted proxies: Cloudflare's ranges and the local reverse proxy** (24.2), built. The chain is visitor -> Cloudflare ->
+   Caddy -> PHP. `App\Http\Middleware\TrustedProxies` believes forwarding headers only from `TRUSTED_LOCAL_PROXIES`
+   (Caddy's address or its docker network; empty = `127.0.0.1,::1`; never `*`, never wider than a /16 or an IPv6 /48:
+   production refuses to start) and, with `TRUST_CLOUDFLARE=1` (the same switch as the site's), Cloudflare's ranges in
+   `config/cloudflare.php`. The visitor is the rightmost address in X-Forwarded-For that is not one of those machines;
+   CF-Connecting-IP is read only when the hop that reached Caddy is a Cloudflare edge, and dropped otherwise. IPv4
+   written as IPv6 (`::ffff:`) is read as IPv4. The site's own server calls the API directly; its
+   `X-Raqam-Visitor-Ip` counts only with the site token.
+   - **Set at deploy:** `TRUST_CLOUDFLARE=1` and `TRUSTED_LOCAL_PROXIES` = Caddy's fixed address on the compose network.
+     Caddy must add the address it was reached from to X-Forwarded-For (its default) and send X-Forwarded-Proto.
+   - **Cloudflare's lists:** `proxies:cloudflare-ranges` runs every Monday and alerts the admins in the bell when
+     Cloudflare's published lists differ; it never changes a running server. To take a new list:
+     `php artisan proxies:cloudflare-ranges --write` on a development machine, then a pull request and a deploy.
+   - The origin must still refuse connections that do not come from Cloudflare (firewall), so its address cannot be
+     used to skip the WAF.
 
 Both are sign-in parts: they are built and tested step by step, and the launch checklist cannot be closed without them.
+Item 2 is built (above); item 1 is next.
 
 ## The panel's theme: a Node stage in the image build
 

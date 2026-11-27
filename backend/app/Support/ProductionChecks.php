@@ -134,6 +134,9 @@ final class ProductionChecks
             }
         }
 
+        // Who may name the visitor (24.2): never `*` or a range wider than a local network; Cloudflare's ranges present.
+        array_push($failures, ...ProxyAddresses::settingProblems());
+
         return $failures;
     }
 

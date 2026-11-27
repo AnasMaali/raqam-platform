@@ -2,6 +2,7 @@
 
 namespace App\Api;
 
+use App\Support\ProxyAddresses;
 use Illuminate\Http\Request;
 
 /**
@@ -26,12 +27,16 @@ final class SiteToken
         return $token !== '' && hash_equals($token, (string) $request->header(self::HEADER));
     }
 
-    /** The visitor behind a request of the site, or null when the request is not the site's or names no valid address. */
+    /**
+     * The visitor behind a request of the site, or null when the request is not the site's or names no valid address.
+     * The site's server calls the API directly, not through Cloudflare: its header is believed for its token, never for
+     * where the request came from (TrustedProxies does not touch it). An IPv4 address written as IPv6 is read as IPv4.
+     */
     public static function visitor(Request $request): ?string
     {
         $ip = $request->header(self::VISITOR_HEADER);
 
-        return self::valid($request) && is_string($ip) && filter_var($ip, FILTER_VALIDATE_IP) !== false ? $ip : null;
+        return self::valid($request) && is_string($ip) ? ProxyAddresses::plain($ip) : null;
     }
 
     /** The address of the person behind a request: the one the site names, or the request's own when it is not the site's. */

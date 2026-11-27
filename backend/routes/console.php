@@ -41,6 +41,8 @@ Schedule::command('system:check-disk')->hourly()->withoutOverlapping();
 Schedule::command('system:watch')->everyMinute()->withoutOverlapping();
 // Many failed sign-ins to the panel (24.15), looked at every quarter hour; the alert itself comes at most once an hour.
 Schedule::command('auth:watch-failures')->everyFifteenMinutes()->withoutOverlapping();
+// Cloudflare's address ranges against config/cloudflare.php: an alert on a difference, never a change (24.2).
+Schedule::command('proxies:cloudflare-ranges')->timezone('Asia/Hebron')->weeklyOn(1, '04:30')->withoutOverlapping();
 Schedule::command('admin:weekly-digest')->timezone('Asia/Hebron')->weeklyOn(6, '09:00')->withoutOverlapping();
 
 // Newsletter (19.6, 19.10): the weekly draft on the admin's day and time (checked every quarter hour), Brevo's numbers hourly.

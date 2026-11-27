@@ -6,6 +6,7 @@ use App\Console\AdminUnlockCommand;
 use App\Console\BrevoSetupCommand;
 use App\Console\CheckDiskCommand;
 use App\Console\CheckVideosCommand;
+use App\Console\CloudflareRangesCommand;
 use App\Console\CurrencyFetchCommand;
 use App\Console\DemoCommand;
 use App\Console\FeatureSwitchCommand;
@@ -46,11 +47,13 @@ use App\Http\Middleware\RedisOutage;
 use App\Http\Middleware\RejectMalformedText;
 use App\Http\Middleware\RequireFeature;
 use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrustedProxies;
 use App\Panel\SystemWatch;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Routing\Middleware\ValidateSignature;
@@ -83,6 +86,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         // `php artisan down` must not make the container look dead: it would be restarted in the middle of the work.
         $middleware->preventRequestsDuringMaintenance(except: ['livez']);
+        // Who the visitor is: only the local reverse proxy and Cloudflare's ranges may say, never `*` (24.2).
+        $middleware->replace(TrustProxies::class, TrustedProxies::class);
         // Redis not answering: the API's reads go on from the database, the rest answers 503 (QA-6).
         $middleware->prepend(RedisOutage::class);
         // The QA environment's query count (off unless QUERY_REPORT is set; production refuses it). First, so it counts all.
@@ -103,6 +108,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([ReconcilePaymentsCommand::class])
     // The switches only the server turns on (phase 10 review N1).
     ->withCommands([FeatureSwitchCommand::class])
+    // Cloudflare's address ranges (24.2): a weekly check that alerts, and the rewrite for a pull request.
+    ->withCommands([CloudflareRangesCommand::class])
     // Many failed sign-ins in an hour alert the admins (24.15).
     ->withCommands([WatchSignInFailuresCommand::class])
     // The scheduler's beat and the queue's watch (QA-6).
