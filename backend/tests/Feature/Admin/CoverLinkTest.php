@@ -77,7 +77,24 @@ test('on the posts list the picture is its own hidden link, not wrapped in the r
 
     expect($html)->toContain('<a href="'.$edit.'" class="raqam-cover-link"  tabindex="-1" aria-hidden="true" >')
         // One link per cell: the cover's cell is not wrapped in the row's link (a link inside a link).
-        ->and(preg_match('~<td[^>]*fi-ta-cell-cover[^>]*>\s*<a\s~', $html))->toBe(0)
-        ->and(preg_match('~<td[^>]*fi-ta-cell-cover[^>]*>\s*<div\s~', $html))->toBe(1)
+        ->and(listCellTag($html, 'cover'))->toBe('div')
         ->and(DB::table('posts')->where('id', $id)->value('cover_media_id'))->toBe($picture);
 });
+
+test('the «عاجل» and «مميز» cells are not links: on a row where they are empty, a link would have no name', function () {
+    insertPost(['title' => 'خبر عادي']);
+
+    $html = Livewire::test(ListPosts::class)->html();
+
+    foreach (['breaking', 'is-featured'] as $cell) {
+        expect(listCellTag($html, $cell))->toBe('div', $cell);
+    }
+});
+
+/** The element that holds a list cell's content: `a` when the cell is the row's link, `div` when it is not. */
+function listCellTag(string $html, string $cell): string
+{
+    expect(preg_match('~fi-ta-cell-'.$cell.'".*?<(a|div)\s[^>]*class="fi-ta-col"~s', $html, $m))->toBe(1, $cell);
+
+    return $m[1];
+}

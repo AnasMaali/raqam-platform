@@ -83,10 +83,11 @@ class PostResource extends Resource
                     })
                     ->formatStateUsing(fn (string $state) => Post::STATUSES[$state] ?? $state),
                 // A badge only when it is so: a «no» mark on every other row is noise, and an empty cell already says it.
-                // Not red: red is left to a destructive action's confirmation.
-                TextColumn::make('breaking')->label('عاجل')->badge()->color('warning')
+                // Not red: red is left to a destructive action's confirmation. Not a link either: an empty cell would be a
+                // link with no name (the title is the row's link).
+                TextColumn::make('breaking')->label('عاجل')->badge()->color('warning')->disabledClick()
                     ->state(fn (Post $record) => $record->isBreaking() ? 'عاجل' : null)->toggleable(),
-                TextColumn::make('is_featured')->label('مميز')->badge()->color('info')
+                TextColumn::make('is_featured')->label('مميز')->badge()->color('info')->disabledClick()
                     ->state(fn (Post $record) => $record->is_featured ? 'مميز' : null)->toggleable(),
                 TextColumn::make('published_at')->label('النشر')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable()->toggleable(),
                 TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable()->toggleable(isToggledHiddenByDefault: true),
