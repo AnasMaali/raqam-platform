@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Services\Pages;
 
 use App\Models\Service;
+use App\Panel\PanelDate;
 use App\Services\Money;
 use App\Services\PriceRejected;
 use App\Services\ServiceCatalog;
@@ -31,7 +32,7 @@ trait SavesService
             'offer' => $live,
             'sale_price' => $live ? Money::fromMinor((int) $s->sale_price_amount) : null,
             'sale_ends_at' => $live ? $s->sale_ends_at->format('Y-m-d H:i:s') : null,
-            'offer_expired' => ! $live && $s->sale_ends_at !== null ? $s->sale_ends_at->setTimezone('Asia/Hebron')->format('Y-m-d H:i') : null,
+            'offer_expired' => ! $live && $s->sale_ends_at !== null ? PanelDate::text($s->sale_ends_at) : null,
             'deliverables' => $s->deliverables(),
             'faqs' => DB::table('faqs')->where('service_id', $s->id)->orderBy('sort_order')->get(['question', 'answer', 'is_published'])
                 ->map(fn ($f) => ['question' => $f->question, 'answer' => $f->answer, 'is_published' => (bool) $f->is_published])->all(),

@@ -45,7 +45,7 @@ test('a row shows who, when (Palestine time), from where (device and HMAC only) 
         'ip_hash' => TrackingHash::of('198.51.100.7'), 'user_agent' => PERSON_AGENT], ['title' => ['قديم', 'جديد'], 'status' => ['draft', 'published']]);
 
     Livewire::test(ViewAuditLog::class, ['record' => $id])
-        ->assertSee('2026-10-20 12:30:00')->assertSee('المدير')->assertSee('المواد #12')->assertSee('Chrome — Android')
+        ->assertSee('<bdi dir="ltr" class="raqam-date">2026-10-20 12:30</bdi>', false)->assertSee('المدير')->assertSee('المواد #12')->assertSee('Chrome — Android')
         ->assertSee(substr(TrackingHash::of('198.51.100.7'), 0, 16))->assertDontSee('198.51.100.7')
         ->assertSee('قديم')->assertSee('جديد')->assertSee('draft')->assertSee('published');
     Livewire::test(ListAuditLogs::class)->assertSee('المواد #12')->assertSee('Chrome — Android');
@@ -171,9 +171,9 @@ test('the sign-in attempts: time, e-mail, result in words, the device by its bro
     ]);
 
     Livewire::test(ListLoginAttempts::class)->assertOk()
-        ->assertSee('2026-10-20 12:00:00')->assertSee('نجح')->assertSee('رمز خاطئ')->assertSee('بريد أو كلمة مرور خاطئة')
+        ->assertSee('<bdi dir="ltr" class="raqam-date">2026-10-20 12:00</bdi>', false)->assertSee('نجح')->assertSee('رمز خاطئ')->assertSee('بريد أو كلمة مرور خاطئة')
         ->assertSee('Chrome — Windows')->assertSee('جهاز لم يُعتمد بعد')->assertSee('جهاز غير معروف')
-        ->assertDontSee('198.51.100.7')->assertSeeInOrder(['2026-10-20 12:00:00', '2026-10-20 11:00:00', '2026-10-19 11:00:00']);
+        ->assertDontSee('198.51.100.7')->assertSeeInOrder(['2026-10-20 12:00', '2026-10-20 11:00', '2026-10-19 11:00']);
 });
 
 test('the sign-in attempts can be searched and filtered by result, reason, period and address', function () {

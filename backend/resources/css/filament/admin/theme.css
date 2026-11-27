@@ -283,11 +283,16 @@
         margin-inline-start: auto;
     }
 
-    /* The «yes / no» marks say nothing in a line without their headings: they stay on the computer's table. */
-    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-breaking,
-    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-is-featured {
+    /* «عاجل» and «مميز» are badges that name themselves: in the line when so, and no empty gap when not. */
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-breaking:not(:has(.fi-badge)),
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-is-featured:not(:has(.fi-badge)) {
         display: none;
     }
+}
+
+/* A date and time (PanelDate): one left-to-right run inside the Arabic line, never cut at a hyphen or the space. */
+.raqam-date {
+    white-space: nowrap;
 }
 
 /*

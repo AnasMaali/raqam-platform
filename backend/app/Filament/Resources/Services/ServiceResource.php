@@ -9,6 +9,7 @@ use App\Filament\Resources\Services\Pages\CreateService;
 use App\Filament\Resources\Services\Pages\EditService;
 use App\Filament\Resources\Services\Pages\ListServices;
 use App\Models\Service;
+use App\Panel\PanelDate;
 use App\Services\ServiceBoard;
 use App\Support\ArabicSlug;
 use BackedEnum;
@@ -130,7 +131,7 @@ class ServiceResource extends Resource
                     ->description(fn (Service $s) => ($o = ServiceBoard::price($s)['offer']) ? 'عرض خاص؛ كان '.$o['was_text'] : null),
                 IconColumn::make('is_active')->label('ظاهرة')->boolean(),
                 TextColumn::make('presses')->label('ضغطات التواصل (30 يوماً)')->numeric(),
-                TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron'),
+                PanelDate::of(TextColumn::make('updated_at')->label('آخر تعديل')),
             ])
             ->filters([
                 SelectFilter::make('group_id')->label('المجموعة')->options(fn () => DB::table('service_groups')->orderBy('sort_order')->pluck('name_ar', 'id')->all()),

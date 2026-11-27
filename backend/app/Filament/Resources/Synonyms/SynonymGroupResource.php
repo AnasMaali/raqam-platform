@@ -7,6 +7,7 @@ use App\Filament\Resources\Synonyms\Pages\CreateSynonymGroup;
 use App\Filament\Resources\Synonyms\Pages\EditSynonymGroup;
 use App\Filament\Resources\Synonyms\Pages\ListSynonymGroups;
 use App\Models\SynonymGroup;
+use App\Panel\PanelDate;
 use App\Search\SynonymLibrary;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
@@ -62,7 +63,7 @@ class SynonymGroupResource extends Resource
                 TextColumn::make('words')->label('الكلمات')->wrap()
                     ->searchable(query: fn (Builder $query, string $search) => $query->whereExists(fn ($q) => $q->selectRaw('1')->from('synonym_terms')
                         ->whereColumn('synonym_terms.group_id', 'synonym_groups.id')->whereRaw("normalize_ar(term) ILIKE '%' || normalize_ar(?) || '%'", [$search]))),
-                TextColumn::make('created_at')->label('أُضيفت')->dateTime('Y-m-d H:i', 'Asia/Hebron'),
+                PanelDate::of(TextColumn::make('created_at')->label('أُضيفت')),
             ])
             ->recordActions([
                 EditAction::make()->label('تعديل'),

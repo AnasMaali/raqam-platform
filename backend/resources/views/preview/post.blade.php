@@ -27,7 +27,7 @@
     </style>
 </head>
 <body>
-<div class="bar">معاينة خاصة — هذه الصفحة غير منشورة للزوار{{ $expires ? ' وينتهي رابطها '.\Illuminate\Support\Carbon::createFromTimestamp((int) $expires)->setTimezone('Asia/Hebron')->format('Y-m-d H:i') : '' }}. لا تشاركها.</div>
+<div class="bar">معاينة خاصة — هذه الصفحة غير منشورة للزوار{{ $expires ? ' وينتهي رابطها '.\App\Panel\PanelDate::text(\Illuminate\Support\Carbon::createFromTimestamp((int) $expires)) : '' }}. لا تشاركها.</div>
 <main>
     @if ($post->cover)
         <figure>{!! app(\App\Media\MediaHtml::class)->picture($post->cover, '100vw', 'eager') !!}@if ($post->cover->caption || $post->cover->credit)<figcaption>{{ $post->cover->caption }} {{ $post->cover->credit }}</figcaption>@endif</figure>
@@ -38,7 +38,7 @@
         <span>{{ \App\Models\Post::STATUSES[$post->status] }}</span>
         @if ($post->category)<span>{{ $post->category->name_ar }}</span>@endif
         @if ($post->authors->isNotEmpty())<span>{{ $post->authors->pluck('name')->implode('، ') }}</span>@else<span>فريق رَقَم</span>@endif
-        @if ($post->published_at)<span>{{ $post->published_at->setTimezone('Asia/Hebron')->format('Y-m-d H:i') }}</span>@endif
+        @if ($post->published_at)<span>{{ \App\Panel\PanelDate::html($post->published_at) }}</span>@endif
     </div>
     @if ($post->excerpt)<p>{{ $post->excerpt }}</p>@endif
     <article>{!! $body !!}</article>

@@ -9,6 +9,7 @@ use App\Filament\Resources\AuditLogs\Pages\ListAuditLogs;
 use App\Filament\Resources\AuditLogs\Pages\ViewAuditLog;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Panel\PanelDate;
 use App\Support\TrackingHash;
 use App\Support\UserAgentSummary;
 use BackedEnum;
@@ -106,7 +107,7 @@ class AuditLogResource extends Resource
     {
         return $schema->components([
             Section::make('العملية')->columns(['default' => 1, 'md' => 2])->schema([
-                TextEntry::make('occurred_at')->label('الوقت (بتوقيت فلسطين)')->dateTime('Y-m-d H:i:s', 'Asia/Hebron'),
+                PanelDate::of(TextEntry::make('occurred_at')->label('الوقت (بتوقيت فلسطين)')),
                 TextEntry::make('action')->label('النوع')->formatStateUsing(fn (string $state) => self::ACTIONS[$state] ?? $state),
                 TextEntry::make('actor.name')->label('المستخدم')->placeholder('النظام'),
                 TextEntry::make('subject_table')->label('العنصر')
@@ -136,7 +137,7 @@ class AuditLogResource extends Resource
             ->defaultSort('occurred_at', 'desc')
             ->searchPlaceholder('ابحث: مستخدم، عنصر، رقم، حقل، قيمة قبل أو بعد')
             ->columns([
-                TextColumn::make('occurred_at')->label('الوقت')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('occurred_at')->label('الوقت'))->sortable(),
                 TextColumn::make('actor.name')->label('المستخدم')->placeholder('النظام')
                     ->searchable(query: fn (Builder $query, string $search) => self::search($query, $search)),
                 TextColumn::make('action')->label('النوع')->badge()

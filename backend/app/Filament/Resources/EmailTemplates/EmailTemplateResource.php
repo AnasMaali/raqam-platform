@@ -8,6 +8,7 @@ use App\Mail\EmailCatalog;
 use App\Mail\EmailTemplates;
 use App\Mail\TemplatedEmail;
 use App\Models\EmailTemplate;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Closure;
 use Filament\Actions\EditAction;
@@ -128,7 +129,7 @@ class EmailTemplateResource extends Resource
                 TextColumn::make('audience')->label('إلى')->badge()->formatStateUsing(fn (string $state) => EmailCatalog::AUDIENCES[$state] ?? $state),
                 TextColumn::make('subject')->label('العنوان')->limit(50)->toggleable(),
                 IconColumn::make('is_active')->label('مفعّلة')->boolean(),
-                TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron')->toggleable(),
+                PanelDate::of(TextColumn::make('updated_at')->label('آخر تعديل'))->toggleable(),
             ])
             ->filters([SelectFilter::make('audience')->label('إلى')->options(EmailCatalog::AUDIENCES)])
             ->recordActions([EditAction::make()->label('تعديل')])

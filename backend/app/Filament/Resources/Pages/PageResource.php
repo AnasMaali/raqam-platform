@@ -10,6 +10,7 @@ use App\Filament\Resources\Pages\Pages\CreatePage;
 use App\Filament\Resources\Pages\Pages\EditPage;
 use App\Filament\Resources\Pages\Pages\ListPages;
 use App\Models\Page;
+use App\Panel\PanelDate;
 use App\Support\ArabicSlug;
 use BackedEnum;
 use Closure;
@@ -76,7 +77,7 @@ class PageResource extends Resource
                 TextColumn::make('title')->label('الصفحة')->searchable(),
                 TextColumn::make('slug')->label('الرابط')->formatStateUsing(fn (string $state) => '/'.$state)->extraAttributes(['dir' => 'ltr']),
                 IconColumn::make('is_published')->label('منشورة')->boolean(),
-                TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron'),
+                PanelDate::of(TextColumn::make('updated_at')->label('آخر تعديل')),
             ])
             ->filters([
                 TernaryFilter::make('is_published')->label('منشورة'),

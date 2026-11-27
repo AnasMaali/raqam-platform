@@ -8,6 +8,7 @@ use App\Livewire\AdminBell;
 use App\Models\AdminNotification;
 use App\Panel\AdminAlerts;
 use App\Panel\AlertText;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -76,7 +77,7 @@ class AdminNotificationResource extends Resource
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('الوقت')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('created_at')->label('الوقت'))->sortable(),
                 TextColumn::make('category')->label('النوع')->badge()->formatStateUsing(fn (string $state) => AdminAlerts::CATEGORIES[$state] ?? $state),
                 TextColumn::make('title')->label('التنبيه')->wrap()->searchable()->weight(fn (AdminNotification $r) => $r->read_at ? null : 'bold'),
                 TextColumn::make('body')->label('التفاصيل')->wrap()->placeholder('—')

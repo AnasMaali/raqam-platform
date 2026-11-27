@@ -6,6 +6,7 @@ use App\Filament\Actions\BulkRecords;
 use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Redirects\Pages\ManageRedirects;
 use App\Models\Redirect;
+use App\Panel\PanelDate;
 use App\Support\SafeUrl;
 use BackedEnum;
 use Closure;
@@ -84,7 +85,7 @@ class RedirectResource extends Resource
                 TextColumn::make('to_path')->label('الجديد')->placeholder('—')->searchable()->limit(60)->extraAttributes(['dir' => 'ltr']),
                 TextColumn::make('status_code')->label('النوع')->badge()->formatStateUsing(fn (int $state) => self::STATUSES[$state] ?? $state),
                 TextColumn::make('hits')->label('الزيارات')->numeric()->sortable(),
-                TextColumn::make('last_hit_at')->label('آخر زيارة')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable(),
+                PanelDate::of(TextColumn::make('last_hit_at')->label('آخر زيارة'))->placeholder('—')->sortable(),
             ])
             ->filters([SelectFilter::make('status_code')->label('النوع')->options(self::STATUSES)])
             ->toolbarActions([BulkRecords::delete()])

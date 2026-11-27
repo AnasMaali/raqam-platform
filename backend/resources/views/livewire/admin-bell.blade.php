@@ -15,7 +15,7 @@
         <x-filament::dropdown.list>
             @forelse ($items as $item)
                 <x-filament::dropdown.list.item wire:click="open({{ (int) $item->id }})" :color="$item->read_at ? 'gray' : 'primary'">
-                    <span class="block text-xs text-gray-500">{{ $categories[$item->category] ?? '' }} — {{ \Illuminate\Support\Carbon::parse($item->created_at)->timezone('Asia/Hebron')->format('Y-m-d H:i') }}</span>
+                    <span class="block text-xs text-gray-500">{{ $categories[$item->category] ?? '' }} — {{ \App\Panel\PanelDate::html($item->created_at) }}</span>
                     <span @class(['block', 'font-semibold' => ! $item->read_at])>{{ $item->title }}</span>
                     @if ($item->body)
                         <span class="block text-xs text-gray-500">{{ \App\Panel\AlertText::html(\Illuminate\Support\Str::limit($item->body, 140)) }}</span>

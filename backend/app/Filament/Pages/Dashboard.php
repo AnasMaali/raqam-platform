@@ -13,6 +13,7 @@ use App\Models\Post;
 use App\Panel\AdminAlerts;
 use App\Panel\ConnectionStatus;
 use App\Panel\PanelAlerts;
+use App\Panel\PanelDate;
 use Filament\Actions\Action;
 use Filament\Facades\Filament;
 use Filament\Notifications\Notification;
@@ -22,7 +23,6 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
 use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -65,10 +65,8 @@ class Dashboard extends BaseDashboard
         $alerts = array_map(fn (string $alert) => Section::make('تنبيه')->icon('heroicon-o-exclamation-triangle')->iconColor('warning')->schema([Text::make($alert)]),
             PanelAlerts::editorial());
         $userId = (int) Filament::auth()->id();
-        // A date and time inside an Arabic line, isolated as one left-to-right run so its parts keep their order, and held
-        // together (non-breaking hyphens and space) so a phone does not cut it at a hyphen.
-        $ltr = fn (string $text) => "\u{2066}".str_replace(['-', ' '], ["\u{2011}", "\u{00A0}"], $text)."\u{2069}";
-        $at = fn ($time) => $ltr(Carbon::parse($time)->setTimezone('Asia/Hebron')->format('Y-m-d H:i'));
+        // A date and time inside an Arabic line: one left-to-right run, held together (PanelDate).
+        $at = fn ($time) => PanelDate::text($time);
 
         // The editor's work first (panel phase 3): the drafts in progress, what goes live next, the messages waiting.
         $drafts = Post::query()->where('status', 'draft')->orderByDesc('updated_at')->limit(5)->get(['id', 'title', 'updated_at']);
@@ -93,7 +91,7 @@ class Dashboard extends BaseDashboard
                 Text::make('التفاصيل في «الإحصائيات».')->color('gray'),
             ]),
             self::list('الأكثر قراءة اليوم', 'لا قراءات بعد اليوم.', array_map(fn (array $p) => ['label' => $p['title'], 'meta' => number_format($p['count']).' قراءة', 'url' => PostResource::getUrl('edit', ['record' => $p['id']])], array_slice($today['posts'], 0, 5))),
-            self::list('حملات إعلانية فعّالة ('.count($running).')', 'لا توجد حملة تعمل الآن.', array_map(fn (array $c) => ['label' => $c['name'], 'meta' => $c['advertiser'].' — حتى '.$ltr($c['ends_at']), 'url' => null], array_slice($running, 0, 8))),
+            self::list('حملات إعلانية فعّالة ('.count($running).')', 'لا توجد حملة تعمل الآن.', array_map(fn (array $c) => ['label' => $c['name'], 'meta' => $c['advertiser'].' — حتى '.$at($c['ends_at']), 'url' => null], array_slice($running, 0, 8))),
         ];
 
         return $schema->components([
