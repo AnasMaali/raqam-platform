@@ -88,7 +88,7 @@ class MediaAssetResource extends Resource
             Section::make('بيانات الملف')->visible(fn (?MediaAsset $record) => $record !== null)->columns(['default' => 1, 'md' => 2])->schema([
                 TextEntry::make('original_name')->label('الاسم الأصلي'),
                 TextEntry::make('mime_type')->label('النوع'),
-                TextEntry::make('size_bytes')->label('الحجم')->formatStateUsing(fn ($state) => Number::fileSize((int) $state)),
+                TextEntry::make('size_bytes')->label('الحجم')->formatStateUsing(fn ($state) => self::ltr(Number::fileSize((int) $state))),
                 TextEntry::make('duration_seconds')->label('المدة')->visible(fn (MediaAsset $record) => $record->duration_seconds !== null)
                     ->formatStateUsing(fn ($state) => round((float) $state).' ثانية'),
                 TextEntry::make('dimensions')->label('الأبعاد')
@@ -119,6 +119,33 @@ class MediaAssetResource extends Resource
         ]);
     }
 
+    /** How many characters of a file's name a card shows. */
+    public const NAME_LENGTH = 28;
+
+    /**
+     * A long file name cut in its middle, never in its extension ("banner-between…mobile.jpg"), as one isolated run so
+     * a Latin name keeps its order inside the Arabic card.
+     */
+    public static function shortName(string $name): string
+    {
+        if (mb_strlen($name) > self::NAME_LENGTH) {
+            $dot = mb_strrpos($name, '.');
+            $extension = $dot !== false && mb_strlen($name) - $dot <= 6 ? mb_substr($name, $dot) : '';
+            $room = self::NAME_LENGTH - 1 - mb_strlen($extension);
+            $base = mb_substr($name, 0, $dot !== false && $extension !== '' ? $dot : null);
+            $head = (int) ceil($room * 2 / 3);
+            $name = mb_substr($base, 0, $head).'…'.mb_substr($base, -($room - $head)).$extension;
+        }
+
+        return "\u{2068}{$name}\u{2069}";
+    }
+
+    /** A size ("21 KB") inside an Arabic line, kept left to right so it does not read "KB 21". */
+    public static function ltr(string $text): string
+    {
+        return "\u{2066}{$text}\u{2069}";
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -126,15 +153,19 @@ class MediaAssetResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->with('variants'))
             ->defaultSort('created_at', 'desc')
             ->contentGrid(['default' => 2, 'md' => 3, 'xl' => 5])
+            // The cards' own layout (theme.css): the picture fills the card, the actions stay inside it.
+            ->extraAttributes(['class' => 'raqam-media-grid'])
             ->columns([
                 Stack::make([
                     ImageColumn::make('preview')->label('')
                         ->state(fn (MediaAsset $record) => MediaThumb::url($record))
-                        ->imageHeight('9rem')->extraImgAttributes(['style' => 'object-fit: cover; width: 100%;', 'loading' => 'lazy', 'alt' => '']),
-                    TextColumn::make('original_name')->weight('medium')->limit(28)
+                        ->imageHeight('9rem')->extraImgAttributes(['loading' => 'lazy', 'alt' => '']),
+                    TextColumn::make('original_name')->weight('medium')
+                        ->formatStateUsing(fn (?string $state) => self::shortName((string) $state))
+                        ->tooltip(fn (MediaAsset $record) => mb_strlen((string) $record->original_name) > self::NAME_LENGTH ? $record->original_name : null)
                         ->searchable(query: fn (Builder $query, string $search) => $query->search($search)),
                     TextColumn::make('alt_text')->color('gray')->limit(40)->placeholder('بلا نص بديل'),
-                    TextColumn::make('size_bytes')->color('gray')->formatStateUsing(fn ($state) => Number::fileSize((int) $state)),
+                    TextColumn::make('size_bytes')->color('gray')->formatStateUsing(fn ($state) => self::ltr(Number::fileSize((int) $state))),
                 ]),
             ])
             ->filters([

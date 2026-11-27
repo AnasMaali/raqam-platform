@@ -213,6 +213,140 @@
     }
 }
 
+/*
+ * The posts list on a phone (Filament's stacked table, under 640 px): one row per post, the picture and the title, the
+ * selection box at the row's end, then one line with the kind, category, state and date. The labels go: the line reads
+ * on its own. Each part of the row is a link to the editor at least 44 px high, and the box is 24 px in a 44 px cell.
+ */
+@media (max-width: 639.98px) {
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 0.5rem;
+        row-gap: 0.25rem;
+        padding: 0.5rem 1rem;
+    }
+
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell {
+        padding: 0;
+    }
+
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row .fi-ta-cell-label {
+        display: none;
+    }
+
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-cover {
+        flex: 0 0 3.5rem;
+    }
+
+    /* The title takes what the picture and the box leave of the first line, so the rest starts a line of its own. */
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-title {
+        flex: 1 1 calc(100% - 3.5rem - 2.75rem - 1rem);
+        min-width: 0;
+    }
+
+    .raqam-posts-list .fi-ta-cell-cover .fi-ta-col,
+    .raqam-posts-list .fi-ta-cell-title .fi-ta-col {
+        display: flex;
+        align-items: center;
+        min-height: 2.75rem;
+    }
+
+    .raqam-posts-list .fi-ta-cell-cover img {
+        width: 3.5rem;
+    }
+
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-selection-cell {
+        position: static;
+        order: 1;
+        display: flex;
+        flex: 0 0 2.75rem;
+        align-items: center;
+        justify-content: center;
+        height: 2.75rem;
+    }
+
+    .raqam-posts-list .fi-ta-selection-cell .fi-checkbox-input,
+    .raqam-posts-list .fi-ta-table-stacked-header-cell .fi-checkbox-input {
+        width: 1.5rem;
+        height: 1.5rem;
+    }
+
+    /* The line under the title: the rest of the cells, side by side, wrapping when they do not fit. */
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell:not(.fi-ta-selection-cell, .fi-ta-cell-cover, .fi-ta-cell-title) {
+        order: 2;
+        flex: 0 0 auto;
+    }
+
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell:last-child:has(.fi-ta-actions) {
+        margin-inline-start: auto;
+    }
+
+    /* The «yes / no» marks say nothing in a line without their headings: they stay on the computer's table. */
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-breaking,
+    .raqam-posts-list .fi-ta-table > tbody > tr.fi-ta-row > .fi-ta-cell-is-featured {
+        display: none;
+    }
+}
+
+/*
+ * The media library's cards: the selection box sits on the picture's corner, so the picture, the name and the actions
+ * have the card's whole width; the picture fills it, and the actions wrap inside the card instead of running out of
+ * it (in both themes and at every width).
+ */
+.raqam-media-grid .fi-ta-record {
+    min-width: 0;
+    padding: 0.75rem;
+}
+
+.raqam-media-grid .fi-ta-record > .fi-ta-record-checkbox {
+    position: absolute;
+    inset-block-start: 1.25rem;
+    inset-inline-start: 1.25rem;
+    z-index: 1;
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: 0;
+}
+
+/* On a picture the box needs its own ground to be seen (the dark theme's box is see-through). */
+:root.dark .raqam-media-grid .fi-ta-record > .fi-ta-record-checkbox:not(:checked) {
+    background-color: var(--color-gray-900);
+}
+
+.raqam-media-grid .fi-ta-record-content-ctn {
+    min-width: 0;
+    padding-block: 0;
+}
+
+.raqam-media-grid .fi-ta-record .fi-ta-record-content,
+.raqam-media-grid .fi-ta-record .fi-ta-actions {
+    padding-inline: 0;
+}
+
+.raqam-media-grid .fi-ta-image,
+.raqam-media-grid .fi-ta-image > div {
+    display: block;
+    width: 100%;
+}
+
+.raqam-media-grid .fi-ta-image img {
+    width: 100%;
+    height: 9rem;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+}
+
+.raqam-media-grid .fi-ta-text-item {
+    overflow-wrap: anywhere;
+}
+
+.raqam-media-grid .fi-ta-actions {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+}
+
 /* A copy of the editor's form kept in this browser, offered back: a warning (the warning badge's colours), raised above the page. */
 .raqam-restore {
     position: fixed;
