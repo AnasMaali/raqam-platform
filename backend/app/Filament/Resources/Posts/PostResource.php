@@ -24,8 +24,8 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ViewColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -68,8 +68,11 @@ class PostResource extends Resource
             ->stackedOnMobile()
             ->extraAttributes(['class' => 'raqam-posts-list'])
             ->columns([
-                ImageColumn::make('cover')->label('')->state(fn (Post $record) => MediaThumb::url($record->cover))->imageHeight('2.5rem')
-                    ->extraImgAttributes(['alt' => '', 'loading' => 'lazy', 'style' => 'object-fit:cover;border-radius:.25rem']),
+                // Its own link (cover-link.blade.php): a second link to the editor beside the title, kept from the keyboard
+                // and from screen readers so the title is not read twice.
+                ViewColumn::make('cover')->label('')->view('filament.columns.cover-link')->disabledClick()
+                    ->state(fn (Post $record) => MediaThumb::url($record->cover))
+                    ->viewData(['titleLinks' => true]),
                 TextColumn::make('title')->label('العنوان')->wrap()->weight('medium')->limit(90)
                     ->searchable(query: fn (Builder $query, string $search) => $query->whereRaw('search_text ILIKE \'%\' || normalize_ar(?) || \'%\'', [$search])),
                 TextColumn::make('kind_code')->label('النوع')->badge()->formatStateUsing(fn (string $state) => PostKind::names()[$state] ?? $state),
@@ -80,10 +83,11 @@ class PostResource extends Resource
                     })
                     ->formatStateUsing(fn (string $state) => Post::STATUSES[$state] ?? $state),
                 // A badge only when it is so: a «no» mark on every other row is noise, and an empty cell already says it.
-                // Not red: red is left to a destructive action's confirmation.
-                TextColumn::make('breaking')->label('عاجل')->badge()->color('warning')
+                // Not red: red is left to a destructive action's confirmation. Not a link either: an empty cell would be a
+                // link with no name (the title is the row's link).
+                TextColumn::make('breaking')->label('عاجل')->badge()->color('warning')->disabledClick()
                     ->state(fn (Post $record) => $record->isBreaking() ? 'عاجل' : null)->toggleable(),
-                TextColumn::make('is_featured')->label('مميز')->badge()->color('info')
+                TextColumn::make('is_featured')->label('مميز')->badge()->color('info')->disabledClick()
                     ->state(fn (Post $record) => $record->is_featured ? 'مميز' : null)->toggleable(),
                 TextColumn::make('published_at')->label('النشر')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable()->toggleable(),
                 TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable()->toggleable(isToggledHiddenByDefault: true),

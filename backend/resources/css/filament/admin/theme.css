@@ -347,6 +347,20 @@
     row-gap: 0.25rem;
 }
 
+/* A list's cover picture (cover-link.blade.php): the height of two lines of the title, cut to fit, never stretched. */
+.raqam-cover-link {
+    display: block;
+}
+
+.raqam-cover-picture {
+    display: block;
+    height: 2.5rem;
+    width: auto;
+    max-width: 4rem;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+}
+
 /* A copy of the editor's form kept in this browser, offered back: a warning (the warning badge's colours), raised above the page. */
 .raqam-restore {
     position: fixed;
