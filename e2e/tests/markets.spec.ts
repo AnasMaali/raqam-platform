@@ -114,7 +114,10 @@ test('a manual rate until a chosen time shows at once, then the official rate co
     await page.waitForTimeout(800);
     await submit(page, 'حفظ السعر اليدوي');
 
-    await expect(row(page, 'دولار أمريكي')).toContainText(`حتى ${target.year}-${target.month}-${target.day} ${target.hour}:${target.minute}`);
+    // The end in the panel's own shape (PanelDate): one left-to-right run, held together by a non-breaking hyphen and space.
+    await expect.poll(() => row(page, 'دولار أمريكي').textContent()).toContain(
+        `حتى \u2066${target.year}\u2011${target.month}\u2011${target.day}\u00A0${target.hour}:${target.minute}\u2069`,
+    );
     expect((await api(page, app, '/currencies')).data[0]).toMatchObject({ code: 'USD', buy: '3.050', sell: '3.200', is_manual: true });
     expect(app.sql("SELECT to_char(valid_until AT TIME ZONE 'Asia/Hebron', 'YYYY-MM-DD HH24:MI') FROM rate_overrides"))
         .toBe(`${target.year}-${target.month}-${target.day} ${target.hour}:${target.minute}`);
