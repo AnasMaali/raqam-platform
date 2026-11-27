@@ -24,7 +24,6 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -80,8 +79,12 @@ class PostResource extends Resource
                         'published' => 'success', 'scheduled' => 'info', 'archived' => 'gray', default => 'warning'
                     })
                     ->formatStateUsing(fn (string $state) => Post::STATUSES[$state] ?? $state),
-                IconColumn::make('breaking')->label('عاجل')->boolean()->state(fn (Post $record) => $record->isBreaking())->toggleable(),
-                IconColumn::make('is_featured')->label('مميز')->boolean()->toggleable(),
+                // A badge only when it is so: a «no» mark on every other row is noise, and an empty cell already says it.
+                // Not red: red is left to a destructive action's confirmation.
+                TextColumn::make('breaking')->label('عاجل')->badge()->color('warning')
+                    ->state(fn (Post $record) => $record->isBreaking() ? 'عاجل' : null)->toggleable(),
+                TextColumn::make('is_featured')->label('مميز')->badge()->color('info')
+                    ->state(fn (Post $record) => $record->is_featured ? 'مميز' : null)->toggleable(),
                 TextColumn::make('published_at')->label('النشر')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable()->toggleable(),
                 TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
