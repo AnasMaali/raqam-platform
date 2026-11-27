@@ -6,6 +6,7 @@ use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\EmailLogs\Pages\ListEmailLogs;
 use App\Mail\EmailCatalog;
 use App\Models\EmailLog;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
@@ -64,7 +65,7 @@ class EmailLogResource extends Resource
         return $table
             ->defaultSort('id', 'desc')
             ->columns([
-                TextColumn::make('queued_at')->label('الوقت')->dateTime('Y-m-d H:i:s', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('queued_at')->label('الوقت'))->sortable(),
                 TextColumn::make('recipient')->label('المستلم')->searchable()->extraAttributes(['dir' => 'ltr']),
                 TextColumn::make('template_key')->label('الرسالة')->formatStateUsing(fn (string $state) => $names[$state] ?? $state),
                 TextColumn::make('status')->label('الحالة')->badge()
@@ -74,7 +75,7 @@ class EmailLogResource extends Resource
                     ->formatStateUsing(fn (string $state) => EmailLog::STATUSES[$state] ?? $state),
                 TextColumn::make('attempts')->label('المحاولات'),
                 TextColumn::make('error')->label('الخطأ')->placeholder('—')->limit(80)->wrap()->toggleable(),
-                TextColumn::make('sent_at')->label('أُرسلت')->dateTime('Y-m-d H:i:s', 'Asia/Hebron')->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
+                PanelDate::of(TextColumn::make('sent_at')->label('أُرسلت'))->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')->label('الحالة')->options(EmailLog::STATUSES),

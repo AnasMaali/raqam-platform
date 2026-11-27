@@ -6,6 +6,7 @@ use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\ContactMessages\Pages\ListContactMessages;
 use App\Filament\Resources\ContactMessages\Pages\ViewContactMessage;
 use App\Models\ContactMessage;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -71,7 +72,7 @@ class ContactMessageResource extends Resource
                 TextEntry::make('name')->label('الاسم'),
                 TextEntry::make('email')->label('البريد')->extraAttributes(['dir' => 'ltr']),
                 TextEntry::make('phone')->label('الهاتف')->placeholder('—')->extraAttributes(['dir' => 'ltr']),
-                TextEntry::make('created_at')->label('وصلت')->dateTime('Y-m-d H:i', 'Asia/Hebron'),
+                PanelDate::of(TextEntry::make('created_at')->label('وصلت')),
                 TextEntry::make('status')->label('الحالة')->badge()->formatStateUsing(fn (string $state) => ContactMessage::STATUSES[$state] ?? $state),
             ]),
             Section::make('الرسالة')->schema([
@@ -87,7 +88,7 @@ class ContactMessageResource extends Resource
         return $table
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('وصلت')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('created_at')->label('وصلت'))->sortable(),
                 TextColumn::make('name')->label('الاسم')->searchable()->weight(fn (ContactMessage $r) => $r->status === 'new' ? 'bold' : null),
                 TextColumn::make('subject')->label('الموضوع')->searchable()->limit(60),
                 TextColumn::make('email')->label('البريد')->searchable()->toggleable(),

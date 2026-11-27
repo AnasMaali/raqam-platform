@@ -4,7 +4,7 @@ namespace App\Ads;
 
 use App\Mail\TemplatedEmail;
 use App\Panel\AdminAlerts;
-use Carbon\CarbonImmutable;
+use App\Panel\PanelDate;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -22,7 +22,7 @@ final class AdAlerts
         return DB::table('ad_campaigns as c')->join('advertisers as a', 'a.id', '=', 'c.advertiser_id')->join('organizations as o', 'o.id', '=', 'a.organization_id')
             ->where('c.status', 'active')->whereRaw('c.ends_at > now()')->whereRaw('c.ends_at <= now() + make_interval(days => ?)', [$days])
             ->orderBy('c.ends_at')->limit(20)->get(['c.name', 'c.ends_at', 'o.name as advertiser'])
-            ->map(fn ($c) => 'الحملة «'.$c->name.'» ('.$c->advertiser.') تنتهي '.self::when($c->ends_at).'. تواصل مع المعلن إذا أراد التجديد.')
+            ->map(fn ($c) => 'الحملة «'.$c->name.'» ('.$c->advertiser.') تنتهي '.PanelDate::text($c->ends_at).'. تواصل مع المعلن إذا أراد التجديد.')
             ->all();
     }
 
@@ -32,7 +32,7 @@ final class AdAlerts
         return DB::table('ad_campaigns as c')->join('advertisers as a', 'a.id', '=', 'c.advertiser_id')->join('organizations as o', 'o.id', '=', 'a.organization_id')
             ->where('c.status', 'active')->whereRaw('c.starts_at <= now()')->whereRaw('c.ends_at > now()')
             ->orderBy('c.ends_at')->get(['c.name', 'c.ends_at', 'o.name as advertiser'])
-            ->map(fn ($c) => ['name' => $c->name, 'advertiser' => $c->advertiser, 'ends_at' => self::when($c->ends_at)])->all();
+            ->map(fn ($c) => ['name' => $c->name, 'advertiser' => $c->advertiser, 'ends_at' => $c->ends_at])->all();
     }
 
     /**
@@ -53,16 +53,11 @@ final class AdAlerts
             if ($claimed === 0) {
                 continue;
             }
-            $end = self::when($c->ends_at);
-            AdminAlerts::raise('ads', 'ad-ending:'.$c->id.':'.$c->ends_at, 'الحملة «'.$c->name.'» تنتهي '.$end, 'المعلن: '.$c->advertiser,
-                "ad-campaigns/{$c->id}/edit", fn () => new TemplatedEmail('admin_ad_ending', ['الحملة' => $c->name, 'المعلن' => $c->advertiser, 'النهاية' => $end]));
+            // The bell's line keeps the date in its order (PanelDate); the e-mail gets the same date as plain text.
+            AdminAlerts::raise('ads', 'ad-ending:'.$c->id.':'.$c->ends_at, 'الحملة «'.$c->name.'» تنتهي '.PanelDate::text($c->ends_at), 'المعلن: '.$c->advertiser,
+                "ad-campaigns/{$c->id}/edit", fn () => new TemplatedEmail('admin_ad_ending', ['الحملة' => $c->name, 'المعلن' => $c->advertiser, 'النهاية' => PanelDate::format($c->ends_at)]));
         }
 
         return $due->count();
-    }
-
-    private static function when(string $time): string
-    {
-        return CarbonImmutable::parse($time)->setTimezone('Asia/Hebron')->format('Y-m-d H:i');
     }
 }

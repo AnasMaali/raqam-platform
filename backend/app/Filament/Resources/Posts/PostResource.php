@@ -14,6 +14,7 @@ use App\Media\MediaThumb;
 use App\Models\Category;
 use App\Models\Post;
 use App\Models\PostKind;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -85,8 +86,8 @@ class PostResource extends Resource
                     ->state(fn (Post $record) => $record->isBreaking() ? 'عاجل' : null)->toggleable(),
                 TextColumn::make('is_featured')->label('مميز')->badge()->color('info')
                     ->state(fn (Post $record) => $record->is_featured ? 'مميز' : null)->toggleable(),
-                TextColumn::make('published_at')->label('النشر')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable()->toggleable(),
-                TextColumn::make('updated_at')->label('آخر تعديل')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable()->toggleable(isToggledHiddenByDefault: true),
+                PanelDate::of(TextColumn::make('published_at')->label('النشر'))->placeholder('—')->sortable()->toggleable(),
+                PanelDate::of(TextColumn::make('updated_at')->label('آخر تعديل'))->sortable()->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')->label('الحالة')->options(Post::STATUSES),

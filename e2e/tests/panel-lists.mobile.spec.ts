@@ -14,6 +14,7 @@ test('the posts list at 360 px: one row per post, every tap target 44 px, and ro
     await signIn(page, app, adminPassword);
     const first = await createPost(page, 'خبر', 'خبر أول بعنوان طويل يلتف على سطرين في شاشة الهاتف الضيقة');
     const second = await createPost(page, 'خبر', 'خبر ثان');
+    app.sql(`UPDATE posts SET is_featured = true, breaking_until = now() + interval '2 hours' WHERE id = ${first}`);
 
     await page.goto(panel('/posts'));
     const rows = page.locator('.fi-ta-table > tbody > tr.fi-ta-row');
@@ -33,6 +34,18 @@ test('the posts list at 360 px: one row per post, every tap target 44 px, and ro
         // The kind, state and date sit on a line under the title, not beside it.
         const title = await box(row.locator('.fi-ta-cell-title'));
         expect((await box(row.locator('.fi-ta-cell-status'))).y, 'the state is under the title').toBeGreaterThanOrEqual(title.y + title.height - 1);
+    }
+
+    // «عاجل» and «مميز»: badges in the line under the title when so; nothing, not even an empty gap, when not.
+    const flagged = rows.filter({ hasText: 'خبر أول' });
+    const title = await box(flagged.locator('.fi-ta-cell-title'));
+    for (const [cell, text] of [['.fi-ta-cell-breaking', 'عاجل'], ['.fi-ta-cell-is-featured', 'مميز']]) {
+        const badge = flagged.locator(`${cell} .fi-badge`);
+        await expect(badge).toBeVisible();
+        await expect(badge).toHaveText(text);
+        expect((await box(badge)).y, `${text} is under the title`).toBeGreaterThanOrEqual(title.y + title.height - 1);
+        // Out of the line altogether: an empty cell left in it would still take a gap.
+        expect(await rows.filter({ hasText: 'خبر ثان' }).locator(cell).evaluate((e) => getComputedStyle(e).display), `${text} on a row without it`).toBe('none');
     }
 
     // Selecting by touch: one row, then the other; the bulk action runs on both.

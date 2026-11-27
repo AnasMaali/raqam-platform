@@ -14,6 +14,7 @@ use App\Markets\RateOverrides;
 use App\Markets\RateRejected;
 use App\Models\Currency;
 use App\Models\RateBoardCurrency;
+use App\Panel\PanelDate;
 use App\Support\RequestMemo;
 use BackedEnum;
 use Carbon\CarbonImmutable;
@@ -36,7 +37,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Unique;
 
@@ -281,7 +281,7 @@ class CurrencyResource extends Resource
         }
         $o = RequestMemo::get('currencies.overrides')->get(trim($r->currency_code));
 
-        return $o === null ? null : ($o->valid_until ? 'حتى '.Carbon::parse($o->valid_until)->timezone('Asia/Hebron')->format('Y-m-d H:i') : 'حتى الإلغاء');
+        return $o === null ? null : ($o->valid_until ? 'حتى '.PanelDate::text($o->valid_until) : 'حتى الإلغاء');
     }
 
     public static function getPages(): array

@@ -8,6 +8,7 @@ use App\Filament\Resources\NewsletterIssues\Pages\ListNewsletterIssues;
 use App\Models\NewsletterIssue;
 use App\Models\Post;
 use App\Newsletter\NewsletterIssues;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Repeater;
@@ -82,7 +83,7 @@ class NewsletterIssueResource extends Resource
             ->modifyQueryUsing(fn (Builder $query) => $query->addSelect(['newsletter_issues.*', 'post_total' => DB::table('newsletter_issue_posts')->selectRaw('count(*)')->whereColumn('issue_id', 'newsletter_issues.id')]))
             ->defaultSort('week_start', 'desc')
             ->columns([
-                TextColumn::make('week_start')->label('الأسبوع')->date('Y-m-d'),
+                PanelDate::ofDays(TextColumn::make('week_start')->label('الأسبوع')),
                 TextColumn::make('subject')->label('العنوان')->limit(60)->searchable(),
                 TextColumn::make('status')->label('الحالة')->badge()
                     ->color(fn (string $state) => match ($state) {

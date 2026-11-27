@@ -11,6 +11,7 @@ use App\Filament\Concerns\ReportsPostRuleViolations;
 use App\Filament\Concerns\SavesSeoMeta;
 use App\Filament\Resources\Posts\PostResource;
 use App\Models\Post;
+use App\Panel\PanelDate;
 use App\Seo\SeoMetaSaver;
 use App\Support\PalestineTime;
 use Filament\Actions\Action;
@@ -276,7 +277,7 @@ class EditPost extends EditRecord
                         ->options(fn () => DB::table('post_revisions')->leftJoin('users', 'users.id', '=', 'post_revisions.created_by')
                             ->where('post_id', $this->getRecord()->id)->orderByDesc('revision_no')->limit(100)
                             ->get(['revision_no', 'post_revisions.created_at', 'users.name', 'title'])
-                            ->mapWithKeys(fn ($r) => [$r->revision_no => '#'.$r->revision_no.' — '.Carbon::parse($r->created_at)->setTimezone('Asia/Hebron')->format('Y-m-d H:i').' — '.($r->name ?? 'النظام')])->all()),
+                            ->mapWithKeys(fn ($r) => [$r->revision_no => '#'.$r->revision_no.' — '.PanelDate::text($r->created_at).' — '.($r->name ?? 'النظام')])->all()),
                     TextEntry::make('revision_text')->hiddenLabel()
                         ->state(fn (Get $get) => ($no = $get('revision_no'))
                             ? mb_substr(trim(strip_tags((string) DB::table('post_revisions')->where('post_id', $this->getRecord()->id)->where('revision_no', (int) $no)->value('body'))), 0, 600)

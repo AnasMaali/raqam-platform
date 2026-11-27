@@ -8,6 +8,7 @@ use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\BotEntries\BotEntryResource;
 use App\Filament\Resources\BotQuestions\Pages\ListBotQuestions;
 use App\Models\BotMessage;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -82,7 +83,7 @@ class BotQuestionResource extends Resource
                 ->where('o.role', 'user')->whereNull('o.matched_entry_id')->whereNull('o.reviewed_at')->whereRaw(BotStats::key('o.content').' = '.BotStats::key('bot_messages.content'))]))
             ->defaultSort('created_at', 'desc')
             ->columns([
-                TextColumn::make('created_at')->label('الوقت')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('created_at')->label('الوقت'))->sortable(),
                 TextColumn::make('content')->label('السؤال')->wrap()->searchable(),
                 TextColumn::make('times')->label('مرات'),
             ])

@@ -15,6 +15,7 @@ use App\Filament\Resources\AdCampaigns\Pages\EditAdCampaign;
 use App\Filament\Resources\AdCampaigns\Pages\ListAdCampaigns;
 use App\Models\AdCampaign;
 use App\Models\AdPlacement;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -126,8 +127,8 @@ class AdCampaignResource extends Resource
                         'running' => 'success', 'scheduled' => 'info', 'paused' => 'warning', default => 'gray'
                     }),
                 TextColumn::make('slots')->label('الأماكن')->wrap()->placeholder('—'),
-                TextColumn::make('starts_at')->label('من')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
-                TextColumn::make('ends_at')->label('إلى')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('starts_at')->label('من'))->sortable(),
+                PanelDate::of(TextColumn::make('ends_at')->label('إلى'))->sortable(),
                 TextColumn::make('priority')->label('الأولوية')->sortable(),
                 TextColumn::make('views')->label('مشاهدات')->numeric(),
                 TextColumn::make('clicks')->label('نقرات')->numeric(),

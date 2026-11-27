@@ -6,6 +6,7 @@ use App\Analytics\MissingPages;
 use App\Filament\Resources\NotFoundPaths\Pages\ListNotFoundPaths;
 use App\Filament\Resources\Redirects\RedirectResource;
 use App\Models\NotFoundPath;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -67,8 +68,8 @@ class NotFoundPathResource extends Resource
                 TextColumn::make('path')->label('العنوان')->searchable()->copyable()->copyMessage('نُسخ العنوان')->wrap()
                     ->extraAttributes(['dir' => 'ltr', 'style' => 'word-break:break-all']),
                 TextColumn::make('hits')->label('الزوار')->numeric()->sortable(),
-                TextColumn::make('first_seen_at')->label('أول مرة')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable()->toggleable(),
-                TextColumn::make('last_seen_at')->label('آخر مرة')->dateTime('Y-m-d H:i', 'Asia/Hebron')->sortable(),
+                PanelDate::of(TextColumn::make('first_seen_at')->label('أول مرة'))->sortable()->toggleable(),
+                PanelDate::of(TextColumn::make('last_seen_at')->label('آخر مرة'))->sortable(),
                 TextColumn::make('resolved_at')->label('الحالة')->badge()
                     ->state(fn (NotFoundPath $r) => $r->resolved_at === null ? 'مفتوحة' : ($r->last_seen_at > $r->resolved_at ? 'عُولجت وما زالت تُزار' : 'عُولجت'))
                     ->color(fn (string $state) => match ($state) {

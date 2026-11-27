@@ -7,6 +7,7 @@ use App\Filament\Concerns\HasNumericRecordKey;
 use App\Filament\Resources\Subscribers\Pages\ListSubscribers;
 use App\Models\Subscriber;
 use App\Newsletter\Subscribers;
+use App\Panel\PanelDate;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
@@ -63,11 +64,11 @@ class SubscriberResource extends Resource
                         'active' => 'success', 'bounced' => 'danger', default => 'gray'
                     })
                     ->formatStateUsing(fn (string $state) => Subscriber::STATUSES[$state] ?? $state),
-                TextColumn::make('confirmed_at')->label('أكّد')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->sortable(),
+                PanelDate::of(TextColumn::make('confirmed_at')->label('أكّد'))->placeholder('—')->sortable(),
                 TextColumn::make('source_placement')->label('المكان')->formatStateUsing(fn (?string $state) => Subscriber::PLACEMENTS[$state] ?? $state),
                 TextColumn::make('source_path')->label('الصفحة')->placeholder('—')->limit(40)->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('subscribed_at')->label('طلب الاشتراك')->dateTime('Y-m-d H:i', 'Asia/Hebron')->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('unsubscribed_at')->label('ألغى')->dateTime('Y-m-d H:i', 'Asia/Hebron')->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
+                PanelDate::of(TextColumn::make('subscribed_at')->label('طلب الاشتراك'))->toggleable(isToggledHiddenByDefault: true),
+                PanelDate::of(TextColumn::make('unsubscribed_at')->label('ألغى'))->placeholder('—')->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')->label('الحالة')->options(Subscriber::STATUSES),

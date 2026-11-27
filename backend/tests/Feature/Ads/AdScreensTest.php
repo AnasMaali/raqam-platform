@@ -14,6 +14,7 @@ use App\Models\AdPlacement;
 use App\Models\Advertiser;
 use App\Models\Organization;
 use App\Models\User;
+use App\Panel\PanelDate;
 use Carbon\CarbonImmutable;
 use Filament\Actions\Testing\TestAction;
 use Filament\Facades\Filament;
@@ -151,13 +152,16 @@ test('the popup frequency is 1 to 720 hours, and the slot screen says the popup 
 });
 
 test('the home lists the running campaigns and warns three days before one ends', function () {
-    adCampaign(['name' => 'تنتهي قريباً', 'ends_at' => now()->addDays(2)->format('Y-m-d H:i:s')]);
-    adCampaign(['name' => 'باقية طويلاً', 'ends_at' => now()->addDays(4)->format('Y-m-d H:i:s')]);
+    $soon = adCampaign(['name' => 'تنتهي قريباً', 'ends_at' => now()->addDays(2)->format('Y-m-d H:i:s')]);
+    $later = adCampaign(['name' => 'باقية طويلاً', 'ends_at' => now()->addDays(4)->format('Y-m-d H:i:s')]);
     adCampaign(['name' => 'موقوفة تنتهي', 'status' => 'paused', 'ends_at' => now()->addDay()->format('Y-m-d H:i:s')]);
+    $end = fn (AdCampaign $c) => PanelDate::text(DB::table('ad_campaigns')->where('id', $c->id)->value('ends_at'));
 
     Livewire::test(Dashboard::class)
         ->assertSee('حملات إعلانية فعّالة (2)')
-        ->assertSee('الحملة «تنتهي قريباً» (بنك القدس) تنتهي')
+        // Each end in Palestine time and in its order inside the Arabic line (PanelDate).
+        ->assertSee('الحملة «تنتهي قريباً» (بنك القدس) تنتهي '.$end($soon).'.')
+        ->assertSee('بنك القدس — حتى '.$end($later))
         ->assertDontSee('الحملة «باقية طويلاً»')
         ->assertDontSee('الحملة «موقوفة تنتهي»');
 });
