@@ -66,6 +66,11 @@ return [
         'query_log' => env('QUERY_REPORT_LOG'),
     ],
 
+    // The DSN as given, for ProductionChecks (config/sentry.php uses it only when it is in Sentry's EU region).
+    'sentry' => [
+        'dsn' => env('SENTRY_DSN'),
+    ],
+
     'api' => [
         'site_token' => env('API_SITE_TOKEN'),
         'limit' => 120,

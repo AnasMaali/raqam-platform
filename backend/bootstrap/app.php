@@ -56,6 +56,7 @@ use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Routing\Middleware\ValidateSignature;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Validation\ValidationException;
+use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -115,6 +116,8 @@ return Application::configure(basePath: dirname(__DIR__))
     // twice for each event (two webhooks for every post change).
     ->withEvents(discover: false)
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Unhandled errors to Sentry (config/sentry.php): only with an EU DSN, cleaned by App\Support\ErrorReports.
+        Integration::handles($exceptions);
         // The API always answers in the same JSON shape, whatever went wrong.
         $exceptions->shouldRenderJsonWhen(fn ($request, $e) => $request->is('api/*') || $request->expectsJson());
         $exceptions->render(function (ValidationException $e, $request) {

@@ -60,6 +60,10 @@ jobs:
       - name: Types
         run: npm run typecheck
 
+      # Error reports (Sentry): off without an EU DSN, cleaned of people and secrets.
+      - name: Unit tests
+        run: npm run test:unit
+
       # Every colour pair passes AA in light and dark, DESIGN.md's table matches the code, no colour written by hand.
       - name: Design tokens
         run: npm run check:tokens
